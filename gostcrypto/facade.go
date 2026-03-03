@@ -1,3 +1,6 @@
+// Package gostcrypto provides a high-level facade that combines Streebog
+// hashing (GOST R 34.11-2012) with GOST R 34.10-2012 signing and
+// verification in a single call.
 package gostcrypto
 
 import (

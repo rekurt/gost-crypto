@@ -1,3 +1,6 @@
+// Package gost3410 implements GOST R 34.10-2012 elliptic curve digital
+// signatures with TC26 parameter sets, key generation, serialization, and
+// public key recovery.
 package gost3410
 
 // HashID selects which Streebog variant to use with signatures.

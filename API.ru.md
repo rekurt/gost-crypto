@@ -2,7 +2,7 @@
 
 Полная документация API библиотеки gost-crypto.
 
-**[📖 README (English)](README.md)** | **[📖 README (Russian)](README.ru.md)** | **[📚 Documentation Index](DOCUMENTATION.md)** | **[💡 Advanced Examples](_examples/EXAMPLES.md)** | **[🤝 Contributing](CONTRIBUTING.md)**
+**[📖 README (English)](README.md)** | **[📖 README (Russian)](README.ru.md)** | **[🤝 Contributing](CONTRIBUTING.md)**
 
 ## Содержание
 
@@ -134,7 +134,7 @@ keyBytes, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EE
 privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
 ```
 
-##### `func (pk *PrivKey) Public() (*PubKey, error)`
+##### `func (pk *PrivKey) PublicKey() (*PubKey, error)`
 
 Выводит открытый ключ из приватного ключа.
 
@@ -144,16 +144,15 @@ privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
 
 **Пример:**
 ```go
-pubKey, err := privKey.Public()
+pubKey, err := privKey.PublicKey()
 ```
 
-##### `func (pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
+##### `func (pk *PrivKey) SignDigest(digest []byte) ([]byte, error)`
 
 Подписывает дайджест сообщения.
 
 **Параметры:**
-- `digest []byte` - предварительно вычисленный дайджест сообщения (32 байта для Streebog256, 64 байта для Streebog512)
-- `hash HashID` - алгоритм хеширования (для согласованности формата)
+- `digest []byte` - предварительно вычисленный дайджест сообщения (32 байта для 256-битных кривых, 64 байта для 512-битных)
 
 **Возвращает:**
 - `[]byte` - подпись (64 байта для 256-битных кривых, 128 байт для 512-битных кривых)
@@ -162,7 +161,7 @@ pubKey, err := privKey.Public()
 **Пример:**
 ```go
 digest := streebog.Sum256(message)
-sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
+sig, err := privKey.SignDigest(digest[:])
 ```
 
 #### `PubKey`
@@ -175,14 +174,13 @@ sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
 
 **Методы:**
 
-##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
+##### `func (pk *PubKey) Verify(digest, signature []byte) (bool, error)`
 
 Проверяет подпись на дайджесте сообщения.
 
 **Параметры:**
 - `digest []byte` - предварительно вычисленный дайджест сообщения
 - `signature []byte` - подпись для проверки
-- `hash HashID` - использованный алгоритм хеширования
 
 **Возвращает:**
 - `bool` - истина, если подпись действительна
@@ -190,13 +188,13 @@ sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
 
 **Пример:**
 ```go
-valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
+valid, err := pubKey.Verify(digest[:], signature)
 if err == nil && valid {
     fmt.Println("Подпись действительна")
 }
 ```
 
-##### `func (pk *PubKey) ToCompressed(withPrefix bool) []byte`
+##### `func (pk *PubKey) ToCompressed(withPrefix bool) ([]byte, error)`
 
 Сериализует открытый ключ в сжатый формат.
 
@@ -205,11 +203,11 @@ if err == nil && valid {
 
 **Возвращает:**
 - `[]byte` - сжатый открытый ключ (33 байта для 256-бит с префиксом, 32 без)
+- `error` - ошибка, если без префикса и X[0] >= 0x80
 
 **Пример:**
 ```go
-compressed := pubKey.ToCompressed(true)
-fmt.Printf("Сжатый ключ: %s\n", hex.EncodeToString(compressed))
+compressed, err := pubKey.ToCompressed(true)
 ```
 
 ##### `func (pk *PubKey) ToUncompressed(withPrefix bool) []byte`
@@ -395,32 +393,6 @@ childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/0'/1/2'", gost34
 | `ErrInvalidCurve` | Неподдерживаемая эллиптическая кривая | Используйте поддерживаемую кривую (256-A, 512-A/B/C) |
 | `ErrKeyRecoveryFailed` | Не удалось восстановить открытый ключ из данных | Проверьте формат сериализованного ключа |
 | `ErrDerivationFailed` | Не удалось вывести ключ по пути | Проверьте формат пути и действительность родительского ключа |
-
----
-
-## Константы
-
-### Размеры алгоритмов хеширования
-
-```go
-Streebog256HashSize = 32  // байт
-Streebog512HashSize = 64  // байт
-
-// Размеры подписей (r || s)
-TC26_256_SignatureSize = 64  // байт
-TC26_512_SignatureSize = 128 // байт
-
-// Размеры открытых ключей
-TC26_256_CompressedSize = 33   // байт (с префиксом)
-TC26_256_CompressedSizeNP = 32 // байт (без префикса)
-TC26_256_UncompressedSize = 65   // байт (с префиксом)
-TC26_256_UncompressedSizeNP = 64 // байт (без префикса)
-
-TC26_512_CompressedSize = 65    // байт (с префиксом)
-TC26_512_CompressedSizeNP = 64  // байт (без префикса)
-TC26_512_UncompressedSize = 129  // байт (с префиксом)
-TC26_512_UncompressedSizeNP = 128 // байт (без префикса)
-```
 
 ---
 

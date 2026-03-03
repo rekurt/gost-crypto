@@ -196,19 +196,19 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 - Modify: `gostcrypto/facade.go` (doc comment)
 - Modify: `streebog/streebog.go` (doc comment)
 
-- [ ] **4.5** Fix installation instructions in README.md and README.ru.md: replace `go get -u github.com/ddulesov/gogost` with `go get github.com/rekurt/gost-crypto`
-- [ ] **4.5** Fix import paths in all README code examples: replace `"gost-crypto/...` with `"github.com/rekurt/gost-crypto/...`
-- [ ] **4.6** Fix file structure diagram in README.md: remove `options.go` and `sign_verify.go` from gostcrypto/, show only `facade.go`
-- [ ] **4.6** Fix file structure diagram in README.ru.md: same corrections + replace `derive.go` with `hd.go` in kdf/hd/
-- [ ] **4.4** Remove broken link to `_examples/EXAMPLES.md` from README.md and README.ru.md (or create the file)
-- [ ] **4.10** Remove "educational and authorized security testing purposes" disclaimer from README.md License section — replace with standard MIT reference consistent with LICENSE file
-- [ ] **4.7** Add badges to README.md: build status (GitHub Actions), Go Report Card, GoDoc, coverage (if available)
-- [ ] **4.8** Add `// Package gost3410 ...` doc comment to `gost3410/` package (in `keys.go` or `hash.go`)
-- [ ] **4.8** Add `// Package gostcrypto ...` doc comment to `gostcrypto/facade.go`
-- [ ] **4.8** Add `// Package streebog ...` doc comment to `streebog/streebog.go`
-- [ ] **5e** Fix `API.md`: remove non-existent constants section (`Streebog256HashSize`, `TC26_256_SignatureSize`, etc.) or add them to code — since they are documented but don't exist, remove the section from API.md and API.ru.md
-- [ ] Update code examples in README to match new API signatures (e.g., `Sign(digest)` without HashID parameter, `PublicKey()` instead of `Public()`)
-- [ ] Run `go doc ./...` to verify package comments render
+- [x] **4.5** Fix installation instructions in README.md and README.ru.md: replace `go get -u github.com/ddulesov/gogost` with `go get github.com/rekurt/gost-crypto`
+- [x] **4.5** Fix import paths in all README code examples: replace `"gost-crypto/...` with `"github.com/rekurt/gost-crypto/...`
+- [x] **4.6** Fix file structure diagram in README.md: remove `options.go` and `sign_verify.go` from gostcrypto/, show only `facade.go`
+- [x] **4.6** Fix file structure diagram in README.ru.md: same corrections + replace `derive.go` with `hd.go` in kdf/hd/
+- [x] **4.4** Remove broken link to `_examples/EXAMPLES.md` from README.md and README.ru.md (or create the file)
+- [x] **4.10** Remove "educational and authorized security testing purposes" disclaimer from README.md License section — replace with standard MIT reference consistent with LICENSE file
+- [x] **4.7** Add badges to README.md: build status (GitHub Actions), Go Report Card, GoDoc, coverage (if available)
+- [x] **4.8** Add `// Package gost3410 ...` doc comment to `gost3410/` package (in `keys.go` or `hash.go`)
+- [x] **4.8** Add `// Package gostcrypto ...` doc comment to `gostcrypto/facade.go`
+- [x] **4.8** Add `// Package streebog ...` doc comment to `streebog/streebog.go`
+- [x] **5e** Fix `API.md`: remove non-existent constants section (`Streebog256HashSize`, `TC26_256_SignatureSize`, etc.) or add them to code — since they are documented but don't exist, remove the section from API.md and API.ru.md
+- [x] Update code examples in README to match new API signatures (e.g., `Sign(digest)` without HashID parameter, `PublicKey()` instead of `Public()`)
+- [x] Run `go doc ./...` to verify package comments render
 
 ### Task 10: P5 — KDF/HD improvements [5b, 5c, 5d]
 

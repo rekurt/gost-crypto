@@ -1,8 +1,12 @@
 # gost-crypto
 
+[![CI](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml/badge.svg)](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rekurt/gost-crypto)](https://goreportcard.com/report/github.com/rekurt/gost-crypto)
+[![GoDoc](https://pkg.go.dev/badge/github.com/rekurt/gost-crypto)](https://pkg.go.dev/github.com/rekurt/gost-crypto)
+
 Pure Go implementation of Russian GOST cryptographic standards: digital signatures (GOST R 34.10-2012), cryptographic hashing (GOST R 34.11-2012 Streebog), and key management for TC26 elliptic curves.
 
-[API Reference](API.md) | [Examples](_examples/EXAMPLES.md) | [На русском](README.ru.md) | [Contributing](CONTRIBUTING.md)
+[API Reference](API.md) | [На русском](README.ru.md) | [Contributing](CONTRIBUTING.md)
 
 ## Features
 
@@ -16,19 +20,19 @@ Pure Go implementation of Russian GOST cryptographic standards: digital signatur
 
 ## Requirements
 
-- Go 1.24 or later
+- Go 1.21 or later
 - [ddulesov/gogost](https://github.com/ddulesov/gogost) v1.0.0 (resolved automatically via `go mod`)
 
 ## Installation
 
 ```bash
-go get -u github.com/ddulesov/gogost
+go get github.com/rekurt/gost-crypto
 ```
 
 ```go
 import (
-    "gost-crypto/gostcrypto"
-    "gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
 )
 ```
 
@@ -56,8 +60,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -66,7 +70,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -95,8 +99,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -105,7 +109,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -135,7 +139,7 @@ package main
 import (
     "encoding/hex"
     "fmt"
-    "gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gost3410"
 )
 
 func main() {
@@ -144,18 +148,17 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
 
     // Compressed: prefix (0x02 or 0x03) + X coordinate (33 bytes total)
-    compressed := pubKey.ToCompressed(true)
+    compressed, err := pubKey.ToCompressed(true)
+    if err != nil {
+        panic(err)
+    }
     fmt.Printf("Compressed: %s (%d bytes)\n", hex.EncodeToString(compressed), len(compressed))
-
-    // Without prefix (32 bytes)
-    compressedNP := pubKey.ToCompressed(false)
-    fmt.Printf("Compressed (no prefix): %s (%d bytes)\n", hex.EncodeToString(compressedNP), len(compressedNP))
 
     // Uncompressed: prefix (0x04) + X + Y (65 bytes total)
     uncompressed := pubKey.ToUncompressed(true)
@@ -174,8 +177,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -184,7 +187,7 @@ func main() {
         panic(err)
     }
 
-    originalPubKey, err := privKey.Public()
+    originalPubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -198,7 +201,10 @@ func main() {
     }
 
     // Serialize and recover
-    compressed := originalPubKey.ToCompressed(true)
+    compressed, err := originalPubKey.ToCompressed(true)
+    if err != nil {
+        panic(err)
+    }
     recoveredPubKey, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressed, true)
     if err != nil {
         panic(err)
@@ -221,8 +227,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -231,7 +237,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -276,9 +282,9 @@ package main
 import (
     "encoding/hex"
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
-    "gost-crypto/kdf/hd"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/kdf/hd"
 )
 
 func main() {
@@ -300,7 +306,7 @@ func main() {
         }
 
         derivedKeys[i] = childKey
-        pubKey, _ := childKey.Public()
+        pubKey, _ := childKey.PublicKey()
         fmt.Printf("Path %-20s chain=%s... pub=%s...\n",
             path, hex.EncodeToString(childChain[:8]), hex.EncodeToString(pubKey.X[:8]))
     }
@@ -310,7 +316,7 @@ func main() {
     opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 
     for i, path := range paths {
-        pubKey, _ := derivedKeys[i].Public()
+        pubKey, _ := derivedKeys[i].PublicKey()
         signature, _ := gostcrypto.Sign(derivedKeys[i], message, opts)
         valid, _ := gostcrypto.Verify(pubKey, message, signature, opts)
         fmt.Printf("Path %s — signature valid: %v\n", path, valid)
@@ -337,8 +343,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/streebog"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/streebog"
 )
 
 func main() {
@@ -347,7 +353,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -357,13 +363,13 @@ func main() {
     digest := streebog.Sum256(message)
 
     // Sign the digest
-    signature, err := privKey.Sign(digest[:], gost3410.Streebog256)
+    signature, err := privKey.SignDigest(digest[:])
     if err != nil {
         panic(err)
     }
 
     // Verify
-    valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
+    valid, err := pubKey.Verify(digest[:], signature)
     if err != nil {
         panic(err)
     }
@@ -380,7 +386,7 @@ package main
 import (
     "encoding/hex"
     "fmt"
-    "gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gost3410"
 )
 
 func main() {
@@ -392,7 +398,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -407,14 +413,16 @@ func main() {
 ```
 gost-crypto/
 ├── streebog/           # GOST R 34.11-2012 Streebog hash (256/512)
+│   └── streebog.go
 ├── gost3410/           # GOST R 34.10-2012 elliptic curve signatures
 │   ├── backend_gogost.go    # gogost backend integration
+│   ├── hash.go              # HashID type and constants
 │   ├── keys.go              # key generation, serialization, recovery
-│   ├── sign.go              # Sign and Verify methods
+│   ├── sign.go              # SignDigest and Verify methods
+│   ├── signer.go            # crypto.Signer interface
 │   └── *_test.go
 ├── gostcrypto/         # High-level facade (hash + sign in one call)
 │   ├── facade.go
-│   ├── options.go
 │   └── *_test.go
 ├── kdf/hd/             # HD key derivation (HKDF, BIP32-style paths)
 │   └── hd.go
@@ -524,4 +532,4 @@ Areas of interest:
 
 ## License
 
-This implementation is provided for educational and authorized security testing purposes. Ensure proper authorization before using in production environments.
+MIT License. See [LICENSE](LICENSE) for details.

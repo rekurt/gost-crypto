@@ -2,7 +2,7 @@
 
 Complete API reference for gost-crypto.
 
-[README](README.md) | [README (Russian)](README.ru.md) | [Examples](_examples/EXAMPLES.md)
+[README](README.md) | [README (Russian)](README.ru.md)
 
 ---
 
@@ -13,7 +13,6 @@ Complete API reference for gost-crypto.
 - [gostcrypto](#gostcrypto-package)
 - [kdf/hd](#kdfhd-package)
 - [Error Handling](#error-handling)
-- [Constants](#constants)
 - [Thread Safety](#thread-safety)
 
 ---
@@ -113,47 +112,47 @@ raw, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19
 privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, raw)
 ```
 
-#### `(pk *PrivKey) Public() (*PubKey, error)`
+#### `(pk *PrivKey) PublicKey() (*PubKey, error)`
 
 Derives the corresponding public key.
 
 ```go
-pubKey, err := privKey.Public()
+pubKey, err := privKey.PublicKey()
 ```
 
 ---
 
 ### Signing and Verification
 
-#### `(pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
+#### `(pk *PrivKey) SignDigest(digest []byte) ([]byte, error)`
 
-Signs a pre-computed digest. The digest size must match the hash algorithm (32 bytes for Streebog256, 64 bytes for Streebog512).
+Signs a pre-computed digest. The digest size must match the key size (32 bytes for 256-bit curves, 64 bytes for 512-bit curves).
 
 **Returns:** signature bytes (`r || s`; 64 bytes for 256-bit curves, 128 bytes for 512-bit).
 
 ```go
 digest := streebog.Sum256(message)
-sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
+sig, err := privKey.SignDigest(digest[:])
 ```
 
-#### `(pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
+#### `(pk *PubKey) Verify(digest, signature []byte) (bool, error)`
 
 Verifies a signature against a pre-computed digest.
 
 ```go
-valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
+valid, err := pubKey.Verify(digest[:], signature)
 ```
 
 ---
 
 ### Key Serialization
 
-#### `(pk *PubKey) ToCompressed(withPrefix bool) []byte`
+#### `(pk *PubKey) ToCompressed(withPrefix bool) ([]byte, error)`
 
 Serializes the public key in compressed format.
 
 - With prefix: `0x02` (even Y) or `0x03` (odd Y) followed by X coordinate
-- Without prefix: X coordinate only
+- Without prefix: X coordinate only (returns error if X[0] >= 0x80)
 
 | Curve type | With prefix | Without prefix |
 |------------|-------------|----------------|
@@ -161,7 +160,7 @@ Serializes the public key in compressed format.
 | 512-bit | 65 bytes | 64 bytes |
 
 ```go
-compressed := pubKey.ToCompressed(true)
+compressed, err := pubKey.ToCompressed(true)
 ```
 
 #### `(pk *PubKey) ToUncompressed(withPrefix bool) []byte`
@@ -283,32 +282,6 @@ childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/44'/283'/0'/0/0"
 | `ErrInvalidCurve` | Curve is not supported by the backend |
 | `ErrKeyRecoveryFailed` | Public key cannot be reconstructed from the provided data |
 | `ErrDerivationFailed` | Key derivation failed (invalid path or parent key) |
-
----
-
-## Constants
-
-```go
-// Hash output sizes
-Streebog256HashSize = 32  // bytes
-Streebog512HashSize = 64  // bytes
-
-// Signature sizes (r || s)
-TC26_256_SignatureSize = 64   // bytes
-TC26_512_SignatureSize = 128  // bytes
-
-// Compressed public key sizes
-TC26_256_CompressedSize   = 33  // with prefix
-TC26_256_CompressedSizeNP = 32  // without prefix
-TC26_512_CompressedSize   = 65  // with prefix
-TC26_512_CompressedSizeNP = 64  // without prefix
-
-// Uncompressed public key sizes
-TC26_256_UncompressedSize   = 65   // with prefix
-TC26_256_UncompressedSizeNP = 64   // without prefix
-TC26_512_UncompressedSize   = 129  // with prefix
-TC26_512_UncompressedSizeNP = 128  // without prefix
-```
 
 ---
 
