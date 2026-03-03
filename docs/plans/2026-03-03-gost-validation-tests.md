@@ -105,10 +105,10 @@
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] manual test: запустить `go run ./_examples/sign_verify_256/` и убедиться в корректной работе.
-- [ ] run full test suite: `go test ./...`
-- [ ] run linter: `go vet ./...`
-- [ ] verify test coverage: `go test -cover ./...` - все пакеты >= 80%
+- [x] manual test: запустить `go run ./_examples/sign_verify_256/` и убедиться в корректной работе.
+- [x] run full test suite: `go test ./...`
+- [x] run linter: `go vet ./...`
+- [x] verify test coverage: `go test -cover ./...` - все пакеты >= 80%
 
 ### Task 6: Update documentation
 
