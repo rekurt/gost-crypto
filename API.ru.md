@@ -2,7 +2,7 @@
 
 Полная документация API библиотеки gost-crypto.
 
-**[📖 README (English)](README.md)** | **[📖 README (Russian)](README.ru.md)** | **[📚 Documentation Index](DOCUMENTATION.md)** | **[💡 Advanced Examples](_examples/EXAMPLES.md)** | **[🤝 Contributing](CONTRIBUTING.md)**
+**[README (English)](README.md)** | **[README (Russian)](README.ru.md)** | **[Contributing](CONTRIBUTING.md)**
 
 ## Содержание
 
@@ -17,15 +17,30 @@
 
 ### Функции
 
+#### `New256() hash.Hash`
+
+Возвращает новый хешер Стрибог-256, реализующий `hash.Hash`. Для инкрементального хеширования.
+
+```go
+h := streebog.New256()
+h.Write(part1)
+h.Write(part2)
+digest := h.Sum(nil)
+```
+
+#### `New512() hash.Hash`
+
+Возвращает новый хешер Стрибог-512, реализующий `hash.Hash`.
+
+```go
+h := streebog.New512()
+h.Write(data)
+digest := h.Sum(nil)
+```
+
 #### `Sum256(data []byte) [32]byte`
 
-Вычисляет 256-битный хеш Стрибог входных данных.
-
-**Параметры:**
-- `data []byte` - входные данные для хеширования
-
-**Возвращает:**
-- `[32]byte` - результат хеша на 256 бит
+Вычисляет 256-битный хеш Стрибог входных данных за один вызов.
 
 **Пример:**
 ```go
@@ -35,13 +50,7 @@ hash := streebog.Sum256(message)
 
 #### `Sum512(data []byte) [64]byte`
 
-Вычисляет 512-битный хеш Стрибог входных данных.
-
-**Параметры:**
-- `data []byte` - входные данные для хеширования
-
-**Возвращает:**
-- `[64]byte` - результат хеша на 512 бит
+Вычисляет 512-битный хеш Стрибог входных данных за один вызов.
 
 **Пример:**
 ```go
@@ -75,6 +84,8 @@ const (
 )
 ```
 
+Метод `Size() (int, error)` возвращает размер ключа в байтах (32 для 256-битных кривых, 64 для 512-битных).
+
 #### `HashID`
 
 Выбор алгоритма хеширования.
@@ -90,10 +101,11 @@ const (
 
 #### `PrivKey`
 
-Структура приватного ключа для подписей на эллиптических кривых.
+Структура приватного ключа для подписей на эллиптических кривых. Реализует `crypto.Signer`.
 
 **Поля:**
 - `D []byte` - скаляр приватного ключа (32 байта для 256-битных кривых, 64 байта для 512-битных кривых)
+- `Curve Curve` - кривая TC26, к которой относится ключ
 
 **Методы:**
 
@@ -134,7 +146,7 @@ keyBytes, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EE
 privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
 ```
 
-##### `func (pk *PrivKey) Public() (*PubKey, error)`
+##### `func (pk *PrivKey) PublicKey() (*PubKey, error)`
 
 Выводит открытый ключ из приватного ключа.
 
@@ -144,16 +156,31 @@ privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
 
 **Пример:**
 ```go
-pubKey, err := privKey.Public()
+pubKey, err := privKey.PublicKey()
 ```
 
-##### `func (pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
+##### `func (pk *PrivKey) ToRaw() []byte`
+
+Возвращает копию неформатированных байт приватного ключа (big-endian).
+
+```go
+raw := privKey.ToRaw()
+```
+
+##### `func (pk *PrivKey) Public() crypto.PublicKey`
+
+Возвращает открытый ключ как `crypto.PublicKey`, реализуя интерфейс `crypto.Signer`. Возвращает nil при ошибке.
+
+##### `func (pk *PrivKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)`
+
+Подписывает дайджест, реализуя интерфейс `crypto.Signer`. Параметр `rand` игнорируется (gogost использует `crypto/rand` внутри). Делегирует в `SignDigest`.
+
+##### `func (pk *PrivKey) SignDigest(digest []byte) ([]byte, error)`
 
 Подписывает дайджест сообщения.
 
 **Параметры:**
-- `digest []byte` - предварительно вычисленный дайджест сообщения (32 байта для Streebog256, 64 байта для Streebog512)
-- `hash HashID` - алгоритм хеширования (для согласованности формата)
+- `digest []byte` - предварительно вычисленный дайджест сообщения (32 байта для 256-битных кривых, 64 байта для 512-битных)
 
 **Возвращает:**
 - `[]byte` - подпись (64 байта для 256-битных кривых, 128 байт для 512-битных кривых)
@@ -162,7 +189,7 @@ pubKey, err := privKey.Public()
 **Пример:**
 ```go
 digest := streebog.Sum256(message)
-sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
+sig, err := privKey.SignDigest(digest[:])
 ```
 
 #### `PubKey`
@@ -172,17 +199,17 @@ sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
 **Поля:**
 - `X []byte` - координата X (32 байта для 256-битных кривых, 64 байта для 512-битных кривых)
 - `Y []byte` - координата Y (32 байта для 256-битных кривых, 64 байта для 512-битных кривых)
+- `Curve Curve` - кривая TC26, к которой относится ключ
 
 **Методы:**
 
-##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
+##### `func (pk *PubKey) Verify(digest, signature []byte) (bool, error)`
 
 Проверяет подпись на дайджесте сообщения.
 
 **Параметры:**
 - `digest []byte` - предварительно вычисленный дайджест сообщения
 - `signature []byte` - подпись для проверки
-- `hash HashID` - использованный алгоритм хеширования
 
 **Возвращает:**
 - `bool` - истина, если подпись действительна
@@ -190,13 +217,13 @@ sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
 
 **Пример:**
 ```go
-valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
+valid, err := pubKey.Verify(digest[:], signature)
 if err == nil && valid {
     fmt.Println("Подпись действительна")
 }
 ```
 
-##### `func (pk *PubKey) ToCompressed(withPrefix bool) []byte`
+##### `func (pk *PubKey) ToCompressed(withPrefix bool) ([]byte, error)`
 
 Сериализует открытый ключ в сжатый формат.
 
@@ -205,11 +232,11 @@ if err == nil && valid {
 
 **Возвращает:**
 - `[]byte` - сжатый открытый ключ (33 байта для 256-бит с префиксом, 32 без)
+- `error` - ошибка, если без префикса и X[0] >= 0x80
 
 **Пример:**
 ```go
-compressed := pubKey.ToCompressed(true)
-fmt.Printf("Сжатый ключ: %s\n", hex.EncodeToString(compressed))
+compressed, err := pubKey.ToCompressed(true)
 ```
 
 ##### `func (pk *PubKey) ToUncompressed(withPrefix bool) []byte`
@@ -346,7 +373,7 @@ if err == nil && valid {
 
 **Возвращает:**
 - `*gost3410.PrivKey` - главный приватный ключ
-- `[]byte` - код цепи для выведения (32 байта)
+- `[]byte` - код цепи для выведения (32 байта для Streebog256, 64 байта для Streebog512)
 - `error` - ошибка, если генерация не удалась
 
 **Пример:**
@@ -385,42 +412,22 @@ childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/0'/1/2'", gost34
 
 ## Обработка ошибок
 
-Распространённые типы ошибок и их значения:
+Ошибки возвращаются как стандартные значения Go `error` с описательными сообщениями. Распространённые ошибки:
 
-| Ошибка | Значение | Действие |
-|--------|----------|---------|
-| `ErrInvalidKeySize` | Размер ключа не соответствует кривой | Проверьте, что ключ создан для правильной кривой |
-| `ErrInvalidDigestSize` | Размер дайджеста не соответствует алгоритму хеширования | Убедитесь, что дайджест соответствует алгоритму (32 или 64 байта) |
-| `ErrInvalidSignatureSize` | Размер подписи неправильный | Проверьте источник подписи и формат |
-| `ErrInvalidCurve` | Неподдерживаемая эллиптическая кривая | Используйте поддерживаемую кривую (256-A, 512-A/B/C) |
-| `ErrKeyRecoveryFailed` | Не удалось восстановить открытый ключ из данных | Проверьте формат сериализованного ключа |
-| `ErrDerivationFailed` | Не удалось вывести ключ по пути | Проверьте формат пути и действительность родительского ключа |
-
----
-
-## Константы
-
-### Размеры алгоритмов хеширования
-
-```go
-Streebog256HashSize = 32  // байт
-Streebog512HashSize = 64  // байт
-
-// Размеры подписей (r || s)
-TC26_256_SignatureSize = 64  // байт
-TC26_512_SignatureSize = 128 // байт
-
-// Размеры открытых ключей
-TC26_256_CompressedSize = 33   // байт (с префиксом)
-TC26_256_CompressedSizeNP = 32 // байт (без префикса)
-TC26_256_UncompressedSize = 65   // байт (с префиксом)
-TC26_256_UncompressedSizeNP = 64 // байт (без префикса)
-
-TC26_512_CompressedSize = 65    // байт (с префиксом)
-TC26_512_CompressedSizeNP = 64  // байт (без префикса)
-TC26_512_UncompressedSize = 129  // байт (с префиксом)
-TC26_512_UncompressedSizeNP = 128 // байт (без префикса)
-```
+| Сообщение об ошибке | Причина |
+|---------------------|---------|
+| `"invalid private key size"` | Размер ключа не соответствует кривой |
+| `"private key must be non-zero"` | Скаляр приватного ключа равен нулю |
+| `"private key must be less than curve order"` | Скаляр приватного ключа >= порядку подгруппы кривой q |
+| `"digest size does not match key size"` | Размер дайджеста не соответствует размеру ключа (ожидается 32 или 64 байта) |
+| `"invalid signature size"` | Размер подписи неправильный для данной кривой |
+| `"unknown curve"` | Кривая не распознана |
+| `"invalid compressed length"` | Данные сжатого ключа имеют неправильную длину |
+| `"invalid uncompressed"` | Данные несжатого ключа имеют неправильную длину или префикс |
+| `"X[0] high bit set: use prefix=true for this key"` | Невозможно использовать сжатый формат без префикса когда X[0] >= 0x80 |
+| `"path must start with 'm/'"` | Путь HD-выведения не содержит обязательный префикс |
+| `"empty path segment"` | Путь HD-выведения содержит пустой сегмент (например, `"m/0//1"`) |
+| `"hash size does not match key size"` | Алгоритм хеширования не соответствует размеру кривой родительского ключа |
 
 ---
 
@@ -429,7 +436,6 @@ TC26_512_UncompressedSizeNP = 128 // байт (без префикса)
 - **PrivKey/PubKey**: Неизменяемые после создания, безопасны для одновременного чтения
 - **Master/Derive**: Безопасны для одновременных вызовов с разными путями
 - **Sign/Verify**: Безопасны для одновременных операций с разными ключами
-- **KeyPool**: Для высоко параллельных сценариев рассмотрите использование паттерна пула ключей
 
 ---
 
@@ -445,7 +451,7 @@ TC26_512_UncompressedSizeNP = 128 // байт (без префикса)
 
 ## Примечания совместимости
 
-- Подписи детерминированы (то же сообщение создаёт разные подписи из-за случайного k)
-- Форматы ключей совместимы со стандартными стандартами эллиптических кривых
+- Подписи недетерминированы: одно и то же сообщение создаёт разные подписи из-за случайного nonce (k)
+- Форматы ключей совместимы со стандартами эллиптических кривых
 - Big-endian порядок байт для всех многобайтовых значений
 - Встроенное кодирование ASN.1 отсутствует; используйте внешние библиотеки для поддержки PEM/ASN.1

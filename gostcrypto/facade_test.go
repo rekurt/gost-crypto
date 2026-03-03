@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"testing"
 
-	"gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gost3410"
 )
 
-// TestSignBasic tests high-level signing with 256-bit curve
-// Note: Verify tests are skipped due to known issue with public key reconstruction
+// TestSignBasic256 tests high-level signing with 256-bit curve
 func TestSignBasic256(t *testing.T) {
 	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
@@ -112,6 +111,51 @@ func TestSignErrorCases(t *testing.T) {
 	}
 }
 
+// TestSignHashKeyMismatch tests that using a hash mismatched with key size
+// produces a clear error rather than a confusing low-level error.
+func TestSignHashKeyMismatch(t *testing.T) {
+	priv256, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey 256 failed: %v", err)
+	}
+	priv512, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey 512 failed: %v", err)
+	}
+	msg := []byte("test")
+
+	// 256-bit key with Streebog512
+	_, err = Sign(priv256, msg, &Options{Hash: gost3410.Streebog512})
+	if err == nil {
+		t.Fatal("expected error for Streebog512 with 256-bit key")
+	}
+	if err.Error() != "hash size does not match key size" {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// 512-bit key with Streebog256
+	_, err = Sign(priv512, msg, &Options{Hash: gost3410.Streebog256})
+	if err == nil {
+		t.Fatal("expected error for Streebog256 with 512-bit key")
+	}
+	if err.Error() != "hash size does not match key size" {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Verify path: 256-bit key with Streebog512
+	pub256, err := priv256.PublicKey()
+	if err != nil {
+		t.Fatalf("PublicKey failed: %v", err)
+	}
+	_, err = Verify(pub256, msg, []byte("fake"), &Options{Hash: gost3410.Streebog512})
+	if err == nil {
+		t.Fatal("expected error for Verify with mismatched hash")
+	}
+	if err.Error() != "hash size does not match key size" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 // TestSignMultipleDifferent tests that multiple signatures are different
 func TestSignMultipleDifferent(t *testing.T) {
 	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
@@ -176,7 +220,7 @@ func TestZeroValueOptionsInference512(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -213,7 +257,7 @@ func TestZeroValueOptionsInference256(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -248,7 +292,7 @@ func TestSignVerifyExplicitStreebog512(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -282,7 +326,7 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -309,8 +353,8 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 		copy(corruptedSig, sig)
 		corruptedSig[0] ^= 0xFF
 
-		valid, err := Verify(pubKey, message, corruptedSig, opts)
-		if err == nil && valid {
+		valid, _ := Verify(pubKey, message, corruptedSig, opts)
+		if valid {
 			t.Error("corrupted signature should not verify")
 		}
 	})
@@ -323,8 +367,8 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 	})
 
 	t.Run("wrong_message", func(t *testing.T) {
-		valid, err := Verify(pubKey, []byte("wrong message"), sig, opts)
-		if err == nil && valid {
+		valid, _ := Verify(pubKey, []byte("wrong message"), sig, opts)
+		if valid {
 			t.Error("signature should not verify with wrong message")
 		}
 	})
@@ -351,7 +395,7 @@ func TestSignVerifyRoundtripAllCurves(t *testing.T) {
 				t.Fatalf("NewPrivKey(%s) failed: %v", tt.name, err)
 			}
 
-			pubKey, err := privKey.Public()
+			pubKey, err := privKey.PublicKey()
 			if err != nil {
 				t.Fatalf("Public() failed: %v", err)
 			}
@@ -397,5 +441,51 @@ func TestSignVerifyRoundtripAllCurves(t *testing.T) {
 				t.Error("two signatures of same message are identical - possible randomness issue")
 			}
 		})
+	}
+}
+
+// BenchmarkVerify256 benchmarks high-level verification with 256-bit curve
+func BenchmarkVerify256(b *testing.B) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		b.Fatalf("NewPrivKey failed: %v", err)
+	}
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		b.Fatalf("PublicKey failed: %v", err)
+	}
+	message := []byte("test message")
+	opts := &Options{Hash: gost3410.Streebog256}
+	sig, err := Sign(privKey, message, opts)
+	if err != nil {
+		b.Fatalf("Sign failed: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Verify(pubKey, message, sig, opts)
+	}
+}
+
+// BenchmarkVerify512 benchmarks high-level verification with 512-bit curve
+func BenchmarkVerify512(b *testing.B) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		b.Fatalf("NewPrivKey failed: %v", err)
+	}
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		b.Fatalf("PublicKey failed: %v", err)
+	}
+	message := []byte("test message")
+	opts := &Options{Hash: gost3410.Streebog512}
+	sig, err := Sign(privKey, message, opts)
+	if err != nil {
+		b.Fatalf("Sign failed: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Verify(pubKey, message, sig, opts)
 	}
 }

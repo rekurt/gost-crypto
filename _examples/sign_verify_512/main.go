@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/gostcrypto"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gostcrypto"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 		panic(err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +57,10 @@ func main() {
 	fmt.Printf("Signature valid for wrong message: %v (expected: false)\n", valid)
 
 	fmt.Println("\nPublic key serialization:")
-	compressed := pubKey.ToCompressed(true)
+	compressed, err := pubKey.ToCompressed(true)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Compressed form: %d bytes\n", len(compressed))
 
 	uncompressed := pubKey.ToUncompressed(true)
@@ -84,19 +87,19 @@ func main() {
 			continue
 		}
 
-		pub, err := priv.Public()
+		pub, err := priv.PublicKey()
 		if err != nil {
 			fmt.Printf("  Error deriving public key: %v\n", err)
 			continue
 		}
 
-		sig, err := priv.Sign(digest[:], gost3410.Streebog512)
+		sig, err := priv.SignDigest(digest[:])
 		if err != nil {
 			fmt.Printf("  Error signing: %v\n", err)
 			continue
 		}
 
-		valid, err := pub.Verify(digest[:], sig, gost3410.Streebog512)
+		valid, err := pub.Verify(digest[:], sig)
 		if err != nil {
 			fmt.Printf("  Error verifying: %v\n", err)
 			continue

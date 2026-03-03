@@ -1,3 +1,5 @@
+// Package streebog provides Streebog-256 and Streebog-512 cryptographic hash
+// functions as defined in GOST R 34.11-2012 (RFC 6986).
 package streebog
 
 import (

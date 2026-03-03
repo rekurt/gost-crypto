@@ -2,10 +2,10 @@ package gost3410
 
 import (
 	"bytes"
-	"crypto/rand"
+	"fmt"
 	"testing"
 
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // TestSignVerify256 tests signing and verification with TC26_256_A curve
@@ -18,7 +18,7 @@ func TestSignVerify256(t *testing.T) {
 	}
 
 	// Derive public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestSignVerify256(t *testing.T) {
 	digest := streebog.Sum256(message)
 
 	// Sign
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestSignVerify256(t *testing.T) {
 	}
 
 	// Verify with original public key
-	valid, err := pubKey.Verify(digest[:], sig, Streebog256)
+	valid, err := pubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Verify failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestSignVerify256(t *testing.T) {
 	// Verify should fail with wrong message
 	wrongMessage := []byte("Wrong message")
 	wrongDigest := streebog.Sum256(wrongMessage)
-	valid, err = pubKey.Verify(wrongDigest[:], sig, Streebog256)
+	valid, err = pubKey.Verify(wrongDigest[:], sig)
 	if err != nil {
 		t.Fatalf("Verify with wrong message failed: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestSignVerify512(t *testing.T) {
 	}
 
 	// Derive public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestSignVerify512(t *testing.T) {
 	digest := streebog.Sum512(message)
 
 	// Sign
-	sig, err := privKey.Sign(digest[:], Streebog512)
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestSignVerify512(t *testing.T) {
 	}
 
 	// Verify with original public key
-	valid, err := pubKey.Verify(digest[:], sig, Streebog512)
+	valid, err := pubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Verify failed: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestSignVerify512(t *testing.T) {
 	// Verify should fail with wrong message
 	wrongMessage := []byte("Wrong message")
 	wrongDigest := streebog.Sum512(wrongMessage)
-	valid, err = pubKey.Verify(wrongDigest[:], sig, Streebog512)
+	valid, err = pubKey.Verify(wrongDigest[:], sig)
 	if err != nil {
 		t.Fatalf("Verify with wrong message failed: %v", err)
 	}
@@ -125,12 +125,12 @@ func TestSignMultiple256(t *testing.T) {
 	digest := streebog.Sum256(message)
 
 	// Create two signatures
-	sig1, err := privKey.Sign(digest[:], Streebog256)
+	sig1, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("First sign failed: %v", err)
 	}
 
-	sig2, err := privKey.Sign(digest[:], Streebog256)
+	sig2, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Second sign failed: %v", err)
 	}
@@ -150,14 +150,14 @@ func TestSignErrorCases(t *testing.T) {
 
 	// Test nil private key
 	var nilKey *PrivKey
-	_, err = nilKey.Sign(make([]byte, 32), Streebog256)
+	_, err = nilKey.SignDigest(make([]byte, 32))
 	if err == nil {
 		t.Error("Sign with nil key should fail")
 	}
 
 	// Test wrong digest size
 	wrongDigest := make([]byte, 16)
-	_, err = privKey.Sign(wrongDigest, Streebog256)
+	_, err = privKey.SignDigest(wrongDigest)
 	if err == nil {
 		t.Error("Sign with wrong digest size should fail")
 	}
@@ -170,28 +170,28 @@ func TestVerifyErrorCases(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
 
 	// Test nil public key
 	var nilKey *PubKey
-	_, err = nilKey.Verify(make([]byte, 32), make([]byte, 64), Streebog256)
+	_, err = nilKey.Verify(make([]byte, 32), make([]byte, 64))
 	if err == nil {
 		t.Error("Verify with nil key should fail")
 	}
 
 	// Test wrong digest size
 	wrongDigest := make([]byte, 16)
-	_, err = pubKey.Verify(wrongDigest, make([]byte, 64), Streebog256)
+	_, err = pubKey.Verify(wrongDigest, make([]byte, 64))
 	if err == nil {
 		t.Error("Verify with wrong digest size should fail")
 	}
 
 	// Test wrong signature size
 	wrongSig := make([]byte, 32)
-	_, err = pubKey.Verify(make([]byte, 32), wrongSig, Streebog256)
+	_, err = pubKey.Verify(make([]byte, 32), wrongSig)
 	if err == nil {
 		t.Error("Verify with wrong signature size should fail")
 	}
@@ -204,14 +204,14 @@ func TestPrivKeyPublic256(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	derivedPubKey, err := privKey.Public()
+	derivedPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
 
 	// Verify it's a valid public key
 	if derivedPubKey == nil {
-		t.Error("derived public key is nil")
+		t.Fatal("derived public key is nil")
 	}
 	if derivedPubKey.Curve != TC26_256_A {
 		t.Error("derived public key curve mismatch")
@@ -228,14 +228,14 @@ func TestPrivKeyPublic512(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	derivedPubKey, err := privKey.Public()
+	derivedPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
 
 	// Verify it's a valid public key
 	if derivedPubKey == nil {
-		t.Error("derived public key is nil")
+		t.Fatal("derived public key is nil")
 	}
 	if derivedPubKey.Curve != TC26_512_A {
 		t.Error("derived public key curve mismatch")
@@ -275,7 +275,7 @@ func TestNewPrivKey256(t *testing.T) {
 	}
 
 	// Derive and check public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestNewPrivKey512(t *testing.T) {
 	}
 
 	// Derive and check public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -327,12 +327,12 @@ func TestNewPrivKey512(t *testing.T) {
 
 // TestFromRawPriv tests creating private key from raw bytes
 func TestFromRawPriv256(t *testing.T) {
-	// Generate random bytes for private key
-	d := make([]byte, 32)
-	_, err := rand.Read(d)
+	// Generate a valid private key, then round-trip through FromRawPriv
+	genKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
-		t.Fatalf("rand.Read failed: %v", err)
+		t.Fatalf("NewPrivKey failed: %v", err)
 	}
+	d := genKey.ToRaw()
 
 	privKey, err := FromRawPriv(TC26_256_A, d)
 	if err != nil {
@@ -348,7 +348,7 @@ func TestFromRawPriv256(t *testing.T) {
 	}
 
 	// Check that public key can be derived
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -363,12 +363,12 @@ func TestFromRawPriv256(t *testing.T) {
 
 // TestFromRawPriv512 tests creating private key from raw bytes on 512-bit curve
 func TestFromRawPriv512(t *testing.T) {
-	// Generate random bytes for private key
-	d := make([]byte, 64)
-	_, err := rand.Read(d)
+	// Generate a valid private key, then round-trip through FromRawPriv
+	genKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
-		t.Fatalf("rand.Read failed: %v", err)
+		t.Fatalf("NewPrivKey failed: %v", err)
 	}
+	d := genKey.ToRaw()
 
 	privKey, err := FromRawPriv(TC26_512_A, d)
 	if err != nil {
@@ -384,7 +384,7 @@ func TestFromRawPriv512(t *testing.T) {
 	}
 
 	// Check that public key can be derived
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	originalPubKey, err := privKey.Public()
+	originalPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -414,13 +414,13 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 	message := []byte("Test message")
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
 
 	// Verify with original key
-	valid, err := originalPubKey.Verify(digest[:], sig, Streebog256)
+	valid, err := originalPubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Verify failed: %v", err)
 	}
@@ -430,14 +430,17 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 	}
 
 	// Serialize and deserialize compressed key
-	compressed := originalPubKey.ToCompressed(true)
+	compressed, err := originalPubKey.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed failed: %v", err)
+	}
 	recoveredPubKey, err := FromCompressed(TC26_256_A, compressed, true)
 	if err != nil {
 		t.Fatalf("FromCompressed failed: %v", err)
 	}
 
 	// Verify with deserialized key
-	valid, err = recoveredPubKey.Verify(digest[:], sig, Streebog256)
+	valid, err = recoveredPubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Verify with recovered key failed: %v", err)
 	}
@@ -458,7 +461,7 @@ func BenchmarkSign256(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = privKey.Sign(digest[:], Streebog256)
+		_, _ = privKey.SignDigest(digest[:])
 	}
 }
 
@@ -469,20 +472,20 @@ func BenchmarkVerify256(b *testing.B) {
 		b.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		b.Fatalf("Public() failed: %v", err)
 	}
 
 	digest := streebog.Sum256([]byte("test message"))
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		b.Fatalf("Sign failed: %v", err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = pubKey.Verify(digest[:], sig, Streebog256)
+		_, _ = pubKey.Verify(digest[:], sig)
 	}
 }
 
@@ -497,7 +500,7 @@ func BenchmarkSign512(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = privKey.Sign(digest[:], Streebog512)
+		_, _ = privKey.SignDigest(digest[:])
 	}
 }
 
@@ -508,19 +511,69 @@ func BenchmarkVerify512(b *testing.B) {
 		b.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		b.Fatalf("Public() failed: %v", err)
 	}
 
 	digest := streebog.Sum512([]byte("test message"))
-	sig, err := privKey.Sign(digest[:], Streebog512)
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		b.Fatalf("Sign failed: %v", err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = pubKey.Verify(digest[:], sig, Streebog512)
+		_, _ = pubKey.Verify(digest[:], sig)
 	}
+}
+
+func ExamplePrivKey_SignDigest() {
+	// Generate a new GOST R 34.10-2012 private key on TC26_256_A curve
+	privKey, err := NewPrivKey(TC26_256_A)
+	if err != nil {
+		panic(err)
+	}
+
+	// Hash the message with Streebog-256
+	message := []byte("Hello GOST")
+	digest := streebog.Sum256(message)
+
+	// Sign the digest
+	sig, err := privKey.SignDigest(digest[:])
+	if err != nil {
+		panic(err)
+	}
+
+	// 256-bit signature is 64 bytes (r||s, 32 bytes each)
+	fmt.Println(len(sig))
+	// Output: 64
+}
+
+func ExamplePubKey_Verify() {
+	// Generate key pair
+	privKey, err := NewPrivKey(TC26_256_A)
+	if err != nil {
+		panic(err)
+	}
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		panic(err)
+	}
+
+	// Sign a message
+	message := []byte("Hello GOST")
+	digest := streebog.Sum256(message)
+	sig, err := privKey.SignDigest(digest[:])
+	if err != nil {
+		panic(err)
+	}
+
+	// Verify the signature
+	valid, err := pubKey.Verify(digest[:], sig)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(valid)
+	// Output: true
 }

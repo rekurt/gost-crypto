@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/kdf/hd"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/kdf/hd"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func main() {
 	fmt.Printf("Derived key (m/0/1/2) private key: %x\n", key.D)
 	fmt.Printf("Derived key (m/0/1/2) chain code: %x\n", chain)
 
-	pubKey, err := key.Public()
+	pubKey, err := key.PublicKey()
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +64,7 @@ func main() {
 			continue
 		}
 
-		childPub, err := childKey.Public()
+		childPub, err := childKey.PublicKey()
 		if err != nil {
 			fmt.Printf("%s: Error deriving public key - %v\n", path, err)
 			continue
@@ -93,7 +93,7 @@ func main() {
 
 	fmt.Printf("Derived key (m/0/1, 512-bit): %x\n", key512.D)
 
-	pub512, err := key512.Public()
+	pub512, err := key512.PublicKey()
 	if err != nil {
 		panic(err)
 	}

@@ -4,12 +4,13 @@ package hd
 import (
 	"crypto/hmac"
 	"errors"
+	"fmt"
 	"hash"
 	"strconv"
 	"strings"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // Master generates a master private key and chain code from a seed using HKDF.
@@ -47,7 +48,7 @@ func Master(seed []byte, h gost3410.HashID) (*gost3410.PrivKey, []byte, error) {
 		curve = gost3410.TC26_512_A
 	}
 
-	privKey, err := gost3410.FromRawPriv(curve, masterKeyBytes)
+	privKey, err := gost3410.FromRawPrivReduce(curve, masterKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -59,6 +60,9 @@ func Master(seed []byte, h gost3410.HashID) (*gost3410.PrivKey, []byte, error) {
 // Path format: "m/index1/index2'/..." where indices with ' are hardened.
 // Example: "m/0'/1/2'" means hardened at indices 0 and 2.
 func Derive(parent *gost3410.PrivKey, chainCode []byte, path string, h gost3410.HashID) (*gost3410.PrivKey, []byte, error) {
+	if parent == nil {
+		return nil, nil, errors.New("nil parent key")
+	}
 	if !strings.HasPrefix(path, "m/") {
 		return nil, nil, errors.New("path must start with 'm/'")
 	}
@@ -74,10 +78,28 @@ func Derive(parent *gost3410.PrivKey, chainCode []byte, path string, h gost3410.
 		return nil, nil, errors.New("invalid hash id")
 	}
 
+	// Validate that hash size matches parent key's curve size
+	curveSize, err := parent.Curve.Size()
+	if err != nil {
+		return nil, nil, err
+	}
+	if curveSize != keySize {
+		return nil, nil, fmt.Errorf("hash size (%d) does not match key size (%d)", keySize, curveSize)
+	}
+	if len(chainCode) != keySize {
+		return nil, nil, fmt.Errorf("chain code size (%d) does not match key size (%d)", len(chainCode), keySize)
+	}
+
 	// Parse path
 	indices, err := parsePath(path[2:]) // Skip "m/"
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// No derivation steps — return defensive copies to avoid aliasing the parent.
+	if len(indices) == 0 {
+		return &gost3410.PrivKey{D: append([]byte(nil), parent.D...), Curve: parent.Curve},
+			append([]byte(nil), chainCode...), nil
 	}
 
 	// Iteratively derive keys
@@ -117,6 +139,10 @@ func parsePath(path string) ([]pathIndex, error) {
 	indices := make([]pathIndex, len(parts))
 
 	for i, part := range parts {
+		if part == "" {
+			return nil, errors.New("empty path segment")
+		}
+
 		hardened := false
 		if strings.HasSuffix(part, "'") {
 			hardened = true
@@ -143,11 +169,11 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 		data = append([]byte{0x00}, privKey.D...)
 	} else {
 		// Non-hardened: public key X coordinate
-		pubKey, err := privKey.Public()
+		pubKey, err := privKey.PublicKey()
 		if err != nil {
 			return nil, nil, err
 		}
-		data = pubKey.X
+		data = append([]byte(nil), pubKey.X...)
 	}
 
 	// Append index (big-endian, 4 bytes)
@@ -164,7 +190,7 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 	childChain := okm[keySize : 2*keySize]
 
 	// Create child private key
-	childPriv, err := gost3410.FromRawPriv(privKey.Curve, childKeyBytes)
+	childPriv, err := gost3410.FromRawPrivReduce(privKey.Curve, childKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -173,12 +199,9 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 }
 
 func hkdfExtract(salt, ikm []byte, h gost3410.HashID) []byte {
-	// HMAC using streebog
-	keySize := 32
-	if h == gost3410.Streebog512 {
-		keySize = 64
-	}
-	return hmacStreebog(salt, ikm, h)[:keySize]
+	// HMAC-Streebog output size matches the hash variant (32 or 64 bytes),
+	// so no truncation is needed.
+	return hmacStreebog(salt, ikm, h)
 }
 
 func hkdfExpand(prk, info []byte, length int, h gost3410.HashID) []byte {
@@ -201,7 +224,7 @@ func hkdfExpand(prk, info []byte, length int, h gost3410.HashID) []byte {
 		msg = append(msg, info...)
 		msg = append(msg, byte(i))
 
-		t = hmacStreebog(prk, msg, h)[:keySize]
+		t = hmacStreebog(prk, msg, h)
 		result = append(result, t...)
 	}
 

@@ -1,36 +1,37 @@
 package gost3410
 
 import (
+	"crypto/rand"
 	"errors"
 	"math/big"
 
 	gg "github.com/ddulesov/gogost/gost3410"
 )
 
-// gogostCurve maps our Curve enum to gogost Curve objects
-// Note: Only TC26_256_A, TC26_512_A/B/C are available in gogost
-// Other curves (256-B/C/D, 512-D) would need to be added to gogost library
-var gogostCurves = [8]*gg.Curve{
-	TC26_256_A: gg.CurveIdtc26gost34102012256paramSetA(),
+// gogostCurveFactories maps our Curve enum to gogost curve constructor functions.
+// Fresh instances are created per call to avoid data races on mutable scratch
+// fields (t, tx, ty) inside gogost Curve.add() during concurrent operations.
+var gogostCurveFactories = [8]func() *gg.Curve{
+	TC26_256_A: gg.CurveIdtc26gost34102012256paramSetA,
 	TC26_256_B: nil, // Not available in gogost v1.0.0
 	TC26_256_C: nil, // Not available in gogost v1.0.0
 	TC26_256_D: nil, // Not available in gogost v1.0.0
-	TC26_512_A: gg.CurveIdtc26gost341012512paramSetA(),
-	TC26_512_B: gg.CurveIdtc26gost341012512paramSetB(),
-	TC26_512_C: gg.CurveIdtc26gost34102012512paramSetC(),
+	TC26_512_A: gg.CurveIdtc26gost341012512paramSetA,
+	TC26_512_B: gg.CurveIdtc26gost341012512paramSetB,
+	TC26_512_C: gg.CurveIdtc26gost34102012512paramSetC,
 	TC26_512_D: nil, // Not available in gogost v1.0.0
 }
 
-// getCurve returns the gogost Curve for our Curve enum value
+// getCurve returns a fresh gogost Curve for our Curve enum value.
 func getCurve(c Curve) (*gg.Curve, error) {
-	if c < 0 || c >= Curve(len(gogostCurves)) {
+	if c < 0 || c >= Curve(len(gogostCurveFactories)) {
 		return nil, errors.New("unknown curve")
 	}
-	gogostC := gogostCurves[c]
-	if gogostC == nil {
+	factory := gogostCurveFactories[c]
+	if factory == nil {
 		return nil, errors.New("curve not available in gogost backend")
 	}
-	return gogostC, nil
+	return factory(), nil
 }
 
 // getMode returns the gogost Mode for our Curve
@@ -49,10 +50,28 @@ func getMode(c Curve) (gg.Mode, error) {
 	}
 }
 
-// mulBase multiplies the base point by scalar d and returns X, Y coordinates
-// Returns big-endian bytes of fixed length (32 or 64 bytes)
+// curveOrder returns the subgroup order q for the given curve.
+func curveOrder(c Curve) (*big.Int, error) {
+	ggCurve, err := getCurve(c)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Int).Set(ggCurve.Q), nil
+}
+
+// reversedCopy returns a new byte slice with bytes in reverse order.
+// gogost uses little-endian wire format for keys; our library uses big-endian.
+func reversedCopy(b []byte) []byte {
+	r := make([]byte, len(b))
+	for i := range b {
+		r[i] = b[len(b)-1-i]
+	}
+	return r
+}
+
+// mulBase multiplies the base point by scalar d and returns X, Y coordinates.
+// d is big-endian; returned x, y are big-endian of fixed length (32 or 64 bytes).
 func mulBase(c Curve, d []byte) (x, y []byte, err error) {
-	// Create gogost private key from raw bytes
 	ggCurve, err := getCurve(c)
 	if err != nil {
 		return nil, nil, err
@@ -62,9 +81,8 @@ func mulBase(c Curve, d []byte) (x, y []byte, err error) {
 		return nil, nil, err
 	}
 
-	// gogost expects little-endian, but we need to convert properly
-	// Create a gogost private key to compute public key
-	privKey, err := gg.NewPrivateKey(ggCurve, mode, d)
+	// gogost NewPrivateKey expects little-endian; reverse our big-endian D
+	privKey, err := gg.NewPrivateKey(ggCurve, mode, reversedCopy(d))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,9 +92,11 @@ func mulBase(c Curve, d []byte) (x, y []byte, err error) {
 		return nil, nil, err
 	}
 
-	// gogost stores X, Y as big.Int
-	// We need to convert them to big-endian bytes of fixed length
-	size, _ := c.Size()
+	// gogost stores X, Y as big.Int; convert to big-endian bytes of fixed length
+	size, err := c.Size()
+	if err != nil {
+		return nil, nil, err
+	}
 	x = padToSize(pubKey.X.Bytes(), size)
 	y = padToSize(pubKey.Y.Bytes(), size)
 
@@ -119,15 +139,22 @@ func recoverY(c Curve, x []byte, odd bool) ([]byte, error) {
 	}
 
 	// Convert to big-endian bytes
-	size, _ := c.Size()
+	size, err := c.Size()
+	if err != nil {
+		return nil, err
+	}
 	return padToSize(yBig.Bytes(), size), nil
 }
 
 // padToSize pads or truncates big-endian byte representation to specific size.
 // If shorter, pads with leading zeros. If longer, takes the least-significant bytes.
+// Always returns a new slice (copy) to avoid shared memory.
 func padToSize(b []byte, size int) []byte {
 	if len(b) == size {
-		return b
+		return append([]byte(nil), b...)
+	}
+	if len(b) > size {
+		return append([]byte(nil), b[len(b)-size:]...)
 	}
 	if len(b) > size {
 		return b[len(b)-size:]
@@ -142,69 +169,64 @@ func isOdd(n *big.Int) bool {
 	return n.Bit(0) == 1
 }
 
-// modSqrt computes the modular square root of a modulo p using Tonelli-Shanks algorithm
-// Returns nil if no square root exists
+// modSqrt computes the modular square root of a modulo p.
+// Returns nil if no square root exists.
 func modSqrt(a, p *big.Int) *big.Int {
-	// Check if a is a quadratic residue modulo p
-	// Using Euler's criterion: a^((p-1)/2) ≡ 1 (mod p)
-	legendre := new(big.Int).Exp(a, new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), big.NewInt(2)), p)
-	if legendre.Cmp(big.NewInt(1)) != 0 {
-		return nil // No square root exists
+	return new(big.Int).ModSqrt(a, p)
+}
+
+// backendSign computes a GOST R 34.10-2012 signature using the gogost backend.
+// Returns signature in s||r format (gogost native), which the caller must reorder to r||s.
+func backendSign(c Curve, d, digest []byte) ([]byte, error) {
+	ggCurve, err := getCurve(c)
+	if err != nil {
+		return nil, err
 	}
 
-	// Find Q and S such that p - 1 = Q * 2^S
-	Q := new(big.Int).Sub(p, big.NewInt(1))
-	S := 0
-	for Q.Bit(0) == 0 {
-		Q.Rsh(Q, 1)
-		S++
+	mode, err := getMode(c)
+	if err != nil {
+		return nil, err
 	}
 
-	// If S == 1, then p ≡ 3 (mod 4), use simple formula
-	if S == 1 {
-		result := new(big.Int).Exp(a, new(big.Int).Add(new(big.Int).Rsh(p, 2), big.NewInt(1)), p)
-		return result
+	ggPrivKey, err := gg.NewPrivateKey(ggCurve, mode, reversedCopy(d))
+	if err != nil {
+		return nil, err
 	}
 
-	// Find a quadratic non-residue z
-	z := big.NewInt(2)
-	legendre = new(big.Int).Exp(z, new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), big.NewInt(2)), p)
-	for legendre.Cmp(big.NewInt(1)) == 0 {
-		z.Add(z, big.NewInt(1))
-		legendre = new(big.Int).Exp(z, new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), big.NewInt(2)), p)
+	return ggPrivKey.SignDigest(digest, rand.Reader)
+}
+
+// backendVerify checks a GOST R 34.10-2012 signature using the gogost backend.
+// Expects signature in s||r format (gogost native), which the caller must prepare from r||s.
+func backendVerify(c Curve, x, y, digest, sig []byte) (bool, error) {
+	ggCurve, err := getCurve(c)
+	if err != nil {
+		return false, err
 	}
 
-	// Tonelli-Shanks algorithm
-	M := big.NewInt(int64(S))
-	c := new(big.Int).Exp(z, Q, p)
-	t := new(big.Int).Exp(a, Q, p)
-	R := new(big.Int).Exp(a, new(big.Int).Add(new(big.Int).Rsh(Q, 1), big.NewInt(1)), p)
-
-	for {
-		if t.Cmp(big.NewInt(1)) == 0 {
-			return R
-		}
-
-		// Find the least i such that t^(2^i) = 1
-		i := int64(1)
-		t2 := new(big.Int).Mul(t, t)
-		t2.Mod(t2, p)
-		for i < M.Int64() && t2.Cmp(big.NewInt(1)) != 0 {
-			t2.Mul(t2, t2)
-			t2.Mod(t2, p)
-			i++
-		}
-
-		// Compute b = c^(2^(M-i-1))
-		b := new(big.Int).Exp(big.NewInt(2), new(big.Int).Sub(new(big.Int).Sub(M, big.NewInt(i)), big.NewInt(1)), p)
-		b = new(big.Int).Exp(c, b, p)
-
-		M = big.NewInt(i)
-		c.Mul(b, b)
-		c.Mod(c, p)
-		t.Mul(t, c)
-		t.Mod(t, p)
-		R.Mul(R, b)
-		R.Mod(R, p)
+	mode, err := getMode(c)
+	if err != nil {
+		return false, err
 	}
+
+	keySize, err := c.Size()
+	if err != nil {
+		return false, err
+	}
+
+	// gogost.NewPublicKey expects raw format as: X||Y with both coordinates reversed to little-endian
+	rawKey := make([]byte, 2*keySize)
+	for i := 0; i < keySize; i++ {
+		rawKey[i] = x[keySize-1-i]
+	}
+	for i := 0; i < keySize; i++ {
+		rawKey[keySize+i] = y[keySize-1-i]
+	}
+
+	ggPubKey, err := gg.NewPublicKey(ggCurve, mode, rawKey)
+	if err != nil {
+		return false, err
+	}
+
+	return ggPubKey.VerifyDigest(digest, sig)
 }

@@ -2,7 +2,7 @@
 
 Complete API reference for gost-crypto.
 
-[README](README.md) | [README (Russian)](README.ru.md) | [Examples](_examples/EXAMPLES.md)
+[README](README.md) | [README (Russian)](README.ru.md)
 
 ---
 
@@ -13,18 +13,38 @@ Complete API reference for gost-crypto.
 - [gostcrypto](#gostcrypto-package)
 - [kdf/hd](#kdfhd-package)
 - [Error Handling](#error-handling)
-- [Constants](#constants)
 - [Thread Safety](#thread-safety)
 
 ---
 
-## streebog Package
+## Table of Contents
 
 GOST R 34.11-2012 Streebog hash functions.
 
+### `New256() hash.Hash`
+
+Returns a new Streebog-256 hasher implementing `hash.Hash`. Use for incremental hashing.
+
+```go
+h := streebog.New256()
+h.Write(part1)
+h.Write(part2)
+digest := h.Sum(nil)
+```
+
+### `New512() hash.Hash`
+
+Returns a new Streebog-512 hasher implementing `hash.Hash`.
+
+```go
+h := streebog.New512()
+h.Write(data)
+digest := h.Sum(nil)
+```
+
 ### `Sum256(data []byte) [32]byte`
 
-Computes a 256-bit Streebog hash.
+Computes a 256-bit Streebog hash in a single call.
 
 ```go
 hash := streebog.Sum256([]byte("message"))
@@ -32,7 +52,7 @@ hash := streebog.Sum256([]byte("message"))
 
 ### `Sum512(data []byte) [64]byte`
 
-Computes a 512-bit Streebog hash.
+Computes a 512-bit Streebog hash in a single call.
 
 ```go
 hash := streebog.Sum512([]byte("message"))
@@ -63,7 +83,7 @@ const (
 )
 ```
 
-The `Size()` method returns the key size in bytes (32 for 256-bit curves, 64 for 512-bit curves).
+The `Size() (int, error)` method returns the key size in bytes (32 for 256-bit curves, 64 for 512-bit curves).
 
 #### `HashID`
 
@@ -79,10 +99,11 @@ const (
 
 #### `PrivKey`
 
-Private key for GOST R 34.10-2012 signatures.
+Private key for GOST R 34.10-2012 signatures. Implements `crypto.Signer`.
 
 **Fields:**
 - `D []byte` — private key scalar (32 bytes for 256-bit curves, 64 bytes for 512-bit)
+- `Curve Curve` — the TC26 curve this key belongs to
 
 #### `PubKey`
 
@@ -91,6 +112,7 @@ Public key for GOST R 34.10-2012 signatures.
 **Fields:**
 - `X []byte` — X coordinate (32 or 64 bytes)
 - `Y []byte` — Y coordinate (32 or 64 bytes)
+- `Curve Curve` — the TC26 curve this key belongs to
 
 ---
 
@@ -113,47 +135,63 @@ raw, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19
 privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, raw)
 ```
 
-#### `(pk *PrivKey) Public() (*PubKey, error)`
+#### `(pk *PrivKey) PublicKey() (*PubKey, error)`
 
 Derives the corresponding public key.
 
 ```go
-pubKey, err := privKey.Public()
+pubKey, err := privKey.PublicKey()
 ```
+
+#### `(pk *PrivKey) ToRaw() []byte`
+
+Returns a copy of the raw big-endian private key bytes.
+
+```go
+raw := privKey.ToRaw()
+```
+
+#### `(pk *PrivKey) Public() crypto.PublicKey`
+
+Returns the public key as `crypto.PublicKey`, satisfying the `crypto.Signer` interface. Returns nil if derivation fails.
+
+#### `(pk *PrivKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)`
+
+Signs a digest, satisfying the `crypto.Signer` interface. The `rand` parameter is ignored (gogost uses `crypto/rand` internally). Delegates to `SignDigest`.
 
 ---
 
 ### Signing and Verification
 
-#### `(pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
+#### `(pk *PrivKey) SignDigest(digest []byte) ([]byte, error)`
 
-Signs a pre-computed digest. The digest size must match the hash algorithm (32 bytes for Streebog256, 64 bytes for Streebog512).
+Signs a pre-computed digest. The digest size must match the key size (32 bytes for 256-bit curves, 64 bytes for 512-bit curves).
 
 **Returns:** signature bytes (`r || s`; 64 bytes for 256-bit curves, 128 bytes for 512-bit).
 
 ```go
 digest := streebog.Sum256(message)
-sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
+sig, err := privKey.SignDigest(digest[:])
 ```
 
-#### `(pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
+#### `(pk *PubKey) Verify(digest, signature []byte) (bool, error)`
 
 Verifies a signature against a pre-computed digest.
 
 ```go
-valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
+valid, err := pubKey.Verify(digest[:], signature)
 ```
 
 ---
 
 ### Key Serialization
 
-#### `(pk *PubKey) ToCompressed(withPrefix bool) []byte`
+#### `(pk *PubKey) ToCompressed(withPrefix bool) ([]byte, error)`
 
 Serializes the public key in compressed format.
 
 - With prefix: `0x02` (even Y) or `0x03` (odd Y) followed by X coordinate
-- Without prefix: X coordinate only
+- Without prefix: X coordinate only (returns error if X[0] >= 0x80)
 
 | Curve type | With prefix | Without prefix |
 |------------|-------------|----------------|
@@ -161,7 +199,7 @@ Serializes the public key in compressed format.
 | 512-bit | 65 bytes | 64 bytes |
 
 ```go
-compressed := pubKey.ToCompressed(true)
+compressed, err := pubKey.ToCompressed(true)
 ```
 
 #### `(pk *PubKey) ToUncompressed(withPrefix bool) []byte`
@@ -251,7 +289,7 @@ Generates a master private key and chain code from a seed.
 - `seed` — random seed (recommended: 32+ bytes)
 - `hash` — Streebog256 or Streebog512
 
-**Returns:** master private key, chain code (32 bytes), error.
+**Returns:** master private key, chain code (32 bytes for Streebog256, 64 bytes for Streebog512), error.
 
 ```go
 masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
@@ -275,40 +313,22 @@ childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/44'/283'/0'/0/0"
 
 ## Error Handling
 
-| Error | Cause |
-|-------|-------|
-| `ErrInvalidKeySize` | Key byte length does not match the curve |
-| `ErrInvalidDigestSize` | Digest length does not match the hash algorithm (expected 32 or 64 bytes) |
-| `ErrInvalidSignatureSize` | Signature length is incorrect for the curve |
-| `ErrInvalidCurve` | Curve is not supported by the backend |
-| `ErrKeyRecoveryFailed` | Public key cannot be reconstructed from the provided data |
-| `ErrDerivationFailed` | Key derivation failed (invalid path or parent key) |
+Errors are returned as standard Go `error` values with descriptive messages. Common error conditions:
 
----
-
-## Constants
-
-```go
-// Hash output sizes
-Streebog256HashSize = 32  // bytes
-Streebog512HashSize = 64  // bytes
-
-// Signature sizes (r || s)
-TC26_256_SignatureSize = 64   // bytes
-TC26_512_SignatureSize = 128  // bytes
-
-// Compressed public key sizes
-TC26_256_CompressedSize   = 33  // with prefix
-TC26_256_CompressedSizeNP = 32  // without prefix
-TC26_512_CompressedSize   = 65  // with prefix
-TC26_512_CompressedSizeNP = 64  // without prefix
-
-// Uncompressed public key sizes
-TC26_256_UncompressedSize   = 65   // with prefix
-TC26_256_UncompressedSizeNP = 64   // without prefix
-TC26_512_UncompressedSize   = 129  // with prefix
-TC26_512_UncompressedSizeNP = 128  // without prefix
-```
+| Error message | Cause |
+|---------------|-------|
+| `"invalid private key size"` | Key byte length does not match the curve |
+| `"private key must be non-zero"` | Private key scalar is zero |
+| `"private key must be less than curve order"` | Private key scalar >= curve subgroup order q |
+| `"digest size does not match key size"` | Digest length does not match the key size (expected 32 or 64 bytes) |
+| `"invalid signature size"` | Signature length is incorrect for the curve |
+| `"unknown curve"` | Curve is not recognized |
+| `"invalid compressed length"` | Compressed key data has wrong length |
+| `"invalid uncompressed"` | Uncompressed key data has wrong length or prefix |
+| `"X[0] high bit set: use prefix=true for this key"` | Cannot use prefix-less compressed format when X[0] >= 0x80 |
+| `"path must start with 'm/'"` | HD derivation path missing required prefix |
+| `"empty path segment"` | HD derivation path contains empty segment (e.g., `"m/0//1"`) |
+| `"hash size does not match key size"` | Hash algorithm does not match parent key's curve size |
 
 ---
 

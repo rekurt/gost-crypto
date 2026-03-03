@@ -1,10 +1,13 @@
+// Package gostcrypto provides a high-level facade that combines Streebog
+// hashing (GOST R 34.11-2012) with GOST R 34.10-2012 signing and
+// verification in a single call.
 package gostcrypto
 
 import (
 	"errors"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // Options controls hashing and other parameters for signing/verification.
@@ -34,6 +37,10 @@ func Sign(priv *gost3410.PrivKey, msg []byte, opt *Options) ([]byte, error) {
 		}
 	}
 
+	if (h == gost3410.Streebog256 && len(priv.D) != 32) || (h == gost3410.Streebog512 && len(priv.D) != 64) {
+		return nil, errors.New("hash size does not match key size")
+	}
+
 	var digest []byte
 	switch h {
 	case gost3410.Streebog256:
@@ -45,7 +52,7 @@ func Sign(priv *gost3410.PrivKey, msg []byte, opt *Options) ([]byte, error) {
 	default:
 		return nil, errors.New("unknown hash id")
 	}
-	return priv.Sign(digest, h)
+	return priv.SignDigest(digest)
 }
 
 // Verify hashes msg with configured Streebog and verifies GOST R 34.10-2012 signature (r||s).
@@ -67,6 +74,10 @@ func Verify(pub *gost3410.PubKey, msg, sig []byte, opt *Options) (bool, error) {
 		}
 	}
 
+	if (h == gost3410.Streebog256 && len(pub.X) != 32) || (h == gost3410.Streebog512 && len(pub.X) != 64) {
+		return false, errors.New("hash size does not match key size")
+	}
+
 	var digest []byte
 	switch h {
 	case gost3410.Streebog256:
@@ -78,5 +89,5 @@ func Verify(pub *gost3410.PubKey, msg, sig []byte, opt *Options) (bool, error) {
 	default:
 		return false, errors.New("unknown hash id")
 	}
-	return pub.Verify(digest, sig, h)
+	return pub.Verify(digest, sig)
 }

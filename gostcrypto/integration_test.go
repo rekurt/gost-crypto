@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/kdf/hd"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/kdf/hd"
 )
 
 // TestIntegrationSignVerifyWithSerialization tests complete workflow:
@@ -17,13 +17,16 @@ func TestIntegrationSignVerifyWithSerialization256(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
 
 	// Step 2: Serialize public key (compressed and uncompressed)
-	compressedPub := pubKey.ToCompressed(true)
+	compressedPub, err := pubKey.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed failed: %v", err)
+	}
 	uncompressedPub := pubKey.ToUncompressed(true)
 
 	if len(compressedPub) != 33 {
@@ -137,7 +140,7 @@ func TestIntegrationHDKeyDerivationAndSigning256(t *testing.T) {
 	opts := &Options{Hash: gost3410.Streebog256}
 
 	for i, childKey := range derivedKeys {
-		pubKey, err := childKey.Public()
+		pubKey, err := childKey.PublicKey()
 		if err != nil {
 			t.Fatalf("Failed to derive public key at %s: %v", paths[i], err)
 		}
@@ -172,7 +175,7 @@ func TestIntegrationMultipleCurves(t *testing.T) {
 			t.Fatalf("Failed to generate key for curve: %v", err)
 		}
 
-		pubKey, err := privKey.Public()
+		pubKey, err := privKey.PublicKey()
 		if err != nil {
 			t.Fatalf("Failed to derive public key: %v", err)
 		}
@@ -200,7 +203,7 @@ func TestIntegrationMultipleCurves(t *testing.T) {
 			t.Fatalf("Failed to generate key for curve: %v", err)
 		}
 
-		pubKey, err := privKey.Public()
+		pubKey, err := privKey.PublicKey()
 		if err != nil {
 			t.Fatalf("Failed to derive public key: %v", err)
 		}
@@ -229,7 +232,7 @@ func TestIntegrationLargeMessage(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -274,7 +277,7 @@ func TestIntegrationEmptyMessage(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -304,7 +307,7 @@ func TestIntegrationConsistency(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}

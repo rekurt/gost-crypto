@@ -2,9 +2,11 @@ package hd
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 
-	"gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gost3410"
 )
 
 // TestMaster256 tests master key generation with Streebog-256
@@ -431,7 +433,7 @@ func BenchmarkDeriveLongPath(b *testing.B) {
 }
 
 // TestDeriveEmptyPathReturnsParent tests that Derive with "m/" (empty segments after m/)
-// returns the parent key unchanged, since there are no derivation steps to apply.
+// returns a copy of the parent key, since there are no derivation steps to apply.
 func TestDeriveEmptyPathReturnsParent(t *testing.T) {
 	seed := []byte("test seed for empty path")
 	master, chainCode, err := Master(seed, gost3410.Streebog256)
@@ -439,19 +441,39 @@ func TestDeriveEmptyPathReturnsParent(t *testing.T) {
 		t.Fatalf("Master failed: %v", err)
 	}
 
-	// "m/" means no child indices - should return the same key
+	// "m/" means no child indices - should return the same key value
 	child, childChain, err := Derive(master, chainCode, "m/", gost3410.Streebog256)
 	if err != nil {
 		t.Fatalf("Derive with m/ failed: %v", err)
 	}
 
-	// With no derivation steps, the result should be the parent key itself
+	// With no derivation steps, the result should equal the parent key
 	if !bytes.Equal(child.D, master.D) {
 		t.Error("Derive with empty path should return parent key")
 	}
 
 	if !bytes.Equal(childChain, chainCode) {
 		t.Error("Derive with empty path should return parent chain code")
+	}
+
+	// Verify defensive copies: modifying child must not corrupt parent
+	origD := append([]byte(nil), master.D...)
+	child.D[0] ^= 0xFF
+	if !bytes.Equal(master.D, origD) {
+		t.Error("Derive returned aliased D slice — modifying child corrupted parent")
+	}
+	origChain := append([]byte(nil), chainCode...)
+	childChain[0] ^= 0xFF
+	if !bytes.Equal(chainCode, origChain) {
+		t.Error("Derive returned aliased chainCode slice — modifying child corrupted parent")
+	}
+}
+
+// TestDeriveNilParent verifies Derive returns an error for nil parent key.
+func TestDeriveNilParent(t *testing.T) {
+	_, _, err := Derive(nil, []byte("chain"), "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Fatal("Derive with nil parent should return an error")
 	}
 }
 
@@ -516,4 +538,109 @@ func FuzzParsePath(f *testing.F) {
 			_ = idx.hardened
 		}
 	})
+}
+
+func ExampleMaster() {
+	seed := []byte("my secure seed phrase")
+
+	privKey, chainCode, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("key size:", len(privKey.D))
+	fmt.Println("chain code size:", len(chainCode))
+	// Output:
+	// key size: 32
+	// chain code size: 32
+}
+
+// TestDeriveHashCurveMismatch verifies that Derive returns a clear error
+// when the hash variant does not match the parent key's curve size.
+func TestDeriveHashCurveMismatch(t *testing.T) {
+	// Generate a 256-bit master key
+	seed := []byte("test seed for mismatch")
+	master256, chainCode256, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		t.Fatalf("Master256 failed: %v", err)
+	}
+
+	// Generate a 512-bit master key
+	master512, chainCode512, err := Master(seed, gost3410.Streebog512)
+	if err != nil {
+		t.Fatalf("Master512 failed: %v", err)
+	}
+
+	// Streebog512 hash with 256-bit key should fail
+	_, _, err = Derive(master256, chainCode256, "m/0", gost3410.Streebog512)
+	if err == nil {
+		t.Error("Derive with Streebog512 + 256-bit key should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "does not match key size") {
+		t.Errorf("expected 'does not match key size' error, got: %v", err)
+	}
+
+	// Streebog256 hash with 512-bit key should fail
+	_, _, err = Derive(master512, chainCode512, "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Error("Derive with Streebog256 + 512-bit key should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "does not match key size") {
+		t.Errorf("expected 'does not match key size' error, got: %v", err)
+	}
+}
+
+// TestDeriveInvalidChainCodeLength verifies that Derive rejects chain codes
+// whose length does not match the expected key size for the hash variant.
+func TestDeriveInvalidChainCodeLength(t *testing.T) {
+	seed := []byte("test seed for chain code check")
+	master, _, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		t.Fatalf("Master failed: %v", err)
+	}
+
+	// Wrong-length chain code (16 bytes instead of 32)
+	shortChain := make([]byte, 16)
+	_, _, err = Derive(master, shortChain, "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Error("Derive with short chain code should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "chain code size") {
+		t.Errorf("expected 'chain code size' error, got: %v", err)
+	}
+
+	// Wrong-length chain code (64 bytes instead of 32)
+	longChain := make([]byte, 64)
+	_, _, err = Derive(master, longChain, "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Error("Derive with long chain code should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "chain code size") {
+		t.Errorf("expected 'chain code size' error, got: %v", err)
+	}
+}
+
+// TestParsePathEmptySegment verifies that parsePath rejects paths with
+// empty segments (e.g., "0//1") and returns a descriptive error.
+func TestParsePathEmptySegment(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"double slash", "0//1"},
+		{"leading slash", "/0/1"},
+		{"trailing slash", "0/1/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parsePath(tt.path)
+			if err == nil {
+				t.Errorf("parsePath(%q) should fail with empty segment error", tt.path)
+			}
+			if err != nil && !strings.Contains(err.Error(), "empty path segment") {
+				t.Errorf("parsePath(%q): expected 'empty path segment' error, got: %v", tt.path, err)
+			}
+		})
+	}
 }

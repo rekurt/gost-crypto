@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/gostcrypto"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gostcrypto"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	}
 
 	// Derive public key from private key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +65,10 @@ func main() {
 
 	// Test public key serialization
 	fmt.Println("\nPublic key serialization:")
-	compressed := pubKey.ToCompressed(true)
+	compressed, err := pubKey.ToCompressed(true)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Compressed form: %d bytes\n", len(compressed))
 
 	uncompressed := pubKey.ToUncompressed(true)

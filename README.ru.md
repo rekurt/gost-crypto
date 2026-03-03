@@ -1,8 +1,12 @@
 # gost-crypto
 
+[![CI](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml/badge.svg)](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rekurt/gost-crypto)](https://goreportcard.com/report/github.com/rekurt/gost-crypto)
+[![GoDoc](https://pkg.go.dev/badge/github.com/rekurt/gost-crypto)](https://pkg.go.dev/github.com/rekurt/gost-crypto)
+
 Полнофункциональная реализация российских стандартов криптографии ГОСТ на чистом Go, обеспечивающая цифровые подписи, криптографическое хеширование и управление ключами для стандартов ГОСТ Р 34.10-2012 и ГОСТ Р 34.11-2012 Стрибог.
 
-**[🇬🇧 English](README.md)** | **[📚 Индекс документации](DOCUMENTATION.md)** | **[🔧 API Справочник](API.md)** | **[💡 Продвинутые примеры](_examples/EXAMPLES.md)** | **[🤝 Вклад](CONTRIBUTING.md)**
+[API Справочник](API.ru.md) | [English](README.md) | [Вклад](CONTRIBUTING.md)
 
 ## Возможности
 
@@ -18,19 +22,19 @@
 ## Установка
 
 ```bash
-go get -u github.com/ddulesov/gogost
+go get github.com/rekurt/gost-crypto
 ```
 
 Импортируйте в ваш код:
 
 ```go
 import (
-    "gost-crypto/gostcrypto"
-    "gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
 )
 ```
 
-**Требования**: Go 1.24 или позже
+**Требования**: Go 1.21 или позже
 
 ## Поддерживаемые кривые
 
@@ -58,8 +62,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -69,7 +73,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -101,8 +105,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -112,7 +116,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -146,7 +150,7 @@ package main
 import (
     "encoding/hex"
     "fmt"
-    "gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gost3410"
 )
 
 func main() {
@@ -156,20 +160,18 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
 
     // Сжатый формат с префиксом (33 байта всего)
-    compressed := pubKey.ToCompressed(true)
+    compressed, err := pubKey.ToCompressed(true)
+    if err != nil {
+        panic(err)
+    }
     fmt.Printf("Сжатый (с префиксом): %s\n", hex.EncodeToString(compressed))
     fmt.Printf("Размер: %d байт\n", len(compressed))
-
-    // Сжатый формат без префикса (32 байта)
-    compressedNoPrefix := pubKey.ToCompressed(false)
-    fmt.Printf("Сжатый (без префикса): %s\n", hex.EncodeToString(compressedNoPrefix))
-    fmt.Printf("Размер: %d байт\n", len(compressedNoPrefix))
 
     // Несжатый формат с префиксом (65 байт всего)
     uncompressed := pubKey.ToUncompressed(true)
@@ -192,8 +194,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -203,7 +205,7 @@ func main() {
         panic(err)
     }
 
-    originalPubKey, err := privKey.Public()
+    originalPubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -218,7 +220,10 @@ func main() {
     }
 
     // Сериализуем открытый ключ
-    compressed := originalPubKey.ToCompressed(true)
+    compressed, err := originalPubKey.ToCompressed(true)
+    if err != nil {
+        panic(err)
+    }
 
     // Восстанавливаем открытый ключ из сжатого формата
     recoveredPubKey, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressed, true)
@@ -245,8 +250,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
@@ -256,7 +261,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -306,9 +311,9 @@ package main
 import (
     "encoding/hex"
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/gostcrypto"
-    "gost-crypto/kdf/hd"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gostcrypto"
+    "github.com/rekurt/gost-crypto/kdf/hd"
 )
 
 func main() {
@@ -338,7 +343,7 @@ func main() {
         fmt.Printf("Код цепи: %s\n", hex.EncodeToString(newChainCode))
 
         // Получаем открытый ключ для этого пути
-        pubKey, err := childKey.Public()
+        pubKey, err := childKey.PublicKey()
         if err != nil {
             panic(err)
         }
@@ -352,7 +357,7 @@ func main() {
     opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 
     for i, path := range paths {
-        pubKey, _ := derivedKeys[i].Public()
+        pubKey, _ := derivedKeys[i].PublicKey()
         signature, _ := gostcrypto.Sign(derivedKeys[i], message, opts)
         valid, _ := gostcrypto.Verify(pubKey, message, signature, opts)
 
@@ -392,8 +397,8 @@ package main
 
 import (
     "fmt"
-    "gost-crypto/gost3410"
-    "gost-crypto/streebog"
+    "github.com/rekurt/gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/streebog"
 )
 
 func main() {
@@ -403,7 +408,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -413,13 +418,13 @@ func main() {
     digest := streebog.Sum256(message)
 
     // Подписываем дайджест напрямую
-    signature, err := privKey.Sign(digest[:], gost3410.Streebog256)
+    signature, err := privKey.SignDigest(digest[:])
     if err != nil {
         panic(err)
     }
 
     // Проверяем подпись
-    valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
+    valid, err := pubKey.Verify(digest[:], signature)
     if err != nil {
         panic(err)
     }
@@ -436,7 +441,7 @@ package main
 import (
     "encoding/hex"
     "fmt"
-    "gost-crypto/gost3410"
+    "github.com/rekurt/gost-crypto/gost3410"
 )
 
 func main() {
@@ -449,7 +454,7 @@ func main() {
         panic(err)
     }
 
-    pubKey, err := privKey.Public()
+    pubKey, err := privKey.PublicKey()
     if err != nil {
         panic(err)
     }
@@ -465,19 +470,21 @@ func main() {
 ```
 gost-crypto/
 ├── streebog/           # Реализация хеша Streebog-256/512
+│   └── streebog.go
 ├── gost3410/           # Цифровые подписи ГОСТ Р 34.10-2012
 │   ├── backend_gogost.go    # Интеграция библиотеки gogost
+│   ├── hash.go              # Тип HashID и константы
 │   ├── keys.go              # Управление ключами и сериализация
-│   ├── sign.go              # Подписание и проверка
+│   ├── sign.go              # SignDigest и Verify методы
+│   ├── signer.go            # Интерфейс crypto.Signer
 │   └── *_test.go            # Комплексный набор тестов
 ├── gostcrypto/         # API высокоуровневого фасада
-│   ├── sign_verify.go       # Объединённые операции хеш и подпись
-│   ├── options.go           # Опции конфигурации
+│   ├── facade.go            # Объединённые операции хеш и подпись
 │   └── *_test.go            # Интеграционные тесты
 ├── kdf/hd/             # Производное получение ключей HD
-│   └── derive.go        # Иерархическое производное получение ключей
+│   └── hd.go               # Иерархическое производное получение ключей
 └── _examples/          # Примеры использования
-    ├── sign_verify/         # Базовое подписание
+    ├── sign_verify_256/     # Базовое подписание
     ├── sign_verify_512/     # 512-битное подписание
     ├── hd_derivation/       # Пример HD кошелька
     ├── batch_signing/       # Пакетные операции
@@ -593,4 +600,4 @@ go test -run TestIntegrationSignVerifyWithSerialization256 ./gostcrypto
 
 ## Лицензия
 
-Эта реализация предоставляется в образовательных целях и для авторизированного тестирования безопасности. Убедитесь, что вы имеете надлежащее разрешение перед использованием в производстве.
+Лицензия MIT. Подробности в файле [LICENSE](LICENSE).

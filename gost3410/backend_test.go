@@ -131,7 +131,10 @@ func TestPublicKeyRoundTrip256(t *testing.T) {
 	pub := &PubKey{X: x, Y: y, Curve: curve}
 
 	// Test compressed with prefix
-	compressed := pub.ToCompressed(true)
+	compressed, err := pub.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed with prefix failed: %v", err)
+	}
 	if len(compressed) != 33 {
 		t.Errorf("compressed with prefix size: got %d, want 33", len(compressed))
 	}
@@ -177,7 +180,10 @@ func TestPublicKeyRoundTrip512(t *testing.T) {
 	pub := &PubKey{X: x, Y: y, Curve: curve}
 
 	// Test compressed with prefix
-	compressed := pub.ToCompressed(true)
+	compressed, err := pub.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed with prefix failed: %v", err)
+	}
 	if len(compressed) != 65 {
 		t.Errorf("compressed with prefix size: got %d, want 65", len(compressed))
 	}
@@ -232,7 +238,10 @@ func TestTC26_512_B(t *testing.T) {
 
 	// Test public key operations
 	pub := &PubKey{X: x, Y: y, Curve: curve}
-	compressed := pub.ToCompressed(true)
+	compressed, err := pub.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed failed for 512-B: %v", err)
+	}
 	if len(compressed) != 65 {
 		t.Errorf("512-B compressed size: got %d, want 65", len(compressed))
 	}
@@ -263,7 +272,10 @@ func TestTC26_512_C(t *testing.T) {
 
 	// Test public key operations
 	pub := &PubKey{X: x, Y: y, Curve: curve}
-	compressed := pub.ToCompressed(true)
+	compressed, err := pub.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed failed for 512-C: %v", err)
+	}
 	if len(compressed) != 65 {
 		t.Errorf("512-C compressed size: got %d, want 65", len(compressed))
 	}
@@ -385,7 +397,10 @@ func TestSerialization512AllFormats(t *testing.T) {
 
 			// Format 1: compressed with prefix (0x02/0x03 || X)
 			t.Run("compressed_with_prefix", func(t *testing.T) {
-				enc := pub.ToCompressed(true)
+				enc, err := pub.ToCompressed(true)
+				if err != nil {
+					t.Fatalf("ToCompressed failed: %v", err)
+				}
 				if len(enc) != 65 {
 					t.Fatalf("compressed with prefix size: got %d, want 65", len(enc))
 				}
@@ -403,7 +418,10 @@ func TestSerialization512AllFormats(t *testing.T) {
 
 			// Format 2: compressed without prefix (X with MSB parity)
 			t.Run("compressed_without_prefix", func(t *testing.T) {
-				enc := pub.ToCompressed(false)
+				enc, err := pub.ToCompressed(false)
+				if err != nil {
+					t.Fatalf("ToCompressed failed: %v", err)
+				}
 				if len(enc) != 64 {
 					t.Fatalf("compressed without prefix size: got %d, want 64", len(enc))
 				}
@@ -499,4 +517,52 @@ func TestGetCurveOutOfRange(t *testing.T) {
 	if err == nil {
 		t.Error("getCurve should fail for out-of-range curve")
 	}
+}
+
+// TestPadToSizeReturnsCopy verifies that padToSize always returns a new slice,
+// so modifications to the result don't affect the input.
+func TestPadToSizeReturnsCopy(t *testing.T) {
+	t.Run("exact size returns copy", func(t *testing.T) {
+		original := []byte{0x01, 0x02, 0x03, 0x04}
+		input := append([]byte(nil), original...)
+		result := padToSize(input, 4)
+		if !bytes.Equal(result, original) {
+			t.Fatalf("padToSize exact: got %x, want %x", result, original)
+		}
+		// Mutate result and verify input is unchanged
+		result[0] = 0xFF
+		if !bytes.Equal(input, original) {
+			t.Error("padToSize exact size: mutating result affected input (shared memory)")
+		}
+	})
+
+	t.Run("truncated returns copy", func(t *testing.T) {
+		original := []byte{0x00, 0x01, 0x02, 0x03, 0x04}
+		input := append([]byte(nil), original...)
+		result := padToSize(input, 4)
+		expected := []byte{0x01, 0x02, 0x03, 0x04}
+		if !bytes.Equal(result, expected) {
+			t.Fatalf("padToSize long: got %x, want %x", result, expected)
+		}
+		// Mutate result and verify input is unchanged
+		result[0] = 0xFF
+		if !bytes.Equal(input, original) {
+			t.Error("padToSize truncated: mutating result affected input (shared memory)")
+		}
+	})
+
+	t.Run("padded returns new slice", func(t *testing.T) {
+		original := []byte{0x01, 0x02}
+		input := append([]byte(nil), original...)
+		result := padToSize(input, 4)
+		expected := []byte{0x00, 0x00, 0x01, 0x02}
+		if !bytes.Equal(result, expected) {
+			t.Fatalf("padToSize short: got %x, want %x", result, expected)
+		}
+		// Mutate result and verify input is unchanged
+		result[2] = 0xFF
+		if !bytes.Equal(input, original) {
+			t.Error("padToSize padded: mutating result affected input (shared memory)")
+		}
+	})
 }

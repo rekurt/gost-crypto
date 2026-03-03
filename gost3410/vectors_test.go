@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // TestTC26_256_SignVerifyVectors tests signature generation and verification with TC26_256_A curve
@@ -25,7 +25,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 			// Test vector using generated keys
 			// This validates the sign/verify cycle works correctly
 			name:       "TC26_256_A generated vector 1",
-			privKeyHex: "7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28",
+			privKeyHex: "3A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28",
 			messageHex: "48656C6C6F20474F5354", // "Hello GOST"
 			source:     "Generated test vector",
 		},
@@ -51,7 +51,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 				t.Fatalf("Failed to create private key: %v", err)
 			}
 
-			pubKey, err := privKey.Public()
+			pubKey, err := privKey.PublicKey()
 			if err != nil {
 				t.Fatalf("Failed to derive public key: %v", err)
 			}
@@ -65,13 +65,13 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 			digest := streebog.Sum256(message)
 
 			// Sign the message
-			sig, err := privKey.Sign(digest[:], Streebog256)
+			sig, err := privKey.SignDigest(digest[:])
 			if err != nil {
 				t.Fatalf("Sign failed: %v", err)
 			}
 
 			// Verify the signature should succeed
-			valid, err := pubKey.Verify(digest[:], sig, Streebog256)
+			valid, err := pubKey.Verify(digest[:], sig)
 			if err != nil {
 				t.Fatalf("Verify failed: %v", err)
 			}
@@ -83,7 +83,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 			// Verify should fail with different message
 			wrongMessage := []byte("wrong message")
 			wrongDigest := streebog.Sum256(wrongMessage)
-			valid, err = pubKey.Verify(wrongDigest[:], sig, Streebog256)
+			valid, err = pubKey.Verify(wrongDigest[:], sig)
 			if err != nil {
 				t.Fatalf("Verify with wrong message failed: %v", err)
 			}
@@ -96,7 +96,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 			corruptedSig := make([]byte, len(sig))
 			copy(corruptedSig, sig)
 			corruptedSig[0] ^= 0xFF // flip bits
-			valid, err = pubKey.Verify(digest[:], corruptedSig, Streebog256)
+			valid, err = pubKey.Verify(digest[:], corruptedSig)
 			if err != nil {
 				t.Logf("Verify with corrupted signature: %v", err)
 			}
@@ -107,16 +107,6 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 		})
 	}
 }
-
-// mustDecodeHex is a helper to decode hex strings (panics on error)
-func mustDecodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
 // TestTC26_512_SignVerifyVectors tests signature generation and verification with TC26_512_A curve
 // Tests using generated keys to validate the sign/verify cycle with 512-bit keys
 // Reference: GOST R 34.10-2012, TC26 parameter sets (http://www.tc26.ru/)
@@ -159,7 +149,7 @@ func TestTC26_512_SignVerifyVectors(t *testing.T) {
 				t.Fatalf("Failed to create private key: %v", err)
 			}
 
-			pubKey, err := privKey.Public()
+			pubKey, err := privKey.PublicKey()
 			if err != nil {
 				t.Fatalf("Failed to derive public key: %v", err)
 			}
@@ -173,13 +163,13 @@ func TestTC26_512_SignVerifyVectors(t *testing.T) {
 			digest := streebog.Sum512(message)
 
 			// Sign the message
-			sig, err := privKey.Sign(digest[:], Streebog512)
+			sig, err := privKey.SignDigest(digest[:])
 			if err != nil {
 				t.Fatalf("Sign failed: %v", err)
 			}
 
 			// Verify the signature should succeed
-			valid, err := pubKey.Verify(digest[:], sig, Streebog512)
+			valid, err := pubKey.Verify(digest[:], sig)
 			if err != nil {
 				t.Fatalf("Verify failed: %v", err)
 			}
@@ -191,7 +181,7 @@ func TestTC26_512_SignVerifyVectors(t *testing.T) {
 			// Verify should fail with different message
 			wrongMessage := []byte("wrong message")
 			wrongDigest := streebog.Sum512(wrongMessage)
-			valid, err = pubKey.Verify(wrongDigest[:], sig, Streebog512)
+			valid, err = pubKey.Verify(wrongDigest[:], sig)
 			if err != nil {
 				t.Fatalf("Verify with wrong message failed: %v", err)
 			}
