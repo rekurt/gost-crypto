@@ -309,8 +309,8 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 		copy(corruptedSig, sig)
 		corruptedSig[0] ^= 0xFF
 
-		valid, err := Verify(pubKey, message, corruptedSig, opts)
-		if err == nil && valid {
+		valid, _ := Verify(pubKey, message, corruptedSig, opts)
+		if valid {
 			t.Error("corrupted signature should not verify")
 		}
 	})
@@ -323,8 +323,8 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 	})
 
 	t.Run("wrong_message", func(t *testing.T) {
-		valid, err := Verify(pubKey, []byte("wrong message"), sig, opts)
-		if err == nil && valid {
+		valid, _ := Verify(pubKey, []byte("wrong message"), sig, opts)
+		if valid {
 			t.Error("signature should not verify with wrong message")
 		}
 	})
@@ -397,5 +397,51 @@ func TestSignVerifyRoundtripAllCurves(t *testing.T) {
 				t.Error("two signatures of same message are identical - possible randomness issue")
 			}
 		})
+	}
+}
+
+// BenchmarkVerify256 benchmarks high-level verification with 256-bit curve
+func BenchmarkVerify256(b *testing.B) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		b.Fatalf("NewPrivKey failed: %v", err)
+	}
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		b.Fatalf("PublicKey failed: %v", err)
+	}
+	message := []byte("test message")
+	opts := &Options{Hash: gost3410.Streebog256}
+	sig, err := Sign(privKey, message, opts)
+	if err != nil {
+		b.Fatalf("Sign failed: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Verify(pubKey, message, sig, opts)
+	}
+}
+
+// BenchmarkVerify512 benchmarks high-level verification with 512-bit curve
+func BenchmarkVerify512(b *testing.B) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		b.Fatalf("NewPrivKey failed: %v", err)
+	}
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		b.Fatalf("PublicKey failed: %v", err)
+	}
+	message := []byte("test message")
+	opts := &Options{Hash: gost3410.Streebog512}
+	sig, err := Sign(privKey, message, opts)
+	if err != nil {
+		b.Fatalf("Sign failed: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Verify(pubKey, message, sig, opts)
 	}
 }

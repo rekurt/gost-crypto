@@ -2,6 +2,7 @@ package gost3410
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/streebog"
@@ -525,4 +526,54 @@ func BenchmarkVerify512(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = pubKey.Verify(digest[:], sig)
 	}
+}
+
+func ExamplePrivKey_SignDigest() {
+	// Generate a new GOST R 34.10-2012 private key on TC26_256_A curve
+	privKey, err := NewPrivKey(TC26_256_A)
+	if err != nil {
+		panic(err)
+	}
+
+	// Hash the message with Streebog-256
+	message := []byte("Hello GOST")
+	digest := streebog.Sum256(message)
+
+	// Sign the digest
+	sig, err := privKey.SignDigest(digest[:])
+	if err != nil {
+		panic(err)
+	}
+
+	// 256-bit signature is 64 bytes (r||s, 32 bytes each)
+	fmt.Println(len(sig))
+	// Output: 64
+}
+
+func ExamplePubKey_Verify() {
+	// Generate key pair
+	privKey, err := NewPrivKey(TC26_256_A)
+	if err != nil {
+		panic(err)
+	}
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		panic(err)
+	}
+
+	// Sign a message
+	message := []byte("Hello GOST")
+	digest := streebog.Sum256(message)
+	sig, err := privKey.SignDigest(digest[:])
+	if err != nil {
+		panic(err)
+	}
+
+	// Verify the signature
+	valid, err := pubKey.Verify(digest[:], sig)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(valid)
+	// Output: true
 }

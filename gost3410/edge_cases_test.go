@@ -231,8 +231,8 @@ func TestEdgeCaseDifferentCurvesIncompatible(t *testing.T) {
 	}
 }
 
-// TestEdgCase512MinimalKey tests 512-bit key with minimal value
-func TestEdgCase512MinimalKey(t *testing.T) {
+// TestEdgeCaseMinimalKey512 tests 512-bit key with minimal value
+func TestEdgeCaseMinimalKey512(t *testing.T) {
 	privKeyBytes := make([]byte, 64)
 	privKeyBytes[63] = 1 // d = 1
 
@@ -361,36 +361,52 @@ func TestCrossCurveVerification(t *testing.T) {
 }
 
 // TestPropertySignThenVerify runs 100 iterations of sign-then-verify with random keys
+// on all supported curves.
 func TestPropertySignThenVerify(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		privKey, err := NewPrivKey(TC26_256_A)
-		if err != nil {
-			t.Fatalf("Iteration %d: NewPrivKey failed: %v", i, err)
-		}
+	curves := []struct {
+		name  string
+		curve Curve
+		hash  func([]byte) []byte
+	}{
+		{"256-A", TC26_256_A, func(msg []byte) []byte { d := streebog.Sum256(msg); return d[:] }},
+		{"512-A", TC26_512_A, func(msg []byte) []byte { d := streebog.Sum512(msg); return d[:] }},
+		{"512-B", TC26_512_B, func(msg []byte) []byte { d := streebog.Sum512(msg); return d[:] }},
+		{"512-C", TC26_512_C, func(msg []byte) []byte { d := streebog.Sum512(msg); return d[:] }},
+	}
 
-		pubKey, err := privKey.PublicKey()
-		if err != nil {
-			t.Fatalf("Iteration %d: Public() failed: %v", i, err)
-		}
+	for _, cc := range curves {
+		t.Run(cc.name, func(t *testing.T) {
+			for i := 0; i < 100; i++ {
+				privKey, err := NewPrivKey(cc.curve)
+				if err != nil {
+					t.Fatalf("Iteration %d: NewPrivKey failed: %v", i, err)
+				}
 
-		message := make([]byte, 32)
-		if _, err := rand.Read(message); err != nil {
-			t.Fatalf("Iteration %d: rand.Read failed: %v", i, err)
-		}
-		digest := streebog.Sum256(message)
+				pubKey, err := privKey.PublicKey()
+				if err != nil {
+					t.Fatalf("Iteration %d: PublicKey() failed: %v", i, err)
+				}
 
-		sig, err := privKey.SignDigest(digest[:])
-		if err != nil {
-			t.Fatalf("Iteration %d: Sign failed: %v", i, err)
-		}
+				message := make([]byte, 32)
+				if _, err := rand.Read(message); err != nil {
+					t.Fatalf("Iteration %d: rand.Read failed: %v", i, err)
+				}
+				digest := cc.hash(message)
 
-		valid, err := pubKey.Verify(digest[:], sig)
-		if err != nil {
-			t.Fatalf("Iteration %d: Verify failed: %v", i, err)
-		}
-		if !valid {
-			t.Fatalf("Iteration %d: sign-then-verify returned false", i)
-		}
+				sig, err := privKey.SignDigest(digest)
+				if err != nil {
+					t.Fatalf("Iteration %d: Sign failed: %v", i, err)
+				}
+
+				valid, err := pubKey.Verify(digest, sig)
+				if err != nil {
+					t.Fatalf("Iteration %d: Verify failed: %v", i, err)
+				}
+				if !valid {
+					t.Fatalf("Iteration %d: sign-then-verify returned false", i)
+				}
+			}
+		})
 	}
 }
 

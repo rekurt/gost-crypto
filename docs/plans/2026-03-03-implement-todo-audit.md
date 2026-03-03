@@ -142,17 +142,17 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 - Modify: `streebog/streebog_test.go`
 - Create: `gost3410/fuzz_test.go`
 
-- [ ] **3.1** Fix `TestEdgeCaseZeroPrivateKey`: replace permissive "either error acceptable" with assertion that `FromRawPriv` rejects zero key (this was already handled in Task 2 — verify it's solid)
-- [ ] **3.2** Rename `TestEdgCase512MinimalKey` to `TestEdgeCaseMinimalKey512` (fix typo)
-- [ ] **3.5** Delete unused `mustDecodeHex` from `streebog/streebog_test.go` (the one in `vectors_test.go` IS used — keep it)
-- [ ] **3.7** Fix guard in `TestVerifyCorruptedSignature` subtest `corrupted_byte`: change `if err == nil && valid` to `if valid` (corrupted signature should not validate regardless of error)
-- [ ] **3.8** Replace `string()` comparison with `bytes.Equal` + `%x` format in `streebog_test.go` lines: `TestStreebog256Incremental`, `TestStreebog512Incremental`, `TestStreebog256Reset`, `TestStreebog512Reset`
-- [ ] **3.6** Extend `TestPropertySignThenVerify` to run 100 iterations on `TC26_512_A`, `TC26_512_B`, `TC26_512_C` (add sub-tests or table-driven approach)
-- [ ] **3.9** Add `BenchmarkVerify256` and `BenchmarkVerify512` in `gostcrypto/facade_test.go`
-- [ ] **3.4** Create `gost3410/fuzz_test.go` with `FuzzFromCompressed` and `FuzzFromUncompressed` fuzz tests
-- [ ] **3.3** Add `Example*` functions: `ExampleSign` in `gost3410/sign_test.go`, `ExampleVerify` in `gost3410/sign_test.go`, `ExampleSum256` in `streebog/streebog_test.go`, `ExampleMaster` in `kdf/hd/hd_test.go`
-- [ ] Run `go test ./...` — all tests must pass
-- [ ] Run `go doc ./...` to verify examples render correctly
+- [x] **3.1** Fix `TestEdgeCaseZeroPrivateKey`: replace permissive "either error acceptable" with assertion that `FromRawPriv` rejects zero key (this was already handled in Task 2 — verify it's solid)
+- [x] **3.2** Rename `TestEdgCase512MinimalKey` to `TestEdgeCaseMinimalKey512` (fix typo)
+- [x] **3.5** Delete unused `mustDecodeHex` from `streebog/streebog_test.go` (the one in `vectors_test.go` IS used — keep it)
+- [x] **3.7** Fix guard in `TestVerifyCorruptedSignature` subtest `corrupted_byte`: change `if err == nil && valid` to `if valid` (corrupted signature should not validate regardless of error)
+- [x] **3.8** Replace `string()` comparison with `bytes.Equal` + `%x` format in `streebog_test.go` lines: `TestStreebog256Incremental`, `TestStreebog512Incremental`, `TestStreebog256Reset`, `TestStreebog512Reset`
+- [x] **3.6** Extend `TestPropertySignThenVerify` to run 100 iterations on `TC26_512_A`, `TC26_512_B`, `TC26_512_C` (add sub-tests or table-driven approach)
+- [x] **3.9** Add `BenchmarkVerify256` and `BenchmarkVerify512` in `gostcrypto/facade_test.go`
+- [x] **3.4** Create `gost3410/fuzz_test.go` with `FuzzFromCompressed` and `FuzzFromUncompressed` fuzz tests
+- [x] **3.3** Add `Example*` functions: `ExampleSign` in `gost3410/sign_test.go`, `ExampleVerify` in `gost3410/sign_test.go`, `ExampleSum256` in `streebog/streebog_test.go`, `ExampleMaster` in `kdf/hd/hd_test.go`
+- [x] Run `go test ./...` — all tests must pass
+- [x] Run `go doc ./...` to verify examples render correctly
 
 ### Task 8: P3 — Repo cleanup and CI [4.1, 4.2, 4.3, 4.9, 4.11]
 

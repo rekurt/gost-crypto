@@ -3,6 +3,7 @@ package streebog
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
 )
 
@@ -120,7 +121,7 @@ func TestStreebog256Incremental(t *testing.T) {
 	h.Write(data[20:])
 	got := h.Sum(nil)
 
-	if string(got) != string(expected[:]) {
+	if !bytes.Equal(got, expected[:]) {
 		t.Error("incremental hashing does not match single hash")
 	}
 }
@@ -139,7 +140,7 @@ func TestStreebog512Incremental(t *testing.T) {
 	h.Write(data[20:])
 	got := h.Sum(nil)
 
-	if string(got) != string(expected[:]) {
+	if !bytes.Equal(got, expected[:]) {
 		t.Error("incremental hashing does not match single hash")
 	}
 }
@@ -154,13 +155,13 @@ func TestStreebog256Reset(t *testing.T) {
 	h.Write([]byte("second"))
 	digest2 := h.Sum(nil)
 
-	if string(digest1) == string(digest2) {
+	if bytes.Equal(digest1, digest2) {
 		t.Error("reset failed - hashes should be different")
 	}
 
 	// Hash should match direct computation
 	expected := Sum256([]byte("second"))
-	if string(digest2) != string(expected[:]) {
+	if !bytes.Equal(digest2, expected[:]) {
 		t.Error("reset hash does not match direct hash")
 	}
 }
@@ -175,13 +176,13 @@ func TestStreebog512Reset(t *testing.T) {
 	h.Write([]byte("second"))
 	digest2 := h.Sum(nil)
 
-	if string(digest1) == string(digest2) {
+	if bytes.Equal(digest1, digest2) {
 		t.Error("reset failed - hashes should be different")
 	}
 
 	// Hash should match direct computation
 	expected := Sum512([]byte("second"))
-	if string(digest2) != string(expected[:]) {
+	if !bytes.Equal(digest2, expected[:]) {
 		t.Error("reset hash does not match direct hash")
 	}
 }
@@ -427,4 +428,10 @@ func TestStreebogIncrementalMatchesSum_RFC6986(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ExampleSum256() {
+	digest := Sum256([]byte("Hello GOST"))
+	fmt.Println(hex.EncodeToString(digest[:]))
+	// Output: ddf17feaac017b6fb0f22e98f0ee471eb135bc1c43854b6c86c8a310b91c8d53
 }

@@ -2,6 +2,7 @@ package hd
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/gost3410"
@@ -516,4 +517,19 @@ func FuzzParsePath(f *testing.F) {
 			_ = idx.hardened
 		}
 	})
+}
+
+func ExampleMaster() {
+	seed := []byte("my secure seed phrase")
+
+	privKey, chainCode, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("key size:", len(privKey.D))
+	fmt.Println("chain code size:", len(chainCode))
+	// Output:
+	// key size: 32
+	// chain code size: 32
 }
