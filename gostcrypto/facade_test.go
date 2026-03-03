@@ -394,7 +394,7 @@ func TestSignVerifyRoundtripAllCurves(t *testing.T) {
 
 			// Signatures from two runs should differ (random k)
 			if bytes.Equal(sig, sig2) {
-				t.Log("warning: two signatures are identical (extremely unlikely)")
+				t.Error("two signatures of same message are identical - possible randomness issue")
 			}
 		})
 	}

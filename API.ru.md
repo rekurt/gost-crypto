@@ -75,15 +75,16 @@ const (
 )
 ```
 
-#### `HashAlgorithm`
+#### `HashID`
 
 Выбор алгоритма хеширования.
 
 **Значения:**
 ```go
 const (
-    Streebog256 HashAlgorithm = iota
-    Streebog512
+    HashAuto    HashID = iota // Нулевое значение; хеш определяется по размеру ключа
+    Streebog256               // ГОСТ Р 34.11-2012, 256-бит
+    Streebog512               // ГОСТ Р 34.11-2012, 512-бит
 )
 ```
 
@@ -146,13 +147,13 @@ privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
 pubKey, err := privKey.Public()
 ```
 
-##### `func (pk *PrivKey) Sign(digest []byte, hash HashAlgorithm) ([]byte, error)`
+##### `func (pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
 
 Подписывает дайджест сообщения.
 
 **Параметры:**
 - `digest []byte` - предварительно вычисленный дайджест сообщения (32 байта для Streebog256, 64 байта для Streebog512)
-- `hash HashAlgorithm` - алгоритм хеширования (для согласованности формата)
+- `hash HashID` - алгоритм хеширования (для согласованности формата)
 
 **Возвращает:**
 - `[]byte` - подпись (64 байта для 256-битных кривых, 128 байт для 512-битных кривых)
@@ -174,14 +175,14 @@ sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
 
 **Методы:**
 
-##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashAlgorithm) (bool, error)`
+##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
 
 Проверяет подпись на дайджесте сообщения.
 
 **Параметры:**
 - `digest []byte` - предварительно вычисленный дайджест сообщения
 - `signature []byte` - подпись для проверки
-- `hash HashAlgorithm` - использованный алгоритм хеширования
+- `hash HashID` - использованный алгоритм хеширования
 
 **Возвращает:**
 - `bool` - истина, если подпись действительна
@@ -276,7 +277,7 @@ recovered, err := gost3410.FromUncompressed(gost3410.TC26_256_A, uncompressed, t
 Опции конфигурации для подписания и проверки.
 
 **Поля:**
-- `Hash HashAlgorithm` - используемый алгоритм хеширования (Streebog256 или Streebog512)
+- `Hash HashID` - используемый алгоритм хеширования (Streebog256 или Streebog512). Если ноль (HashAuto), определяется по размеру ключа.
 
 **Пример:**
 ```go
@@ -292,7 +293,7 @@ opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 **Параметры:**
 - `privKey *gost3410.PrivKey` - приватный ключ для подписания
 - `message []byte` - сообщение для подписания
-- `opts *Options` - опции подписания (если nil, по умолчанию Streebog256)
+- `opts *Options` - опции подписания (если nil или Hash равен HashAuto, хеш определяется по размеру ключа)
 
 **Возвращает:**
 - `[]byte` - подпись
@@ -312,7 +313,7 @@ sig, err := gostcrypto.Sign(privKey, message, opts)
 - `pubKey *gost3410.PubKey` - открытый ключ для проверки
 - `message []byte` - исходное сообщение
 - `signature []byte` - подпись для проверки
-- `opts *Options` - опции проверки (если nil, по умолчанию Streebog256)
+- `opts *Options` - опции проверки (если nil или Hash равен HashAuto, хеш определяется по размеру ключа)
 
 **Возвращает:**
 - `bool` - истина, если подпись действительна
@@ -335,13 +336,13 @@ if err == nil && valid {
 
 ### Функции
 
-#### `func Master(seed []byte, hash gost3410.HashAlgorithm) (*gost3410.PrivKey, []byte, error)`
+#### `func Master(seed []byte, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
 
 Генерирует главный ключ и код цепи из семени.
 
 **Параметры:**
 - `seed []byte` - случайное семя (рекомендуется: 32+ байта)
-- `hash gost3410.HashAlgorithm` - алгоритм хеширования (Streebog256 или Streebog512)
+- `hash gost3410.HashID` - алгоритм хеширования (Streebog256 или Streebog512)
 
 **Возвращает:**
 - `*gost3410.PrivKey` - главный приватный ключ
@@ -354,7 +355,7 @@ seed := []byte("мое секретное семя")
 masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
 ```
 
-#### `func Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashAlgorithm) (*gost3410.PrivKey, []byte, error)`
+#### `func Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
 
 Выводит дочерний ключ по указанному пути.
 
@@ -362,7 +363,7 @@ masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
 - `parentKey *gost3410.PrivKey` - родительский приватный ключ
 - `parentChain []byte` - родительский код цепи
 - `path string` - путь выведения (например, "m/0'/1/2'")
-- `hash gost3410.HashAlgorithm` - алгоритм хеширования
+- `hash gost3410.HashID` - алгоритм хеширования
 
 **Возвращает:**
 - `*gost3410.PrivKey` - выведённый дочерний ключ

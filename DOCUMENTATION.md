@@ -59,7 +59,7 @@ This document provides an overview of all documentation available for the gost-c
 
 - **gost3410 package**:
   - `Curve` enumeration (all 8 TC26 curves)
-  - `HashAlgorithm` enumeration
+  - `HashID` enumeration (HashAuto, Streebog256, Streebog512)
   - `PrivKey` type and methods:
     - `NewPrivKey()` - Generate new key
     - `FromRawPriv()` - Create from bytes

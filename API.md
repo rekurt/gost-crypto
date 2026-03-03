@@ -75,15 +75,16 @@ const (
 )
 ```
 
-#### `HashAlgorithm`
+#### `HashID`
 
 Hash algorithm selector.
 
 **Values:**
 ```go
 const (
-    Streebog256 HashAlgorithm = iota
-    Streebog512
+    HashAuto    HashID = iota // Zero value; infer hash from key size
+    Streebog256               // GOST R 34.11-2012 with 256-bit output
+    Streebog512               // GOST R 34.11-2012 with 512-bit output
 )
 ```
 
@@ -146,13 +147,13 @@ Derives the public key from the private key.
 pubKey, err := privKey.Public()
 ```
 
-##### `func (pk *PrivKey) Sign(digest []byte, hash HashAlgorithm) ([]byte, error)`
+##### `func (pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
 
 Signs a message digest.
 
 **Parameters:**
 - `digest []byte` - Pre-computed message digest (32 bytes for Streebog256, 64 bytes for Streebog512)
-- `hash HashAlgorithm` - Hash algorithm used (for format consistency)
+- `hash HashID` - Hash algorithm used (for format consistency)
 
 **Returns:**
 - `[]byte` - Signature (64 bytes for 256-bit curves, 128 bytes for 512-bit curves)
@@ -174,14 +175,14 @@ Public key structure for elliptic curve signatures.
 
 **Methods:**
 
-##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashAlgorithm) (bool, error)`
+##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
 
 Verifies a signature on a message digest.
 
 **Parameters:**
 - `digest []byte` - Pre-computed message digest
 - `signature []byte` - Signature to verify
-- `hash HashAlgorithm` - Hash algorithm used
+- `hash HashID` - Hash algorithm used
 
 **Returns:**
 - `bool` - True if signature is valid
@@ -276,7 +277,7 @@ High-level facade combining hashing and signing operations.
 Configuration options for signing and verification.
 
 **Fields:**
-- `Hash HashAlgorithm` - Hash algorithm to use (Streebog256 or Streebog512)
+- `Hash HashID` - Hash algorithm to use (Streebog256 or Streebog512). If zero (HashAuto), inferred from key size.
 
 **Example:**
 ```go
@@ -292,7 +293,7 @@ Signs a message using the private key.
 **Parameters:**
 - `privKey *gost3410.PrivKey` - Private key for signing
 - `message []byte` - Message to sign
-- `opts *Options` - Signing options (if nil, defaults to Streebog256)
+- `opts *Options` - Signing options (if nil or Hash is HashAuto, hash is inferred from key size)
 
 **Returns:**
 - `[]byte` - Signature
@@ -312,7 +313,7 @@ Verifies a signature on a message.
 - `pubKey *gost3410.PubKey` - Public key for verification
 - `message []byte` - Original message
 - `signature []byte` - Signature to verify
-- `opts *Options` - Verification options (if nil, defaults to Streebog256)
+- `opts *Options` - Verification options (if nil or Hash is HashAuto, hash is inferred from key size)
 
 **Returns:**
 - `bool` - True if signature is valid
@@ -335,13 +336,13 @@ Hierarchical deterministic key derivation using HKDF.
 
 ### Functions
 
-#### `func Master(seed []byte, hash gost3410.HashAlgorithm) (*gost3410.PrivKey, []byte, error)`
+#### `func Master(seed []byte, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
 
 Generates a master key and chain code from a seed.
 
 **Parameters:**
 - `seed []byte` - Random seed (recommended: 32+ bytes)
-- `hash gost3410.HashAlgorithm` - Hash algorithm (Streebog256 or Streebog512)
+- `hash gost3410.HashID` - Hash algorithm (Streebog256 or Streebog512)
 
 **Returns:**
 - `*gost3410.PrivKey` - Master private key
@@ -354,7 +355,7 @@ seed := []byte("my secret seed phrase")
 masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
 ```
 
-#### `func Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashAlgorithm) (*gost3410.PrivKey, []byte, error)`
+#### `func Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
 
 Derives a child key at the specified path.
 
@@ -362,7 +363,7 @@ Derives a child key at the specified path.
 - `parentKey *gost3410.PrivKey` - Parent private key
 - `parentChain []byte` - Parent chain code
 - `path string` - Derivation path (e.g., "m/0'/1/2'")
-- `hash gost3410.HashAlgorithm` - Hash algorithm
+- `hash gost3410.HashID` - Hash algorithm
 
 **Returns:**
 - `*gost3410.PrivKey` - Derived child key

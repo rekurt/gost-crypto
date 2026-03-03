@@ -53,7 +53,7 @@
 
 - **Пакет gost3410**:
   - Перечисление `Curve` (все 8 кривых ТК26)
-  - Перечисление `HashAlgorithm`
+  - Перечисление `HashID` (HashAuto, Streebog256, Streebog512)
   - Тип `PrivKey` и методы:
     - `NewPrivKey()` - Генерация нового ключа
     - `FromRawPriv()` - Создание из байт

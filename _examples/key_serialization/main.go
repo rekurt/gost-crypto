@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"gost-crypto/gost3410"
 	"gost-crypto/gostcrypto"
@@ -147,22 +149,22 @@ func main() {
 
 	// Step 13: Verify all recovered keys are identical
 	fmt.Println("\nStep 13: Comparing all recovered keys...")
-	if pubKey.X != recoveredFromCompressed1.X || pubKey.Y != recoveredFromCompressed1.Y {
+	if !bytes.Equal(pubKey.X, recoveredFromCompressed1.X) || !bytes.Equal(pubKey.Y, recoveredFromCompressed1.Y) {
 		panic("Recovered key 1 does not match original!")
 	}
 	fmt.Println("✓ Compressed (prefix) matches original")
 
-	if pubKey.X != recoveredFromCompressed2.X || pubKey.Y != recoveredFromCompressed2.Y {
+	if !bytes.Equal(pubKey.X, recoveredFromCompressed2.X) || !bytes.Equal(pubKey.Y, recoveredFromCompressed2.Y) {
 		panic("Recovered key 2 does not match original!")
 	}
 	fmt.Println("✓ Compressed (no prefix) matches original")
 
-	if pubKey.X != recoveredFromUncompressed1.X || pubKey.Y != recoveredFromUncompressed1.Y {
+	if !bytes.Equal(pubKey.X, recoveredFromUncompressed1.X) || !bytes.Equal(pubKey.Y, recoveredFromUncompressed1.Y) {
 		panic("Recovered key 3 does not match original!")
 	}
 	fmt.Println("✓ Uncompressed (prefix) matches original")
 
-	if pubKey.X != recoveredFromUncompressed2.X || pubKey.Y != recoveredFromUncompressed2.Y {
+	if !bytes.Equal(pubKey.X, recoveredFromUncompressed2.X) || !bytes.Equal(pubKey.Y, recoveredFromUncompressed2.Y) {
 		panic("Recovered key 4 does not match original!")
 	}
 	fmt.Println("✓ Uncompressed (no prefix) matches original")
@@ -202,7 +204,7 @@ func main() {
 	}
 	fmt.Println("✓ 512-bit key serialization and recovery works")
 
-	fmt.Println("\n" + "="*50)
+	fmt.Println("\n" + strings.Repeat("=", 50))
 	fmt.Println("✓ Key serialization and recovery test completed!")
-	fmt.Println("=" * 50)
+	fmt.Println(strings.Repeat("=", 50))
 }
