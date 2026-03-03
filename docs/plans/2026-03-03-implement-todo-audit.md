@@ -216,12 +216,12 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 - Modify: `kdf/hd/hd.go`
 - Modify: `kdf/hd/hd_test.go`
 
-- [ ] **5b** Remove no-op truncation `[:keySize]` from `hkdfExtract` — the HMAC output is already the correct size
-- [ ] **5c** Add hash/curve validation in `Derive()`: if caller passes `Streebog256` with a 512-bit parent key (or vice versa), return a clear error like `"hash size does not match key size"`
-- [ ] **5d** Improve `parsePath`: detect empty segments (e.g., `"m/0//1"`) and return clear error `"empty path segment"` instead of cryptic parse error
-- [ ] Add test `TestDeriveHashCurveMismatch`: verify `Derive` with Streebog256 hash + 512-bit key returns error
-- [ ] Add test `TestParsePathEmptySegment`: verify `parsePath("0//1")` returns descriptive error
-- [ ] Run `go test ./...` — all tests must pass
+- [x] **5b** Remove no-op truncation `[:keySize]` from `hkdfExtract` — the HMAC output is already the correct size
+- [x] **5c** Add hash/curve validation in `Derive()`: if caller passes `Streebog256` with a 512-bit parent key (or vice versa), return a clear error like `"hash size does not match key size"`
+- [x] **5d** Improve `parsePath`: detect empty segments (e.g., `"m/0//1"`) and return clear error `"empty path segment"` instead of cryptic parse error
+- [x] Add test `TestDeriveHashCurveMismatch`: verify `Derive` with Streebog256 hash + 512-bit key returns error
+- [x] Add test `TestParsePathEmptySegment`: verify `parsePath("0//1")` returns descriptive error
+- [x] Run `go test ./...` — all tests must pass
 
 ### Task 11: Verify acceptance criteria
 

@@ -4,6 +4,7 @@ package hd
 import (
 	"crypto/hmac"
 	"errors"
+	"fmt"
 	"hash"
 	"strconv"
 	"strings"
@@ -74,6 +75,15 @@ func Derive(parent *gost3410.PrivKey, chainCode []byte, path string, h gost3410.
 		return nil, nil, errors.New("invalid hash id")
 	}
 
+	// Validate that hash size matches parent key's curve size
+	curveSize, err := parent.Curve.Size()
+	if err != nil {
+		return nil, nil, err
+	}
+	if curveSize != keySize {
+		return nil, nil, fmt.Errorf("hash size (%d) does not match key size (%d)", keySize, curveSize)
+	}
+
 	// Parse path
 	indices, err := parsePath(path[2:]) // Skip "m/"
 	if err != nil {
@@ -117,6 +127,10 @@ func parsePath(path string) ([]pathIndex, error) {
 	indices := make([]pathIndex, len(parts))
 
 	for i, part := range parts {
+		if part == "" {
+			return nil, errors.New("empty path segment")
+		}
+
 		hardened := false
 		if strings.HasSuffix(part, "'") {
 			hardened = true
@@ -173,12 +187,9 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 }
 
 func hkdfExtract(salt, ikm []byte, h gost3410.HashID) []byte {
-	// HMAC using streebog
-	keySize := 32
-	if h == gost3410.Streebog512 {
-		keySize = 64
-	}
-	return hmacStreebog(salt, ikm, h)[:keySize]
+	// HMAC-Streebog output size matches the hash variant (32 or 64 bytes),
+	// so no truncation is needed.
+	return hmacStreebog(salt, ikm, h)
 }
 
 func hkdfExpand(prk, info []byte, length int, h gost3410.HashID) []byte {

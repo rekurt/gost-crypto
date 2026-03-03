@@ -3,6 +3,7 @@ package hd
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/gost3410"
@@ -532,4 +533,64 @@ func ExampleMaster() {
 	// Output:
 	// key size: 32
 	// chain code size: 32
+}
+
+// TestDeriveHashCurveMismatch verifies that Derive returns a clear error
+// when the hash variant does not match the parent key's curve size.
+func TestDeriveHashCurveMismatch(t *testing.T) {
+	// Generate a 256-bit master key
+	seed := []byte("test seed for mismatch")
+	master256, chainCode256, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		t.Fatalf("Master256 failed: %v", err)
+	}
+
+	// Generate a 512-bit master key
+	master512, chainCode512, err := Master(seed, gost3410.Streebog512)
+	if err != nil {
+		t.Fatalf("Master512 failed: %v", err)
+	}
+
+	// Streebog512 hash with 256-bit key should fail
+	_, _, err = Derive(master256, chainCode256, "m/0", gost3410.Streebog512)
+	if err == nil {
+		t.Error("Derive with Streebog512 + 256-bit key should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "does not match key size") {
+		t.Errorf("expected 'does not match key size' error, got: %v", err)
+	}
+
+	// Streebog256 hash with 512-bit key should fail
+	_, _, err = Derive(master512, chainCode512, "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Error("Derive with Streebog256 + 512-bit key should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "does not match key size") {
+		t.Errorf("expected 'does not match key size' error, got: %v", err)
+	}
+}
+
+// TestParsePathEmptySegment verifies that parsePath rejects paths with
+// empty segments (e.g., "0//1") and returns a descriptive error.
+func TestParsePathEmptySegment(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"double slash", "0//1"},
+		{"leading slash", "/0/1"},
+		{"trailing slash", "0/1/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parsePath(tt.path)
+			if err == nil {
+				t.Errorf("parsePath(%q) should fail with empty segment error", tt.path)
+			}
+			if err != nil && !strings.Contains(err.Error(), "empty path segment") {
+				t.Errorf("parsePath(%q): expected 'empty path segment' error, got: %v", tt.path, err)
+			}
+		})
+	}
 }
