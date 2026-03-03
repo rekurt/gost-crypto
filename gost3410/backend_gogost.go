@@ -8,30 +8,30 @@ import (
 	gg "github.com/ddulesov/gogost/gost3410"
 )
 
-// gogostCurve maps our Curve enum to gogost Curve objects
-// Note: Only TC26_256_A, TC26_512_A/B/C are available in gogost
-// Other curves (256-B/C/D, 512-D) would need to be added to gogost library
-var gogostCurves = [8]*gg.Curve{
-	TC26_256_A: gg.CurveIdtc26gost34102012256paramSetA(),
+// gogostCurveFactories maps our Curve enum to gogost curve constructor functions.
+// Fresh instances are created per call to avoid data races on mutable scratch
+// fields (t, tx, ty) inside gogost Curve.add() during concurrent operations.
+var gogostCurveFactories = [8]func() *gg.Curve{
+	TC26_256_A: gg.CurveIdtc26gost34102012256paramSetA,
 	TC26_256_B: nil, // Not available in gogost v1.0.0
 	TC26_256_C: nil, // Not available in gogost v1.0.0
 	TC26_256_D: nil, // Not available in gogost v1.0.0
-	TC26_512_A: gg.CurveIdtc26gost341012512paramSetA(),
-	TC26_512_B: gg.CurveIdtc26gost341012512paramSetB(),
-	TC26_512_C: gg.CurveIdtc26gost34102012512paramSetC(),
+	TC26_512_A: gg.CurveIdtc26gost341012512paramSetA,
+	TC26_512_B: gg.CurveIdtc26gost341012512paramSetB,
+	TC26_512_C: gg.CurveIdtc26gost34102012512paramSetC,
 	TC26_512_D: nil, // Not available in gogost v1.0.0
 }
 
-// getCurve returns the gogost Curve for our Curve enum value
+// getCurve returns a fresh gogost Curve for our Curve enum value.
 func getCurve(c Curve) (*gg.Curve, error) {
-	if c < 0 || c >= Curve(len(gogostCurves)) {
+	if c < 0 || c >= Curve(len(gogostCurveFactories)) {
 		return nil, errors.New("unknown curve")
 	}
-	gogostC := gogostCurves[c]
-	if gogostC == nil {
+	factory := gogostCurveFactories[c]
+	if factory == nil {
 		return nil, errors.New("curve not available in gogost backend")
 	}
-	return gogostC, nil
+	return factory(), nil
 }
 
 // getMode returns the gogost Mode for our Curve
@@ -59,10 +59,19 @@ func curveOrder(c Curve) (*big.Int, error) {
 	return new(big.Int).Set(ggCurve.Q), nil
 }
 
-// mulBase multiplies the base point by scalar d and returns X, Y coordinates
-// Returns big-endian bytes of fixed length (32 or 64 bytes)
+// reversedCopy returns a new byte slice with bytes in reverse order.
+// gogost uses little-endian wire format for keys; our library uses big-endian.
+func reversedCopy(b []byte) []byte {
+	r := make([]byte, len(b))
+	for i := range b {
+		r[i] = b[len(b)-1-i]
+	}
+	return r
+}
+
+// mulBase multiplies the base point by scalar d and returns X, Y coordinates.
+// d is big-endian; returned x, y are big-endian of fixed length (32 or 64 bytes).
 func mulBase(c Curve, d []byte) (x, y []byte, err error) {
-	// Create gogost private key from raw bytes
 	ggCurve, err := getCurve(c)
 	if err != nil {
 		return nil, nil, err
@@ -72,9 +81,8 @@ func mulBase(c Curve, d []byte) (x, y []byte, err error) {
 		return nil, nil, err
 	}
 
-	// gogost expects little-endian, but we need to convert properly
-	// Create a gogost private key to compute public key
-	privKey, err := gg.NewPrivateKey(ggCurve, mode, d)
+	// gogost NewPrivateKey expects little-endian; reverse our big-endian D
+	privKey, err := gg.NewPrivateKey(ggCurve, mode, reversedCopy(d))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,8 +92,7 @@ func mulBase(c Curve, d []byte) (x, y []byte, err error) {
 		return nil, nil, err
 	}
 
-	// gogost stores X, Y as big.Int
-	// We need to convert them to big-endian bytes of fixed length
+	// gogost stores X, Y as big.Int; convert to big-endian bytes of fixed length
 	size, _ := c.Size()
 	x = padToSize(pubKey.X.Bytes(), size)
 	y = padToSize(pubKey.Y.Bytes(), size)
@@ -172,7 +179,7 @@ func backendSign(c Curve, d, digest []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	ggPrivKey, err := gg.NewPrivateKey(ggCurve, mode, d)
+	ggPrivKey, err := gg.NewPrivateKey(ggCurve, mode, reversedCopy(d))
 	if err != nil {
 		return nil, err
 	}
