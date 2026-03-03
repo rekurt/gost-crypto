@@ -93,13 +93,13 @@ func main() {
 			continue
 		}
 
-		sig, err := priv.Sign(digest[:], gost3410.Streebog512)
+		sig, err := priv.Sign(digest[:])
 		if err != nil {
 			fmt.Printf("  Error signing: %v\n", err)
 			continue
 		}
 
-		valid, err := pub.Verify(digest[:], sig, gost3410.Streebog512)
+		valid, err := pub.Verify(digest[:], sig)
 		if err != nil {
 			fmt.Printf("  Error verifying: %v\n", err)
 			continue

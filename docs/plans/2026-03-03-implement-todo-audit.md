@@ -107,15 +107,15 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 2. Remove the dead `h HashID` parameter from `Sign` and `Verify`
 3. Isolate gogost imports in `backend_gogost.go`
 
-- [ ] Create `gost3410/hash.go`: move `HashID`, `HashAuto`, `Streebog256`, `Streebog512` constants from `sign.go`
-- [ ] Remove `h HashID` parameter from `PrivKey.Sign()` — new signature: `Sign(digest []byte) ([]byte, error)`
-- [ ] Remove `h HashID` parameter from `PubKey.Verify()` — new signature: `Verify(digest, sig []byte) (bool, error)`
-- [ ] Move gogost `gg.NewPrivateKey` / `gg.NewPublicKey` calls from `sign.go` into new backend functions in `backend_gogost.go`: `backendSign(curve Curve, d, digest []byte) ([]byte, error)` and `backendVerify(curve Curve, x, y, digest, sig []byte) (bool, error)`
-- [ ] Refactor `sign.go` to call `backendSign` / `backendVerify` — remove `import gg` from `sign.go`
-- [ ] Update `gostcrypto/facade.go`: remove `h` argument from calls to `priv.Sign(digest, h)` and `pub.Verify(digest, sig, h)`
-- [ ] Update all test files that call `Sign(digest, HashID)` and `Verify(digest, sig, HashID)` to use new signatures
-- [ ] Run `go test ./...` — all tests must pass
-- [ ] Run `go vet ./...` — must be clean
+- [x] Create `gost3410/hash.go`: move `HashID`, `HashAuto`, `Streebog256`, `Streebog512` constants from `sign.go`
+- [x] Remove `h HashID` parameter from `PrivKey.Sign()` — new signature: `Sign(digest []byte) ([]byte, error)`
+- [x] Remove `h HashID` parameter from `PubKey.Verify()` — new signature: `Verify(digest, sig []byte) (bool, error)`
+- [x] Move gogost `gg.NewPrivateKey` / `gg.NewPublicKey` calls from `sign.go` into new backend functions in `backend_gogost.go`: `backendSign(curve Curve, d, digest []byte) ([]byte, error)` and `backendVerify(curve Curve, x, y, digest, sig []byte) (bool, error)`
+- [x] Refactor `sign.go` to call `backendSign` / `backendVerify` — remove `import gg` from `sign.go`
+- [x] Update `gostcrypto/facade.go`: remove `h` argument from calls to `priv.Sign(digest, h)` and `pub.Verify(digest, sig, h)`
+- [x] Update all test files that call `Sign(digest, HashID)` and `Verify(digest, sig, HashID)` to use new signatures
+- [x] Run `go test ./...` — all tests must pass
+- [x] Run `go vet ./...` — must be clean
 
 ### Task 6: P2 — Implement crypto.Signer for PrivKey [2.3]
 

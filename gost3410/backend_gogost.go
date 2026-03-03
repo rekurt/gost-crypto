@@ -1,6 +1,7 @@
 package gost3410
 
 import (
+	"crypto/rand"
 	"errors"
 	"math/big"
 
@@ -156,4 +157,57 @@ func isOdd(n *big.Int) bool {
 // Returns nil if no square root exists.
 func modSqrt(a, p *big.Int) *big.Int {
 	return new(big.Int).ModSqrt(a, p)
+}
+
+// backendSign computes a GOST R 34.10-2012 signature using the gogost backend.
+// Returns signature in s||r format (gogost native), which the caller must reorder to r||s.
+func backendSign(c Curve, d, digest []byte) ([]byte, error) {
+	ggCurve, err := getCurve(c)
+	if err != nil {
+		return nil, err
+	}
+
+	mode, err := getMode(c)
+	if err != nil {
+		return nil, err
+	}
+
+	ggPrivKey, err := gg.NewPrivateKey(ggCurve, mode, d)
+	if err != nil {
+		return nil, err
+	}
+
+	return ggPrivKey.SignDigest(digest, rand.Reader)
+}
+
+// backendVerify checks a GOST R 34.10-2012 signature using the gogost backend.
+// Expects signature in s||r format (gogost native), which the caller must prepare from r||s.
+func backendVerify(c Curve, x, y, digest, sig []byte) (bool, error) {
+	ggCurve, err := getCurve(c)
+	if err != nil {
+		return false, err
+	}
+
+	mode, err := getMode(c)
+	if err != nil {
+		return false, err
+	}
+
+	keySize, _ := c.Size()
+
+	// gogost.NewPublicKey expects raw format as: X||Y with both coordinates reversed to little-endian
+	rawKey := make([]byte, 2*keySize)
+	for i := 0; i < keySize; i++ {
+		rawKey[i] = x[keySize-1-i]
+	}
+	for i := 0; i < keySize; i++ {
+		rawKey[keySize+i] = y[keySize-1-i]
+	}
+
+	ggPubKey, err := gg.NewPublicKey(ggCurve, mode, rawKey)
+	if err != nil {
+		return false, err
+	}
+
+	return ggPubKey.VerifyDigest(digest, sig)
 }

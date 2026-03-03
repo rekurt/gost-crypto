@@ -75,12 +75,12 @@ func TestEdgeCaseSmallMessage(t *testing.T) {
 	message := []byte("A")
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.Sign(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
 
-	valid, err := pubKey.Verify(digest[:], sig, Streebog256)
+	valid, err := pubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Failed to verify: %v", err)
 	}
@@ -105,12 +105,12 @@ func TestEdgeCaseMessageAllZeros(t *testing.T) {
 	message := make([]byte, 1000) // All zeros
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.Sign(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
 
-	valid, err := pubKey.Verify(digest[:], sig, Streebog256)
+	valid, err := pubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Failed to verify: %v", err)
 	}
@@ -138,12 +138,12 @@ func TestEdgeCaseMessageAllOnes(t *testing.T) {
 	}
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.Sign(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
 
-	valid, err := pubKey.Verify(digest[:], sig, Streebog256)
+	valid, err := pubKey.Verify(digest[:], sig)
 	if err != nil {
 		t.Fatalf("Failed to verify: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestEdgeCaseIncorrectDigestSize256(t *testing.T) {
 	// Wrong size digest (should be 32 for 256-bit)
 	wrongDigest := make([]byte, 64)
 
-	_, err = privKey.Sign(wrongDigest, Streebog256)
+	_, err = privKey.Sign(wrongDigest)
 	if err == nil {
 		t.Error("Should reject digest of wrong size")
 	}
@@ -184,14 +184,14 @@ func TestEdgeCaseIncorrectSignatureSize256(t *testing.T) {
 	message := []byte("test")
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:], Streebog256)
+	sig, err := privKey.Sign(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
 
 	// Try with truncated signature
 	wrongSig := sig[:32]
-	_, err = pubKey.Verify(digest[:], wrongSig, Streebog256)
+	_, err = pubKey.Verify(digest[:], wrongSig)
 	if err == nil {
 		t.Error("Should reject signature of wrong size")
 	}
@@ -219,13 +219,13 @@ func TestEdgeCaseDifferentCurvesIncompatible(t *testing.T) {
 	digest256 := streebog.Sum256(message)
 
 	// Try to verify 256-bit signature with 512-bit key (should fail)
-	sig256, err := privKey256.Sign(digest256[:], Streebog256)
+	sig256, err := privKey256.Sign(digest256[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
 
 	// This should fail - size mismatch
-	_, err = pubKey512.Verify(digest256[:], sig256, Streebog256)
+	_, err = pubKey512.Verify(digest256[:], sig256)
 	if err == nil {
 		t.Error("Should reject verification with incompatible key sizes")
 	}
@@ -310,13 +310,13 @@ func TestEdgeCaseNilInputs(t *testing.T) {
 	}
 
 	// Test nil digest
-	_, err = privKey.Sign(nil, Streebog256)
+	_, err = privKey.Sign(nil)
 	if err == nil {
 		t.Error("Should reject nil digest")
 	}
 
 	// Test nil signature
-	_, err = pubKey.Verify([]byte{1, 2, 3}, nil, Streebog256)
+	_, err = pubKey.Verify([]byte{1, 2, 3}, nil)
 	if err == nil {
 		t.Error("Should reject nil signature")
 	}
@@ -343,13 +343,13 @@ func TestCrossCurveVerification(t *testing.T) {
 	message := []byte("cross-curve test")
 	digest := streebog.Sum512(message)
 
-	sigA, err := privKeyA.Sign(digest[:], Streebog512)
+	sigA, err := privKeyA.Sign(digest[:])
 	if err != nil {
 		t.Fatalf("Sign on 512-A failed: %v", err)
 	}
 
 	// Verify signature from curve A with pubkey from curve B
-	valid, err := pubKeyB.Verify(digest[:], sigA, Streebog512)
+	valid, err := pubKeyB.Verify(digest[:], sigA)
 	if err != nil {
 		// Error is also acceptable
 		t.Logf("Cross-curve verify returned error (expected): %v", err)
@@ -379,12 +379,12 @@ func TestPropertySignThenVerify(t *testing.T) {
 		}
 		digest := streebog.Sum256(message)
 
-		sig, err := privKey.Sign(digest[:], Streebog256)
+		sig, err := privKey.Sign(digest[:])
 		if err != nil {
 			t.Fatalf("Iteration %d: Sign failed: %v", i, err)
 		}
 
-		valid, err := pubKey.Verify(digest[:], sig, Streebog256)
+		valid, err := pubKey.Verify(digest[:], sig)
 		if err != nil {
 			t.Fatalf("Iteration %d: Verify failed: %v", i, err)
 		}
@@ -626,7 +626,7 @@ func TestSignWithUnsupportedCurve(t *testing.T) {
 	d := make([]byte, 32)
 	d[31] = 1
 	privKey := &PrivKey{D: d, Curve: TC26_256_B}
-	_, err := privKey.Sign(make([]byte, 32), Streebog256)
+	_, err := privKey.Sign(make([]byte, 32))
 	if err == nil {
 		t.Error("Sign should fail for unsupported curve")
 	}
@@ -635,7 +635,7 @@ func TestSignWithUnsupportedCurve(t *testing.T) {
 // TestVerifyWithUnsupportedCurve tests Verify with a curve that has no backend
 func TestVerifyWithUnsupportedCurve(t *testing.T) {
 	pubKey := &PubKey{X: make([]byte, 32), Y: make([]byte, 32), Curve: TC26_256_B}
-	_, err := pubKey.Verify(make([]byte, 32), make([]byte, 64), Streebog256)
+	_, err := pubKey.Verify(make([]byte, 32), make([]byte, 64))
 	if err == nil {
 		t.Error("Verify should fail for unsupported curve")
 	}
