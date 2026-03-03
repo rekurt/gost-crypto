@@ -23,7 +23,10 @@ func TestIntegrationSignVerifyWithSerialization256(t *testing.T) {
 	}
 
 	// Step 2: Serialize public key (compressed and uncompressed)
-	compressedPub := pubKey.ToCompressed(true)
+	compressedPub, err := pubKey.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed failed: %v", err)
+	}
 	uncompressedPub := pubKey.ToUncompressed(true)
 
 	if len(compressedPub) != 33 {

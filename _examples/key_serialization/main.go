@@ -57,15 +57,22 @@ func main() {
 
 	// Step 5: Serialize public key in compressed format with prefix
 	fmt.Println("\nStep 5: Serializing public key (compressed with prefix)...")
-	compressedWithPrefix := pubKey.ToCompressed(true)
+	compressedWithPrefix, err := pubKey.ToCompressed(true)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("✓ Compressed form: %d bytes\n", len(compressedWithPrefix))
 	fmt.Printf("✓ Hex: %s\n", hex.EncodeToString(compressedWithPrefix))
 
 	// Step 6: Serialize public key in compressed format without prefix
 	fmt.Println("\nStep 6: Serializing public key (compressed without prefix)...")
-	compressedWithoutPrefix := pubKey.ToCompressed(false)
-	fmt.Printf("✓ Compressed form: %d bytes\n", len(compressedWithoutPrefix))
-	fmt.Printf("✓ Hex: %s\n", hex.EncodeToString(compressedWithoutPrefix))
+	compressedWithoutPrefix, err := pubKey.ToCompressed(false)
+	if err != nil {
+		fmt.Printf("⚠ Cannot use no-prefix compressed format: %v\n", err)
+	} else {
+		fmt.Printf("✓ Compressed form: %d bytes\n", len(compressedWithoutPrefix))
+		fmt.Printf("✓ Hex: %s\n", hex.EncodeToString(compressedWithoutPrefix))
+	}
 
 	// Step 7: Serialize public key in uncompressed format with prefix
 	fmt.Println("\nStep 7: Serializing public key (uncompressed with prefix)...")
@@ -98,10 +105,10 @@ func main() {
 
 	// Step 10: Recover from compressed without prefix
 	// The no-prefix compressed format stores Y parity in the MSB of X[0].
-	// This only roundtrips losslessly when X[0] < 0x80.
+	// ToCompressed(false) returns an error when X[0] >= 0x80.
 	fmt.Println("\nStep 10: Recovering key from compressed (without prefix)...")
 	noPrefixRoundtripped := false
-	if pubKey.X[0] < 0x80 {
+	if compressedWithoutPrefix != nil {
 		recoveredFromCompressed2, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressedWithoutPrefix, false)
 		if err != nil {
 			panic(err)
@@ -118,7 +125,7 @@ func main() {
 		fmt.Println("✓ Signature verified with recovered key")
 		noPrefixRoundtripped = true
 	} else {
-		fmt.Println("⚠ X[0] >= 0x80: no-prefix compressed format cannot roundtrip (MSB parity collision), skipping")
+		fmt.Println("⚠ No-prefix compressed format unavailable for this key (X[0] high bit set), skipping")
 	}
 
 	// Step 11: Recover from uncompressed with prefix
@@ -190,7 +197,10 @@ func main() {
 		panic(err)
 	}
 
-	compressedKey512 := pubKey512.ToCompressed(true)
+	compressedKey512, err := pubKey512.ToCompressed(true)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("✓ 512-bit compressed key: %d bytes\n", len(compressedKey512))
 
 	recovered512, err := gost3410.FromCompressed(gost3410.TC26_512_A, compressedKey512, true)

@@ -264,14 +264,20 @@ func TestEdgeCasePublicKeyRecoveryRoundTrip(t *testing.T) {
 	}
 
 	// Round 1: Serialize and deserialize
-	compressed1 := originalPubKey.ToCompressed(true)
+	compressed1, err := originalPubKey.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("Round 1 ToCompressed failed: %v", err)
+	}
 	recovered1, err := FromCompressed(TC26_256_A, compressed1, true)
 	if err != nil {
 		t.Fatalf("Round 1 deserialization failed: %v", err)
 	}
 
 	// Round 2: Serialize and deserialize again
-	compressed2 := recovered1.ToCompressed(true)
+	compressed2, err := recovered1.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("Round 2 ToCompressed failed: %v", err)
+	}
 	recovered2, err := FromCompressed(TC26_256_A, compressed2, true)
 	if err != nil {
 		t.Fatalf("Round 2 deserialization failed: %v", err)
@@ -632,5 +638,74 @@ func TestVerifyWithUnsupportedCurve(t *testing.T) {
 	_, err := pubKey.Verify(make([]byte, 32), make([]byte, 64), Streebog256)
 	if err == nil {
 		t.Error("Verify should fail for unsupported curve")
+	}
+}
+
+// TestToCompressedHighBitError tests that ToCompressed(false) returns an error when X[0] >= 0x80
+func TestToCompressedHighBitError(t *testing.T) {
+	// Find a key where X[0] >= 0x80
+	var pub *PubKey
+	for scalar := byte(1); scalar < 255; scalar++ {
+		d := make([]byte, 32)
+		d[31] = scalar
+		x, y, err := mulBase(TC26_256_A, d)
+		if err != nil {
+			t.Fatalf("mulBase failed: %v", err)
+		}
+		if x[0] >= 0x80 {
+			pub = &PubKey{X: x, Y: y, Curve: TC26_256_A}
+			break
+		}
+	}
+	if pub == nil {
+		t.Skip("could not find a key with X[0] >= 0x80 in first 254 scalars")
+	}
+
+	// prefix=true should still work
+	_, err := pub.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed(true) should work regardless of X[0]: %v", err)
+	}
+
+	// prefix=false should return error
+	_, err = pub.ToCompressed(false)
+	if err == nil {
+		t.Fatal("ToCompressed(false) should return error when X[0] >= 0x80")
+	}
+	t.Logf("ToCompressed(false) correctly returned error: %v", err)
+}
+
+// TestToCompressedNoPrefixSuccess tests that ToCompressed(false) succeeds when X[0] < 0x80
+func TestToCompressedNoPrefixSuccess(t *testing.T) {
+	// Find a key where X[0] < 0x80
+	var pub *PubKey
+	for scalar := byte(1); scalar < 255; scalar++ {
+		d := make([]byte, 32)
+		d[31] = scalar
+		x, y, err := mulBase(TC26_256_A, d)
+		if err != nil {
+			t.Fatalf("mulBase failed: %v", err)
+		}
+		if x[0] < 0x80 {
+			pub = &PubKey{X: x, Y: y, Curve: TC26_256_A}
+			break
+		}
+	}
+	if pub == nil {
+		t.Skip("could not find a key with X[0] < 0x80 in first 254 scalars")
+	}
+
+	compressed, err := pub.ToCompressed(false)
+	if err != nil {
+		t.Fatalf("ToCompressed(false) should succeed when X[0] < 0x80: %v", err)
+	}
+
+	// Roundtrip: verify deserialization recovers the same key
+	recovered, err := FromCompressed(TC26_256_A, compressed, false)
+	if err != nil {
+		t.Fatalf("FromCompressed roundtrip failed: %v", err)
+	}
+	if !bytes.Equal(recovered.X, pub.X) || !bytes.Equal(recovered.Y, pub.Y) {
+		t.Error("no-prefix compressed roundtrip failed: keys differ")
 	}
 }

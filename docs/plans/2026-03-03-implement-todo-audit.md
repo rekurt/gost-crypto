@@ -70,15 +70,15 @@
 - Modify: `gost3410/edge_cases_test.go`
 - Modify: `gost3410/backend_test.go`
 
-- [ ] Change `ToCompressed(prefix bool) []byte` signature to `ToCompressed(prefix bool) ([]byte, error)`
-- [ ] In `ToCompressed(false)`: if `X[0] >= 0x80`, return `nil, errors.New("X[0] high bit set: use prefix=true for this key")`
-- [ ] Update all callers of `ToCompressed` throughout codebase to handle the new `([]byte, error)` return
-- [ ] In `padToSize`: when `len(b) == size`, return `append([]byte(nil), b...)` (copy) instead of returning the original slice
-- [ ] In `padToSize`: when `len(b) > size`, return a copy of the truncated bytes instead of a subslice
-- [ ] Update tests for `ToCompressed`: add cases for `X[0] >= 0x80` with `prefix=false` verifying error is returned
-- [ ] Update serialization roundtrip tests to handle error from `ToCompressed`
-- [ ] Add test `TestPadToSizeReturnsCopy` verifying modifications to result don't affect input
-- [ ] Run `go test ./...` — all tests must pass
+- [x] Change `ToCompressed(prefix bool) []byte` signature to `ToCompressed(prefix bool) ([]byte, error)`
+- [x] In `ToCompressed(false)`: if `X[0] >= 0x80`, return `nil, errors.New("X[0] high bit set: use prefix=true for this key")`
+- [x] Update all callers of `ToCompressed` throughout codebase to handle the new `([]byte, error)` return
+- [x] In `padToSize`: when `len(b) == size`, return `append([]byte(nil), b...)` (copy) instead of returning the original slice
+- [x] In `padToSize`: when `len(b) > size`, return a copy of the truncated bytes instead of a subslice
+- [x] Update tests for `ToCompressed`: add cases for `X[0] >= 0x80` with `prefix=false` verifying error is returned
+- [x] Update serialization roundtrip tests to handle error from `ToCompressed`
+- [x] Add test `TestPadToSizeReturnsCopy` verifying modifications to result don't affect input
+- [x] Run `go test ./...` — all tests must pass
 
 ### Task 4: P1 — Replace custom modSqrt with stdlib [2.5]
 

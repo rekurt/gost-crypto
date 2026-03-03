@@ -57,7 +57,10 @@ func main() {
 	fmt.Printf("Signature valid for wrong message: %v (expected: false)\n", valid)
 
 	fmt.Println("\nPublic key serialization:")
-	compressed := pubKey.ToCompressed(true)
+	compressed, err := pubKey.ToCompressed(true)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Compressed form: %d bytes\n", len(compressed))
 
 	uncompressed := pubKey.ToUncompressed(true)

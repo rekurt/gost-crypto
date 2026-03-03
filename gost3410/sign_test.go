@@ -429,7 +429,10 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 	}
 
 	// Serialize and deserialize compressed key
-	compressed := originalPubKey.ToCompressed(true)
+	compressed, err := originalPubKey.ToCompressed(true)
+	if err != nil {
+		t.Fatalf("ToCompressed failed: %v", err)
+	}
 	recoveredPubKey, err := FromCompressed(TC26_256_A, compressed, true)
 	if err != nil {
 		t.Fatalf("FromCompressed failed: %v", err)

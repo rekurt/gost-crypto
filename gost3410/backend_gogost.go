@@ -134,12 +134,13 @@ func recoverY(c Curve, x []byte, odd bool) ([]byte, error) {
 
 // padToSize pads or truncates big-endian byte representation to specific size.
 // If shorter, pads with leading zeros. If longer, takes the least-significant bytes.
+// Always returns a new slice (copy) to avoid shared memory.
 func padToSize(b []byte, size int) []byte {
 	if len(b) == size {
-		return b
+		return append([]byte(nil), b...)
 	}
 	if len(b) > size {
-		return b[len(b)-size:]
+		return append([]byte(nil), b[len(b)-size:]...)
 	}
 	padded := make([]byte, size)
 	copy(padded[size-len(b):], b)

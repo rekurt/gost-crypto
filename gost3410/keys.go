@@ -145,7 +145,9 @@ func (p *PubKey) ToUncompressed(prefix bool) []byte {
 
 // ToCompressed returns compressed public key encoding.
 // If prefix==true, outputs 0x02/0x03 || X with parity; else only X with highest bit used for parity.
-func (p *PubKey) ToCompressed(prefix bool) []byte {
+// When prefix==false and X[0] >= 0x80, returns an error because the MSB is already set,
+// making it impossible to encode the Y parity bit without data loss.
+func (p *PubKey) ToCompressed(prefix bool) ([]byte, error) {
 	n := len(p.X)
 	out := make([]byte, 0, 1+n)
 	yOdd := (p.Y[len(p.Y)-1] & 1) == 1
@@ -157,6 +159,9 @@ func (p *PubKey) ToCompressed(prefix bool) []byte {
 		}
 		out = append(out, p.X...)
 	} else {
+		if p.X[0] >= 0x80 {
+			return nil, errors.New("X[0] high bit set: use prefix=true for this key")
+		}
 		// store X and set msb to parity bit on first byte copy
 		buf := append([]byte(nil), p.X...)
 		if yOdd {
@@ -166,7 +171,7 @@ func (p *PubKey) ToCompressed(prefix bool) []byte {
 		}
 		out = append(out, buf...)
 	}
-	return out
+	return out, nil
 }
 
 // FromCompressed restores a PubKey from compressed form.
