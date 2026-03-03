@@ -93,7 +93,10 @@ func mulBase(c Curve, d []byte) (x, y []byte, err error) {
 	}
 
 	// gogost stores X, Y as big.Int; convert to big-endian bytes of fixed length
-	size, _ := c.Size()
+	size, err := c.Size()
+	if err != nil {
+		return nil, nil, err
+	}
 	x = padToSize(pubKey.X.Bytes(), size)
 	y = padToSize(pubKey.Y.Bytes(), size)
 
@@ -136,7 +139,10 @@ func recoverY(c Curve, x []byte, odd bool) ([]byte, error) {
 	}
 
 	// Convert to big-endian bytes
-	size, _ := c.Size()
+	size, err := c.Size()
+	if err != nil {
+		return nil, err
+	}
 	return padToSize(yBig.Bytes(), size), nil
 }
 
@@ -200,7 +206,10 @@ func backendVerify(c Curve, x, y, digest, sig []byte) (bool, error) {
 		return false, err
 	}
 
-	keySize, _ := c.Size()
+	keySize, err := c.Size()
+	if err != nil {
+		return false, err
+	}
 
 	// gogost.NewPublicKey expects raw format as: X||Y with both coordinates reversed to little-endian
 	rawKey := make([]byte, 2*keySize)

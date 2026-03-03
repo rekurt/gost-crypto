@@ -60,6 +60,9 @@ func Master(seed []byte, h gost3410.HashID) (*gost3410.PrivKey, []byte, error) {
 // Path format: "m/index1/index2'/..." where indices with ' are hardened.
 // Example: "m/0'/1/2'" means hardened at indices 0 and 2.
 func Derive(parent *gost3410.PrivKey, chainCode []byte, path string, h gost3410.HashID) (*gost3410.PrivKey, []byte, error) {
+	if parent == nil {
+		return nil, nil, errors.New("nil parent key")
+	}
 	if !strings.HasPrefix(path, "m/") {
 		return nil, nil, errors.New("path must start with 'm/'")
 	}
@@ -88,6 +91,12 @@ func Derive(parent *gost3410.PrivKey, chainCode []byte, path string, h gost3410.
 	indices, err := parsePath(path[2:]) // Skip "m/"
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// No derivation steps — return defensive copies to avoid aliasing the parent.
+	if len(indices) == 0 {
+		return &gost3410.PrivKey{D: append([]byte(nil), parent.D...), Curve: parent.Curve},
+			append([]byte(nil), chainCode...), nil
 	}
 
 	// Iteratively derive keys
@@ -212,7 +221,7 @@ func hkdfExpand(prk, info []byte, length int, h gost3410.HashID) []byte {
 		msg = append(msg, info...)
 		msg = append(msg, byte(i))
 
-		t = hmacStreebog(prk, msg, h)[:keySize]
+		t = hmacStreebog(prk, msg, h)
 		result = append(result, t...)
 	}
 

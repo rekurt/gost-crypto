@@ -433,7 +433,7 @@ func BenchmarkDeriveLongPath(b *testing.B) {
 }
 
 // TestDeriveEmptyPathReturnsParent tests that Derive with "m/" (empty segments after m/)
-// returns the parent key unchanged, since there are no derivation steps to apply.
+// returns a copy of the parent key, since there are no derivation steps to apply.
 func TestDeriveEmptyPathReturnsParent(t *testing.T) {
 	seed := []byte("test seed for empty path")
 	master, chainCode, err := Master(seed, gost3410.Streebog256)
@@ -441,19 +441,39 @@ func TestDeriveEmptyPathReturnsParent(t *testing.T) {
 		t.Fatalf("Master failed: %v", err)
 	}
 
-	// "m/" means no child indices - should return the same key
+	// "m/" means no child indices - should return the same key value
 	child, childChain, err := Derive(master, chainCode, "m/", gost3410.Streebog256)
 	if err != nil {
 		t.Fatalf("Derive with m/ failed: %v", err)
 	}
 
-	// With no derivation steps, the result should be the parent key itself
+	// With no derivation steps, the result should equal the parent key
 	if !bytes.Equal(child.D, master.D) {
 		t.Error("Derive with empty path should return parent key")
 	}
 
 	if !bytes.Equal(childChain, chainCode) {
 		t.Error("Derive with empty path should return parent chain code")
+	}
+
+	// Verify defensive copies: modifying child must not corrupt parent
+	origD := append([]byte(nil), master.D...)
+	child.D[0] ^= 0xFF
+	if !bytes.Equal(master.D, origD) {
+		t.Error("Derive returned aliased D slice — modifying child corrupted parent")
+	}
+	origChain := append([]byte(nil), chainCode...)
+	childChain[0] ^= 0xFF
+	if !bytes.Equal(chainCode, origChain) {
+		t.Error("Derive returned aliased chainCode slice — modifying child corrupted parent")
+	}
+}
+
+// TestDeriveNilParent verifies Derive returns an error for nil parent key.
+func TestDeriveNilParent(t *testing.T) {
+	_, _, err := Derive(nil, []byte("chain"), "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Fatal("Derive with nil parent should return an error")
 	}
 }
 
