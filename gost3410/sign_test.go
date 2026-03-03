@@ -211,7 +211,7 @@ func TestPrivKeyPublic256(t *testing.T) {
 
 	// Verify it's a valid public key
 	if derivedPubKey == nil {
-		t.Error("derived public key is nil")
+		t.Fatal("derived public key is nil")
 	}
 	if derivedPubKey.Curve != TC26_256_A {
 		t.Error("derived public key curve mismatch")
@@ -235,7 +235,7 @@ func TestPrivKeyPublic512(t *testing.T) {
 
 	// Verify it's a valid public key
 	if derivedPubKey == nil {
-		t.Error("derived public key is nil")
+		t.Fatal("derived public key is nil")
 	}
 	if derivedPubKey.Curve != TC26_512_A {
 		t.Error("derived public key curve mismatch")
