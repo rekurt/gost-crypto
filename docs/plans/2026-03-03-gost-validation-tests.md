@@ -80,14 +80,14 @@
 - Modify: `gost3410/edge_cases_test.go`
 - Modify: `gost3410/vectors_test.go`
 
-- [ ] Добавить тесты сериализации/десериализации для 512-bit кривых (compressed/uncompressed, with/without prefix) - 4 формата x 3 кривых (512-A/B/C).
-- [ ] Добавить тест: подпись на одной кривой, верификация на другой - должна быть ошибка или false.
-- [ ] Добавить тесты для error-paths в `recoverY`: невалидная X-координата (не на кривой).
-- [ ] Добавить property-test: для рандомного ключа sign-then-verify всегда true (100 итераций).
-- [ ] Добавить тест: `FromRawPriv` с неправильным размером данных.
-- [ ] Добавить тест: `FromCompressed`/`FromUncompressed` с некорректными данными (wrong size, wrong prefix).
-- [ ] Добавить тесты для `Curve.Size()` с невалидными значениями Curve.
-- [ ] Запустить `go test -cover ./gost3410/...` - покрытие должно быть >= 80%.
+- [x] Добавить тесты сериализации/десериализации для 512-bit кривых (compressed/uncompressed, with/without prefix) - 4 формата x 3 кривых (512-A/B/C).
+- [x] Добавить тест: подпись на одной кривой, верификация на другой - должна быть ошибка или false.
+- [x] Добавить тесты для error-paths в `recoverY`: невалидная X-координата (не на кривой).
+- [x] Добавить property-test: для рандомного ключа sign-then-verify всегда true (100 итераций).
+- [x] Добавить тест: `FromRawPriv` с неправильным размером данных.
+- [x] Добавить тест: `FromCompressed`/`FromUncompressed` с некорректными данными (wrong size, wrong prefix).
+- [x] Добавить тесты для `Curve.Size()` с невалидными значениями Curve.
+- [x] Запустить `go test -cover ./gost3410/...` - покрытие должно быть >= 80%.
 
 ### Task 4: Расширить тестовое покрытие gostcrypto и kdf/hd
 

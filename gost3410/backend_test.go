@@ -350,3 +350,153 @@ func TestPadToSizeEmpty(t *testing.T) {
 		t.Errorf("padToSize empty: got %x, want %x", result, expected)
 	}
 }
+
+// TestSerialization512AllFormats tests all 4 serialization formats for 512-bit curves (A/B/C)
+func TestSerialization512AllFormats(t *testing.T) {
+	curves := []struct {
+		name  string
+		curve Curve
+	}{
+		{"512-A", TC26_512_A},
+		{"512-B", TC26_512_B},
+		{"512-C", TC26_512_C},
+	}
+
+	for _, tc := range curves {
+		t.Run(tc.name, func(t *testing.T) {
+			// Find a scalar whose public key X[0] < 0x80 (needed for no-prefix compressed format)
+			// The no-prefix format uses MSB of X[0] as parity bit, so X[0] must not have MSB set
+			var pub *PubKey
+			for scalar := byte(1); scalar < 255; scalar++ {
+				d := make([]byte, 64)
+				d[63] = scalar
+				x, y, err := mulBase(tc.curve, d)
+				if err != nil {
+					t.Fatalf("mulBase failed: %v", err)
+				}
+				if x[0] < 0x80 {
+					pub = &PubKey{X: x, Y: y, Curve: tc.curve}
+					break
+				}
+			}
+			if pub == nil {
+				t.Fatal("could not find a suitable key with X[0] < 0x80")
+			}
+
+			// Format 1: compressed with prefix (0x02/0x03 || X)
+			t.Run("compressed_with_prefix", func(t *testing.T) {
+				enc := pub.ToCompressed(true)
+				if len(enc) != 65 {
+					t.Fatalf("compressed with prefix size: got %d, want 65", len(enc))
+				}
+				if enc[0] != 0x02 && enc[0] != 0x03 {
+					t.Fatalf("invalid prefix byte: 0x%02x", enc[0])
+				}
+				recovered, err := FromCompressed(tc.curve, enc, true)
+				if err != nil {
+					t.Fatalf("FromCompressed failed: %v", err)
+				}
+				if !bytes.Equal(recovered.X, pub.X) || !bytes.Equal(recovered.Y, pub.Y) {
+					t.Error("compressed with prefix roundtrip failed")
+				}
+			})
+
+			// Format 2: compressed without prefix (X with MSB parity)
+			t.Run("compressed_without_prefix", func(t *testing.T) {
+				enc := pub.ToCompressed(false)
+				if len(enc) != 64 {
+					t.Fatalf("compressed without prefix size: got %d, want 64", len(enc))
+				}
+				recovered, err := FromCompressed(tc.curve, enc, false)
+				if err != nil {
+					t.Fatalf("FromCompressed failed: %v", err)
+				}
+				if !bytes.Equal(recovered.X, pub.X) || !bytes.Equal(recovered.Y, pub.Y) {
+					t.Error("compressed without prefix roundtrip failed")
+				}
+			})
+
+			// Format 3: uncompressed with prefix (0x04 || X || Y)
+			t.Run("uncompressed_with_prefix", func(t *testing.T) {
+				enc := pub.ToUncompressed(true)
+				if len(enc) != 129 {
+					t.Fatalf("uncompressed with prefix size: got %d, want 129", len(enc))
+				}
+				if enc[0] != 0x04 {
+					t.Fatalf("invalid prefix byte: 0x%02x", enc[0])
+				}
+				recovered, err := FromUncompressed(tc.curve, enc, true)
+				if err != nil {
+					t.Fatalf("FromUncompressed failed: %v", err)
+				}
+				if !bytes.Equal(recovered.X, pub.X) || !bytes.Equal(recovered.Y, pub.Y) {
+					t.Error("uncompressed with prefix roundtrip failed")
+				}
+			})
+
+			// Format 4: uncompressed without prefix (X || Y)
+			t.Run("uncompressed_without_prefix", func(t *testing.T) {
+				enc := pub.ToUncompressed(false)
+				if len(enc) != 128 {
+					t.Fatalf("uncompressed without prefix size: got %d, want 128", len(enc))
+				}
+				recovered, err := FromUncompressed(tc.curve, enc, false)
+				if err != nil {
+					t.Fatalf("FromUncompressed failed: %v", err)
+				}
+				if !bytes.Equal(recovered.X, pub.X) || !bytes.Equal(recovered.Y, pub.Y) {
+					t.Error("uncompressed without prefix roundtrip failed")
+				}
+			})
+		})
+	}
+}
+
+// TestRecoverYInvalidX tests recoverY with an X coordinate not on the curve
+func TestRecoverYInvalidX(t *testing.T) {
+	// Use X=0 which is unlikely to be on the curve
+	x := make([]byte, 32)
+	_, err := recoverY(TC26_256_A, x, false)
+	if err == nil {
+		t.Error("recoverY should fail for x=0 (not on curve)")
+	}
+}
+
+// TestRecoverYInvalidX512 tests recoverY with an invalid X on 512-bit curve
+func TestRecoverYInvalidX512(t *testing.T) {
+	x := make([]byte, 64)
+	_, err := recoverY(TC26_512_A, x, true)
+	if err == nil {
+		t.Error("recoverY should fail for x=0 on 512-bit curve")
+	}
+}
+
+// TestRecoverYUnsupportedCurve tests recoverY with unsupported curve
+func TestRecoverYUnsupportedCurve(t *testing.T) {
+	x := make([]byte, 32)
+	x[31] = 1
+	_, err := recoverY(TC26_256_B, x, false)
+	if err == nil {
+		t.Error("recoverY should fail for unsupported curve")
+	}
+}
+
+// TestGetModeInvalidCurve tests getMode with invalid curve value
+func TestGetModeInvalidCurve(t *testing.T) {
+	_, err := getMode(Curve(99))
+	if err == nil {
+		t.Error("getMode should fail for invalid curve")
+	}
+}
+
+// TestGetCurveOutOfRange tests getCurve with out-of-range values
+func TestGetCurveOutOfRange(t *testing.T) {
+	_, err := getCurve(Curve(-1))
+	if err == nil {
+		t.Error("getCurve should fail for negative curve")
+	}
+	_, err = getCurve(Curve(100))
+	if err == nil {
+		t.Error("getCurve should fail for out-of-range curve")
+	}
+}
