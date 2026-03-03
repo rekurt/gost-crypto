@@ -17,7 +17,7 @@ Complete API reference for gost-crypto.
 
 ---
 
-## streebog Package
+## Table of Contents
 
 GOST R 34.11-2012 Streebog hash functions.
 

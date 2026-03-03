@@ -156,6 +156,9 @@ func padToSize(b []byte, size int) []byte {
 	if len(b) > size {
 		return append([]byte(nil), b[len(b)-size:]...)
 	}
+	if len(b) > size {
+		return b[len(b)-size:]
+	}
 	padded := make([]byte, size)
 	copy(padded[size-len(b):], b)
 	return padded
