@@ -1,52 +1,41 @@
 # API Reference
 
-Complete API documentation for the gost-crypto library.
+Complete API reference for gost-crypto.
 
-**[📖 README (English)](README.md)** | **[📖 README (Russian)](README.ru.md)** | **[📚 Documentation Index](DOCUMENTATION.md)** | **[💡 Advanced Examples](EXAMPLES.md)** 
+[README](README.md) | [README (Russian)](README.ru.md) | [Examples](_examples/EXAMPLES.md)
+
+---
 
 ## Table of Contents
 
-- [streebog Package](#streebog-package)
-- [gost3410 Package](#gost3410-package)
-- [gostcrypto Package](#gostcrypto-package)
-- [kdf/hd Package](#kdfhd-package)
+- [streebog](#streebog-package)
+- [gost3410](#gost3410-package)
+- [gostcrypto](#gostcrypto-package)
+- [kdf/hd](#kdfhd-package)
+- [Error Handling](#error-handling)
+- [Constants](#constants)
+- [Thread Safety](#thread-safety)
+
+---
 
 ## streebog Package
 
-Hash implementation for GOST R 34.11-2012 Streebog.
+GOST R 34.11-2012 Streebog hash functions.
 
-### Functions
+### `Sum256(data []byte) [32]byte`
 
-#### `Sum256(data []byte) [32]byte`
+Computes a 256-bit Streebog hash.
 
-Computes a 256-bit Streebog hash of the input data.
-
-**Parameters:**
-- `data []byte` - Input data to hash
-
-**Returns:**
-- `[32]byte` - 256-bit hash result
-
-**Example:**
 ```go
-message := []byte("Hello, World!")
-hash := streebog.Sum256(message)
+hash := streebog.Sum256([]byte("message"))
 ```
 
-#### `Sum512(data []byte) [64]byte`
+### `Sum512(data []byte) [64]byte`
 
-Computes a 512-bit Streebog hash of the input data.
+Computes a 512-bit Streebog hash.
 
-**Parameters:**
-- `data []byte` - Input data to hash
-
-**Returns:**
-- `[64]byte` - 512-bit hash result
-
-**Example:**
 ```go
-message := []byte("Hello, World!")
-hash := streebog.Sum512(message)
+hash := streebog.Sum512([]byte("message"))
 ```
 
 ---
@@ -59,9 +48,8 @@ GOST R 34.10-2012 elliptic curve signatures and key management.
 
 #### `Curve`
 
-Enumeration of supported elliptic curves.
+Identifies a TC26 elliptic curve parameter set.
 
-**Values:**
 ```go
 const (
     TC26_256_A Curve = iota
@@ -75,191 +63,135 @@ const (
 )
 ```
 
-#### `HashAlgorithm`
+The `Size()` method returns the key size in bytes (32 for 256-bit curves, 64 for 512-bit curves).
 
-Hash algorithm selector.
+#### `HashID`
 
-**Values:**
+Selects the hash algorithm for signing operations.
+
 ```go
 const (
-    Streebog256 HashAlgorithm = iota
-    Streebog512
+    HashAuto    HashID = iota // Zero value: infer from key size
+    Streebog256               // 256-bit Streebog
+    Streebog512               // 512-bit Streebog
 )
 ```
 
 #### `PrivKey`
 
-Private key structure for elliptic curve signatures.
+Private key for GOST R 34.10-2012 signatures.
 
 **Fields:**
-- `D []byte` - Private key scalar (32 bytes for 256-bit curves, 64 bytes for 512-bit curves)
+- `D []byte` — private key scalar (32 bytes for 256-bit curves, 64 bytes for 512-bit)
 
-**Methods:**
+#### `PubKey`
 
-##### `func NewPrivKey(curve Curve) (*PrivKey, *PubKey, error)`
+Public key for GOST R 34.10-2012 signatures.
 
-Generates a new random private key and derives the corresponding public key.
+**Fields:**
+- `X []byte` — X coordinate (32 or 64 bytes)
+- `Y []byte` — Y coordinate (32 or 64 bytes)
 
-**Parameters:**
-- `curve Curve` - Elliptic curve to use
+---
 
-**Returns:**
-- `*PrivKey` - Generated private key
-- `*PubKey` - Corresponding public key
-- `error` - Error if key generation failed
+### Key Generation
 
-**Example:**
+#### `NewPrivKey(curve Curve) (*PrivKey, error)`
+
+Generates a random private key for the specified curve.
+
 ```go
-privKey, pubKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
-if err != nil {
-    log.Fatal(err)
-}
+privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 ```
 
-##### `func FromRawPriv(curve Curve, d []byte) (*PrivKey, error)`
+#### `FromRawPriv(curve Curve, d []byte) (*PrivKey, error)`
 
-Creates a private key from raw bytes.
+Creates a private key from raw bytes. The byte slice must match the curve's key size.
 
-**Parameters:**
-- `curve Curve` - Elliptic curve to use
-- `d []byte` - Private key scalar (32 bytes for 256-bit, 64 bytes for 512-bit)
-
-**Returns:**
-- `*PrivKey` - Private key
-- `error` - Error if key is invalid
-
-**Example:**
 ```go
-keyBytes, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28")
-privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
+raw, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28")
+privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, raw)
 ```
 
-##### `func (pk *PrivKey) Public() (*PubKey, error)`
+#### `(pk *PrivKey) Public() (*PubKey, error)`
 
-Derives the public key from the private key.
+Derives the corresponding public key.
 
-**Returns:**
-- `*PubKey` - Corresponding public key
-- `error` - Error if derivation failed
-
-**Example:**
 ```go
 pubKey, err := privKey.Public()
 ```
 
-##### `func (pk *PrivKey) Sign(digest []byte, hash HashAlgorithm) ([]byte, error)`
+---
 
-Signs a message digest.
+### Signing and Verification
 
-**Parameters:**
-- `digest []byte` - Pre-computed message digest (32 bytes for Streebog256, 64 bytes for Streebog512)
-- `hash HashAlgorithm` - Hash algorithm used (for format consistency)
+#### `(pk *PrivKey) Sign(digest []byte, hash HashID) ([]byte, error)`
 
-**Returns:**
-- `[]byte` - Signature (64 bytes for 256-bit curves, 128 bytes for 512-bit curves)
-- `error` - Error if signing failed
+Signs a pre-computed digest. The digest size must match the hash algorithm (32 bytes for Streebog256, 64 bytes for Streebog512).
 
-**Example:**
+**Returns:** signature bytes (`r || s`; 64 bytes for 256-bit curves, 128 bytes for 512-bit).
+
 ```go
 digest := streebog.Sum256(message)
 sig, err := privKey.Sign(digest[:], gost3410.Streebog256)
 ```
 
-#### `PubKey`
+#### `(pk *PubKey) Verify(digest, signature []byte, hash HashID) (bool, error)`
 
-Public key structure for elliptic curve signatures.
+Verifies a signature against a pre-computed digest.
 
-**Fields:**
-- `X []byte` - X coordinate (32 bytes for 256-bit curves, 64 bytes for 512-bit curves)
-- `Y []byte` - Y coordinate (32 bytes for 256-bit curves, 64 bytes for 512-bit curves)
-
-**Methods:**
-
-##### `func (pk *PubKey) Verify(digest, signature []byte, hash HashAlgorithm) (bool, error)`
-
-Verifies a signature on a message digest.
-
-**Parameters:**
-- `digest []byte` - Pre-computed message digest
-- `signature []byte` - Signature to verify
-- `hash HashAlgorithm` - Hash algorithm used
-
-**Returns:**
-- `bool` - True if signature is valid
-- `error` - Error if verification failed
-
-**Example:**
 ```go
 valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
-if err == nil && valid {
-    fmt.Println("Signature is valid")
-}
 ```
 
-##### `func (pk *PubKey) ToCompressed(withPrefix bool) []byte`
+---
+
+### Key Serialization
+
+#### `(pk *PubKey) ToCompressed(withPrefix bool) []byte`
 
 Serializes the public key in compressed format.
 
-**Parameters:**
-- `withPrefix bool` - Include prefix byte (0x02/0x03 for even/odd Y)
+- With prefix: `0x02` (even Y) or `0x03` (odd Y) followed by X coordinate
+- Without prefix: X coordinate only
 
-**Returns:**
-- `[]byte` - Compressed public key (33 bytes for 256-bit with prefix, 32 without)
+| Curve type | With prefix | Without prefix |
+|------------|-------------|----------------|
+| 256-bit | 33 bytes | 32 bytes |
+| 512-bit | 65 bytes | 64 bytes |
 
-**Example:**
 ```go
 compressed := pubKey.ToCompressed(true)
-fmt.Printf("Compressed key: %s\n", hex.EncodeToString(compressed))
 ```
 
-##### `func (pk *PubKey) ToUncompressed(withPrefix bool) []byte`
+#### `(pk *PubKey) ToUncompressed(withPrefix bool) []byte`
 
 Serializes the public key in uncompressed format.
 
-**Parameters:**
-- `withPrefix bool` - Include prefix byte (0x04)
+- With prefix: `0x04` followed by X and Y coordinates
+- Without prefix: X and Y coordinates concatenated
 
-**Returns:**
-- `[]byte` - Uncompressed public key (65 bytes for 256-bit with prefix, 64 without)
+| Curve type | With prefix | Without prefix |
+|------------|-------------|----------------|
+| 256-bit | 65 bytes | 64 bytes |
+| 512-bit | 129 bytes | 128 bytes |
 
-**Example:**
 ```go
 uncompressed := pubKey.ToUncompressed(true)
-fmt.Printf("Uncompressed key: %s\n", hex.EncodeToString(uncompressed))
 ```
 
-##### `func FromCompressed(curve Curve, data []byte, hasPrefix bool) (*PubKey, error)`
+#### `FromCompressed(curve Curve, data []byte, hasPrefix bool) (*PubKey, error)`
 
-Recovers a public key from compressed format.
+Recovers a public key from compressed format. Reconstructs the Y coordinate from the X coordinate and curve equation.
 
-**Parameters:**
-- `curve Curve` - Elliptic curve used
-- `data []byte` - Compressed key data
-- `hasPrefix bool` - Whether data includes prefix byte
-
-**Returns:**
-- `*PubKey` - Recovered public key
-- `error` - Error if recovery failed
-
-**Example:**
 ```go
 recovered, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressed, true)
 ```
 
-##### `func FromUncompressed(curve Curve, data []byte, hasPrefix bool) (*PubKey, error)`
+#### `FromUncompressed(curve Curve, data []byte, hasPrefix bool) (*PubKey, error)`
 
 Recovers a public key from uncompressed format.
 
-**Parameters:**
-- `curve Curve` - Elliptic curve used
-- `data []byte` - Uncompressed key data
-- `hasPrefix bool` - Whether data includes prefix byte
-
-**Returns:**
-- `*PubKey` - Recovered public key
-- `error` - Error if recovery failed
-
-**Example:**
 ```go
 recovered, err := gost3410.FromUncompressed(gost3410.TC26_256_A, uncompressed, true)
 ```
@@ -268,184 +200,120 @@ recovered, err := gost3410.FromUncompressed(gost3410.TC26_256_A, uncompressed, t
 
 ## gostcrypto Package
 
-High-level facade combining hashing and signing operations.
+High-level facade that combines Streebog hashing with GOST R 34.10-2012 signing in a single call.
 
 ### Types
 
 #### `Options`
 
-Configuration options for signing and verification.
+Controls hash algorithm selection.
 
-**Fields:**
-- `Hash HashAlgorithm` - Hash algorithm to use (Streebog256 or Streebog512)
-
-**Example:**
 ```go
-opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
+type Options struct {
+    Hash gost3410.HashID
+}
 ```
+
+If `Hash` is `HashAuto` (zero value) or `Options` is nil, the hash algorithm is inferred from the key size: Streebog256 for 256-bit keys, Streebog512 for 512-bit keys.
 
 ### Functions
 
-#### `func Sign(privKey *gost3410.PrivKey, message []byte, opts *Options) ([]byte, error)`
+#### `Sign(privKey *gost3410.PrivKey, message []byte, opts *Options) ([]byte, error)`
 
-Signs a message using the private key.
+Hashes the message with Streebog and signs the resulting digest.
 
-**Parameters:**
-- `privKey *gost3410.PrivKey` - Private key for signing
-- `message []byte` - Message to sign
-- `opts *Options` - Signing options (if nil, defaults to Streebog256)
-
-**Returns:**
-- `[]byte` - Signature
-- `error` - Error if signing failed
-
-**Example:**
 ```go
 opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 sig, err := gostcrypto.Sign(privKey, message, opts)
 ```
 
-#### `func Verify(pubKey *gost3410.PubKey, message, signature []byte, opts *Options) (bool, error)`
+#### `Verify(pubKey *gost3410.PubKey, message, signature []byte, opts *Options) (bool, error)`
 
-Verifies a signature on a message.
+Hashes the message with Streebog and verifies the signature against the resulting digest.
 
-**Parameters:**
-- `pubKey *gost3410.PubKey` - Public key for verification
-- `message []byte` - Original message
-- `signature []byte` - Signature to verify
-- `opts *Options` - Verification options (if nil, defaults to Streebog256)
-
-**Returns:**
-- `bool` - True if signature is valid
-- `error` - Error if verification failed
-
-**Example:**
 ```go
-opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 valid, err := gostcrypto.Verify(pubKey, message, signature, opts)
-if err == nil && valid {
-    fmt.Println("Signature verified")
-}
 ```
 
 ---
 
 ## kdf/hd Package
 
-Hierarchical deterministic key derivation using HKDF.
+Hierarchical deterministic key derivation using HKDF with Streebog.
 
 ### Functions
 
-#### `func Master(seed []byte, hash gost3410.HashAlgorithm) (*gost3410.PrivKey, []byte, error)`
+#### `Master(seed []byte, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
 
-Generates a master key and chain code from a seed.
+Generates a master private key and chain code from a seed.
 
 **Parameters:**
-- `seed []byte` - Random seed (recommended: 32+ bytes)
-- `hash gost3410.HashAlgorithm` - Hash algorithm (Streebog256 or Streebog512)
+- `seed` — random seed (recommended: 32+ bytes)
+- `hash` — Streebog256 or Streebog512
 
-**Returns:**
-- `*gost3410.PrivKey` - Master private key
-- `[]byte` - Chain code for derivation (32 bytes)
-- `error` - Error if generation failed
+**Returns:** master private key, chain code (32 bytes), error.
 
-**Example:**
 ```go
-seed := []byte("my secret seed phrase")
 masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
 ```
 
-#### `func Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashAlgorithm) (*gost3410.PrivKey, []byte, error)`
+#### `Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
 
-Derives a child key at the specified path.
+Derives a child key at the specified BIP32-style path.
 
-**Parameters:**
-- `parentKey *gost3410.PrivKey` - Parent private key
-- `parentChain []byte` - Parent chain code
-- `path string` - Derivation path (e.g., "m/0'/1/2'")
-- `hash gost3410.HashAlgorithm` - Hash algorithm
+**Path format:**
+- Must start with `m/`
+- Normal derivation: `m/0/1/2`
+- Hardened derivation: `m/0'/1'/2'`
+- Mixed: `m/44'/283'/0'/0/0`
 
-**Returns:**
-- `*gost3410.PrivKey` - Derived child key
-- `[]byte` - Child chain code
-- `error` - Error if derivation failed
-
-**Path Format:**
-- `m/` - Root (required at start)
-- `0-2147483647` - Normal derivation indices
-- `n'` or `n H` - Hardened derivation (deprecated: H notation, use ' suffix)
-- Examples: `m/0`, `m/0'/1`, `m/44'/283'/0'/0/0`
-
-**Example:**
 ```go
-childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/0'/1/2'", gost3410.Streebog256)
+childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/44'/283'/0'/0/0", gost3410.Streebog256)
 ```
 
 ---
 
 ## Error Handling
 
-Common error types and their meanings:
-
-| Error | Meaning | Action |
-|-------|---------|--------|
-| `ErrInvalidKeySize` | Key size doesn't match curve | Verify key was created for correct curve |
-| `ErrInvalidDigestSize` | Digest size doesn't match hash algorithm | Ensure digest matches algorithm (32 or 64 bytes) |
-| `ErrInvalidSignatureSize` | Signature size is incorrect | Verify signature source and format |
-| `ErrInvalidCurve` | Unsupported elliptic curve | Use supported curve (256-A, 512-A/B/C) |
-| `ErrKeyRecoveryFailed` | Cannot recover public key from data | Verify serialized key format |
-| `ErrDerivationFailed` | Cannot derive key at path | Check path format and parent key validity |
+| Error | Cause |
+|-------|-------|
+| `ErrInvalidKeySize` | Key byte length does not match the curve |
+| `ErrInvalidDigestSize` | Digest length does not match the hash algorithm (expected 32 or 64 bytes) |
+| `ErrInvalidSignatureSize` | Signature length is incorrect for the curve |
+| `ErrInvalidCurve` | Curve is not supported by the backend |
+| `ErrKeyRecoveryFailed` | Public key cannot be reconstructed from the provided data |
+| `ErrDerivationFailed` | Key derivation failed (invalid path or parent key) |
 
 ---
 
 ## Constants
 
-### Hash Algorithm Sizes
-
 ```go
+// Hash output sizes
 Streebog256HashSize = 32  // bytes
 Streebog512HashSize = 64  // bytes
 
 // Signature sizes (r || s)
-TC26_256_SignatureSize = 64  // bytes
-TC26_512_SignatureSize = 128 // bytes
+TC26_256_SignatureSize = 64   // bytes
+TC26_512_SignatureSize = 128  // bytes
 
-// Public key sizes
-TC26_256_CompressedSize = 33   // bytes (with prefix)
-TC26_256_CompressedSizeNP = 32 // bytes (without prefix)
-TC26_256_UncompressedSize = 65   // bytes (with prefix)
-TC26_256_UncompressedSizeNP = 64 // bytes (without prefix)
+// Compressed public key sizes
+TC26_256_CompressedSize   = 33  // with prefix
+TC26_256_CompressedSizeNP = 32  // without prefix
+TC26_512_CompressedSize   = 65  // with prefix
+TC26_512_CompressedSizeNP = 64  // without prefix
 
-TC26_512_CompressedSize = 65    // bytes (with prefix)
-TC26_512_CompressedSizeNP = 64  // bytes (without prefix)
-TC26_512_UncompressedSize = 129  // bytes (with prefix)
-TC26_512_UncompressedSizeNP = 128 // bytes (without prefix)
+// Uncompressed public key sizes
+TC26_256_UncompressedSize   = 65   // with prefix
+TC26_256_UncompressedSizeNP = 64   // without prefix
+TC26_512_UncompressedSize   = 129  // with prefix
+TC26_512_UncompressedSizeNP = 128  // without prefix
 ```
 
 ---
 
 ## Thread Safety
 
-- **PrivKey/PubKey**: Immutable after creation, safe for concurrent reads
-- **Master/Derive**: Thread-safe for concurrent calls with different paths
-- **Sign/Verify**: Thread-safe for concurrent operations with different keys
-- **KeyPool**: For high-concurrency scenarios, consider using a key pool pattern
-
----
-
-## Performance Tips
-
-1. **Reuse key objects**: Creating keys is expensive, reuse them
-2. **Pre-compute hashes**: Hash once, sign multiple times if needed
-3. **Batch operations**: Sign/verify multiple messages without key creation overhead
-4. **HD derivation**: Cache parent chains if deriving many children
-5. **Concurrent signing**: Each goroutine can safely use different key objects
-
----
-
-## Compatibility Notes
-
-- Signatures are deterministic (same message produces different signatures due to random k)
-- Key formats are compatible with standard elliptic curve standards
-- Big-endian byte order for all multi-byte values
-- No ASN.1 encoding built-in; use external libraries for PEM/ASN.1 support
+- `PrivKey` and `PubKey` are immutable after creation and safe for concurrent reads
+- `Sign` and `Verify` are safe for concurrent use with distinct key instances
+- `Master` and `Derive` are safe for concurrent use with independent inputs

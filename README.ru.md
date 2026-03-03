@@ -2,7 +2,7 @@
 
 Полнофункциональная реализация российских стандартов криптографии ГОСТ на чистом Go, обеспечивающая цифровые подписи, криптографическое хеширование и управление ключами для стандартов ГОСТ Р 34.10-2012 и ГОСТ Р 34.11-2012 Стрибог.
 
-**[🇬🇧 English](README.md)** | **[📚 Индекс документации](DOCUMENTATION.md)** | **[🔧 API Справочник](API.md)** | **[💡 Продвинутые примеры](EXAMPLES.md)** | **[🤝 Вклад](CONTRIBUTING.md)**
+**[🇬🇧 English](README.md)** | **[📚 Индекс документации](DOCUMENTATION.md)** | **[🔧 API Справочник](API.md)** | **[💡 Продвинутые примеры](_examples/EXAMPLES.md)** | **[🤝 Вклад](CONTRIBUTING.md)**
 
 ## Возможности
 
@@ -64,7 +64,7 @@ import (
 
 func main() {
     // Генерируем новую пару ключей
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -107,7 +107,7 @@ import (
 
 func main() {
     // Генерируем пару ключей на 512-бит
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
     if err != nil {
         panic(err)
     }
@@ -151,7 +151,7 @@ import (
 
 func main() {
     // Генерируем пару ключей
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -198,7 +198,7 @@ import (
 
 func main() {
     // Генерируем исходную пару ключей
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -251,7 +251,7 @@ import (
 
 func main() {
     // Генерируем пару ключей
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -398,7 +398,7 @@ import (
 
 func main() {
     // Генерируем пару ключей
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }

@@ -12,7 +12,7 @@ import (
 func TestSignVerify256(t *testing.T) {
 
 	// Generate key pair
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestSignVerify256(t *testing.T) {
 func TestSignVerify512(t *testing.T) {
 
 	// Generate key pair
-	privKey, _, err := NewPrivKey(TC26_512_A)
+	privKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestSignVerify512(t *testing.T) {
 
 // TestSignMultiple tests that multiple signatures over same message produce different results
 func TestSignMultiple256(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestSignMultiple256(t *testing.T) {
 
 // TestSignErrorCases tests error handling in Sign
 func TestSignErrorCases(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestSignErrorCases(t *testing.T) {
 
 // TestVerifyErrorCases tests error handling in Verify
 func TestVerifyErrorCases(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestVerifyErrorCases(t *testing.T) {
 
 // TestPrivKeyPublic tests public key derivation from private key
 func TestPrivKeyPublic256(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestPrivKeyPublic256(t *testing.T) {
 
 // TestPrivKeyPublic512 tests public key derivation from private key on 512-bit curve
 func TestPrivKeyPublic512(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_512_A)
+	privKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestPrivKeyPublic512(t *testing.T) {
 
 // TestNewPrivKey256 tests private key generation for 256-bit curve
 func TestNewPrivKey256(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -293,7 +293,7 @@ func TestNewPrivKey256(t *testing.T) {
 
 // TestNewPrivKey512 tests private key generation for 512-bit curve
 func TestNewPrivKey512(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_512_A)
+	privKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestFromRawPriv512(t *testing.T) {
 // TestKeySerializationRoundTrip tests public key serialization and deserialization
 func TestKeySerializationRoundTrip256(t *testing.T) {
 
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -449,7 +449,7 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 
 // BenchmarkSign256 benchmarks signing with 256-bit curve
 func BenchmarkSign256(b *testing.B) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		b.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -464,9 +464,14 @@ func BenchmarkSign256(b *testing.B) {
 
 // BenchmarkVerify256 benchmarks verification with 256-bit curve
 func BenchmarkVerify256(b *testing.B) {
-	privKey, pubKey, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		b.Fatalf("NewPrivKey failed: %v", err)
+	}
+
+	pubKey, err := privKey.Public()
+	if err != nil {
+		b.Fatalf("Public() failed: %v", err)
 	}
 
 	digest := streebog.Sum256([]byte("test message"))
@@ -483,7 +488,7 @@ func BenchmarkVerify256(b *testing.B) {
 
 // BenchmarkSign512 benchmarks signing with 512-bit curve
 func BenchmarkSign512(b *testing.B) {
-	privKey, _, err := NewPrivKey(TC26_512_A)
+	privKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
 		b.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -498,9 +503,14 @@ func BenchmarkSign512(b *testing.B) {
 
 // BenchmarkVerify512 benchmarks verification with 512-bit curve
 func BenchmarkVerify512(b *testing.B) {
-	privKey, pubKey, err := NewPrivKey(TC26_512_A)
+	privKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
 		b.Fatalf("NewPrivKey failed: %v", err)
+	}
+
+	pubKey, err := privKey.Public()
+	if err != nil {
+		b.Fatalf("Public() failed: %v", err)
 	}
 
 	digest := streebog.Sum512([]byte("test message"))

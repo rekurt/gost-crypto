@@ -10,7 +10,7 @@ import (
 
 func main() {
 	fmt.Println("Generating GOST R 34.10-2012 512-bit key pair...")
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
 	if err != nil {
 		panic(err)
 	}
@@ -78,7 +78,7 @@ func main() {
 		names := []string{"TC26_512_B", "TC26_512_C"}
 		fmt.Printf("\n%s:\n", names[i])
 
-		priv, _, err := gost3410.NewPrivKey(curve)
+		priv, err := gost3410.NewPrivKey(curve)
 		if err != nil {
 			fmt.Printf("  Error creating key: %v\n", err)
 			continue

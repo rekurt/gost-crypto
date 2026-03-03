@@ -1,27 +1,29 @@
 # gost-crypto
 
-A comprehensive pure Go implementation of Russian GOST cryptographic standards, providing digital signatures, cryptographic hashing, and key management for GOST R 34.10-2012 and GOST R 34.11-2012 Streebog algorithms.
+Pure Go implementation of Russian GOST cryptographic standards: digital signatures (GOST R 34.10-2012), cryptographic hashing (GOST R 34.11-2012 Streebog), and key management for TC26 elliptic curves.
 
-**[📖 На русском / In Russian](README.ru.md)** | **[📚 Documentation Index](DOCUMENTATION.md)** | **[🔧 API Reference](API.md)** | **[💡 Advanced Examples](EXAMPLES.md)** | **[🤝 Contributing](CONTRIBUTING.md)**
+[API Reference](API.md) | [Examples](_examples/EXAMPLES.md) | [На русском](README.ru.md) | [Contributing](CONTRIBUTING.md)
 
 ## Features
 
-- **GOST R 34.11-2012 Streebog Hashing**: 256-bit and 512-bit cryptographic hash functions
-- **GOST R 34.10-2012 Digital Signatures**: Elliptic curve signatures with TC26 parameter sets
-- **Key Management**: Support for compressed/uncompressed public key encoding and recovery
-- **Key Serialization**: Multiple serialization formats with prefix support
-- **HD Key Derivation**: HKDF-based hierarchical deterministic key derivation for wallet applications
-- **Batch Operations**: Efficient signing and verification of multiple documents
-- **Comprehensive Testing**: 76+ tests covering integration, edge cases, and vectors
-- **High-Level API**: Facade combining hashing and signing for simplified usage
+- **GOST R 34.11-2012 Streebog** — 256-bit and 512-bit cryptographic hash functions
+- **GOST R 34.10-2012** — elliptic curve digital signatures with TC26 parameter sets
+- **Key serialization** — compressed and uncompressed public key encoding with optional prefix
+- **Key recovery** — public key reconstruction from serialized forms
+- **HD key derivation** — HKDF-based hierarchical deterministic derivation with BIP32-style paths
+- **Batch operations** — signing and verification of multiple documents
+- **High-level API** — facade combining hashing and signing in a single call
+
+## Requirements
+
+- Go 1.24 or later
+- [ddulesov/gogost](https://github.com/ddulesov/gogost) v1.0.0 (resolved automatically via `go mod`)
 
 ## Installation
 
 ```bash
 go get -u github.com/ddulesov/gogost
 ```
-
-Import in your code:
 
 ```go
 import (
@@ -30,28 +32,24 @@ import (
 )
 ```
 
-**Requirements**: Go 1.24 or later
-
 ## Supported Curves
 
-The implementation supports TC26 (ТК26 - Technical Committee 26) standardized elliptic curves:
+The library supports TC26 (ТК26 — Technical Committee 26) standardized elliptic curves:
 
-| Curve ID | Key Size | Status |
-|----------|----------|--------|
-| TC26_256_A | 256-bit | ✓ Supported |
-| TC26_256_B | 256-bit | Unavailable in gogost v1.0.0 |
-| TC26_256_C | 256-bit | Unavailable in gogost v1.0.0 |
-| TC26_256_D | 256-bit | Unavailable in gogost v1.0.0 |
-| TC26_512_A | 512-bit | ✓ Supported |
-| TC26_512_B | 512-bit | ✓ Supported |
-| TC26_512_C | 512-bit | ✓ Supported |
-| TC26_512_D | 512-bit | Unavailable in gogost v1.0.0 |
+| Curve | Key Size | Status |
+|-------|----------|--------|
+| TC26_256_A | 256-bit | Supported |
+| TC26_256_B | 256-bit | Not available in gogost v1.0.0 |
+| TC26_256_C | 256-bit | Not available in gogost v1.0.0 |
+| TC26_256_D | 256-bit | Not available in gogost v1.0.0 |
+| TC26_512_A | 512-bit | Supported |
+| TC26_512_B | 512-bit | Supported |
+| TC26_512_C | 512-bit | Supported |
+| TC26_512_D | 512-bit | Not available in gogost v1.0.0 |
 
 ## Quick Start
 
-### Basic Signing and Verification
-
-The simplest way to sign and verify messages:
+### Signing and Verification
 
 ```go
 package main
@@ -63,8 +61,7 @@ import (
 )
 
 func main() {
-    // Generate a new key pair
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -74,15 +71,14 @@ func main() {
         panic(err)
     }
 
-    // Sign a message
     message := []byte("Hello, GOST R 34.10-2012!")
     opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
+
     signature, err := gostcrypto.Sign(privKey, message, opts)
     if err != nil {
         panic(err)
     }
 
-    // Verify the signature
     valid, err := gostcrypto.Verify(pubKey, message, signature, opts)
     if err != nil {
         panic(err)
@@ -92,9 +88,7 @@ func main() {
 }
 ```
 
-### Working with Different Curves
-
-Use 512-bit curves for higher security:
+### 512-bit Curves
 
 ```go
 package main
@@ -106,8 +100,7 @@ import (
 )
 
 func main() {
-    // Generate 512-bit key pair
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
     if err != nil {
         panic(err)
     }
@@ -118,15 +111,13 @@ func main() {
     }
 
     message := []byte("Secure message")
-
-    // Sign with Streebog-512
     opts := &gostcrypto.Options{Hash: gost3410.Streebog512}
+
     signature, err := gostcrypto.Sign(privKey, message, opts)
     if err != nil {
         panic(err)
     }
 
-    // Verify with Streebog-512
     valid, err := gostcrypto.Verify(pubKey, message, signature, opts)
     if err != nil {
         panic(err)
@@ -138,8 +129,6 @@ func main() {
 
 ### Public Key Serialization
 
-Serialize public keys in multiple formats for storage or transmission:
-
 ```go
 package main
 
@@ -150,8 +139,7 @@ import (
 )
 
 func main() {
-    // Generate key pair
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -161,31 +149,25 @@ func main() {
         panic(err)
     }
 
-    // Compressed format with prefix (33 bytes total)
+    // Compressed: prefix (0x02 or 0x03) + X coordinate (33 bytes total)
     compressed := pubKey.ToCompressed(true)
-    fmt.Printf("Compressed (with prefix): %s\n", hex.EncodeToString(compressed))
-    fmt.Printf("Size: %d bytes\n", len(compressed))
+    fmt.Printf("Compressed: %s (%d bytes)\n", hex.EncodeToString(compressed), len(compressed))
 
-    // Compressed format without prefix (32 bytes)
-    compressedNoPrefix := pubKey.ToCompressed(false)
-    fmt.Printf("Compressed (no prefix): %s\n", hex.EncodeToString(compressedNoPrefix))
-    fmt.Printf("Size: %d bytes\n", len(compressedNoPrefix))
+    // Without prefix (32 bytes)
+    compressedNP := pubKey.ToCompressed(false)
+    fmt.Printf("Compressed (no prefix): %s (%d bytes)\n", hex.EncodeToString(compressedNP), len(compressedNP))
 
-    // Uncompressed format with prefix (65 bytes total)
+    // Uncompressed: prefix (0x04) + X + Y (65 bytes total)
     uncompressed := pubKey.ToUncompressed(true)
-    fmt.Printf("Uncompressed (with prefix): %s...\n", hex.EncodeToString(uncompressed[:16]))
-    fmt.Printf("Size: %d bytes\n", len(uncompressed))
+    fmt.Printf("Uncompressed: %s... (%d bytes)\n", hex.EncodeToString(uncompressed[:16]), len(uncompressed))
 
-    // Uncompressed format without prefix (64 bytes)
-    uncompressedNoPrefix := pubKey.ToUncompressed(false)
-    fmt.Printf("Uncompressed (no prefix): %s...\n", hex.EncodeToString(uncompressedNoPrefix[:16]))
-    fmt.Printf("Size: %d bytes\n", len(uncompressedNoPrefix))
+    // Without prefix (64 bytes)
+    uncompressedNP := pubKey.ToUncompressed(false)
+    fmt.Printf("Uncompressed (no prefix): %s... (%d bytes)\n", hex.EncodeToString(uncompressedNP[:16]), len(uncompressedNP))
 }
 ```
 
-### Recovering Public Keys from Serialized Forms
-
-Reconstruct public keys from any serialization format:
+### Key Recovery from Serialized Form
 
 ```go
 package main
@@ -197,8 +179,7 @@ import (
 )
 
 func main() {
-    // Generate original key pair
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -211,34 +192,29 @@ func main() {
     message := []byte("Test message")
     opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 
-    // Sign with original key
     signature, err := gostcrypto.Sign(privKey, message, opts)
     if err != nil {
         panic(err)
     }
 
-    // Serialize public key
+    // Serialize and recover
     compressed := originalPubKey.ToCompressed(true)
-
-    // Recover public key from compressed format
     recoveredPubKey, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressed, true)
     if err != nil {
         panic(err)
     }
 
-    // Verify signature with recovered key
+    // Verify with recovered key
     valid, err := gostcrypto.Verify(recoveredPubKey, message, signature, opts)
     if err != nil {
         panic(err)
     }
 
-    fmt.Printf("Recovered key matches original: %v\n", valid)
+    fmt.Printf("Recovered key verification: %v\n", valid)
 }
 ```
 
-### Batch Signing Multiple Documents
-
-Efficiently sign and verify multiple documents:
+### Batch Signing
 
 ```go
 package main
@@ -246,12 +222,11 @@ package main
 import (
     "fmt"
     "gost-crypto/gost3410"
-    "gostcrypto"
+    "gost-crypto/gostcrypto"
 )
 
 func main() {
-    // Generate key pair
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -261,7 +236,6 @@ func main() {
         panic(err)
     }
 
-    // Multiple documents to sign
     documents := []struct {
         name string
         data []byte
@@ -274,7 +248,6 @@ func main() {
     opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
     signatures := make([][]byte, len(documents))
 
-    // Sign all documents
     for i, doc := range documents {
         sig, err := gostcrypto.Sign(privKey, doc.data, opts)
         if err != nil {
@@ -284,21 +257,18 @@ func main() {
         fmt.Printf("Signed: %s\n", doc.name)
     }
 
-    // Verify all signatures
-    fmt.Println("\nVerifying signatures:")
+    fmt.Println("\nVerification:")
     for i, doc := range documents {
         valid, err := gostcrypto.Verify(pubKey, doc.data, signatures[i], opts)
         if err != nil {
             panic(err)
         }
-        fmt.Printf("%s: %v\n", doc.name, valid)
+        fmt.Printf("  %s: %v\n", doc.name, valid)
     }
 }
 ```
 
-### HD Key Derivation (Hierarchical Deterministic Wallets)
-
-Generate deterministic key hierarchies from a single seed:
+### HD Key Derivation
 
 ```go
 package main
@@ -312,42 +282,30 @@ import (
 )
 
 func main() {
-    // Create master key from seed
     seed := []byte("my secret seed phrase for wallet")
     masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
     if err != nil {
         panic(err)
     }
 
-    fmt.Printf("Master key created\n")
-    fmt.Printf("Chain code: %s\n", hex.EncodeToString(chainCode))
+    fmt.Printf("Master key created, chain code: %s\n", hex.EncodeToString(chainCode))
 
-    // Derive child keys at different paths
     paths := []string{"m/0", "m/1", "m/0'/1'", "m/44'/283'/0'/0/0"}
-
     derivedKeys := make([]*gost3410.PrivKey, len(paths))
 
     for i, path := range paths {
-        childKey, newChainCode, err := hd.Derive(masterKey, chainCode, path, gost3410.Streebog256)
+        childKey, childChain, err := hd.Derive(masterKey, chainCode, path, gost3410.Streebog256)
         if err != nil {
             panic(err)
         }
 
         derivedKeys[i] = childKey
-        fmt.Printf("\nPath: %s\n", path)
-        fmt.Printf("Chain code: %s\n", hex.EncodeToString(newChainCode))
-
-        // Get public key for this path
-        pubKey, err := childKey.Public()
-        if err != nil {
-            panic(err)
-        }
-
-        // Each path has unique key
-        fmt.Printf("Public key: %s...\n", hex.EncodeToString(pubKey.X[:16]))
+        pubKey, _ := childKey.Public()
+        fmt.Printf("Path %-20s chain=%s... pub=%s...\n",
+            path, hex.EncodeToString(childChain[:8]), hex.EncodeToString(pubKey.X[:8]))
     }
 
-    // Use derived keys for signing
+    // Sign with derived keys
     message := []byte("HD wallet transaction")
     opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 
@@ -355,37 +313,24 @@ func main() {
         pubKey, _ := derivedKeys[i].Public()
         signature, _ := gostcrypto.Sign(derivedKeys[i], message, opts)
         valid, _ := gostcrypto.Verify(pubKey, message, signature, opts)
-
-        fmt.Printf("Path %s signature valid: %v\n", path, valid)
+        fmt.Printf("Path %s — signature valid: %v\n", path, valid)
     }
 }
 ```
 
-### Key Derivation Path Format
+**Path format:**
 
-The implementation supports BIP32-style paths with the following format:
+| Syntax | Meaning |
+|--------|---------|
+| `m/` | Root (required) |
+| `n` | Normal derivation at index `n` |
+| `n'` | Hardened derivation at index `n` |
 
-```
-m/path/to/keys
-  ↓     ↓    ↓
-master child child...
-
-- Hardened derivation: use ' suffix (e.g., m/0'/1')
-- Normal derivation: just the number (e.g., m/0/1)
-- Root: always start with 'm/'
-```
-
-Examples:
-- `m/0` - child key at index 0 (normal)
-- `m/0'` - child key at index 0 (hardened)
-- `m/44'/283'/0'/0/0` - typical wallet account path
-- `m/0'/1'/2'/3'/4'` - deeply hardened path
+Examples: `m/0`, `m/0'`, `m/44'/283'/0'/0/0`
 
 ## Low-Level API
 
-For more control, use the low-level API directly:
-
-### Direct Signing with Raw Digests
+For direct control over hashing and signing:
 
 ```go
 package main
@@ -397,8 +342,7 @@ import (
 )
 
 func main() {
-    // Generate key pair
-    privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
     if err != nil {
         panic(err)
     }
@@ -408,17 +352,17 @@ func main() {
         panic(err)
     }
 
-    // Manually compute digest
+    // Hash manually
     message := []byte("Direct signing example")
     digest := streebog.Sum256(message)
 
-    // Sign digest directly
+    // Sign the digest
     signature, err := privKey.Sign(digest[:], gost3410.Streebog256)
     if err != nil {
         panic(err)
     }
 
-    // Verify signature
+    // Verify
     valid, err := pubKey.Verify(digest[:], signature, gost3410.Streebog256)
     if err != nil {
         panic(err)
@@ -440,11 +384,10 @@ import (
 )
 
 func main() {
-    // Create private key from 32-byte seed (for 256-bit curve)
-    privKeyBytes, _ := hex.DecodeString(
+    raw, _ := hex.DecodeString(
         "7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28")
 
-    privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, privKeyBytes)
+    privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, raw)
     if err != nil {
         panic(err)
     }
@@ -454,9 +397,8 @@ func main() {
         panic(err)
     }
 
-    fmt.Printf("Key created from raw bytes\n")
-    fmt.Printf("Public key X: %s\n", hex.EncodeToString(pubKey.X[:16]))
-    fmt.Printf("Public key Y: %s\n", hex.EncodeToString(pubKey.Y[:16]))
+    fmt.Printf("Public key X: %s...\n", hex.EncodeToString(pubKey.X[:16]))
+    fmt.Printf("Public key Y: %s...\n", hex.EncodeToString(pubKey.Y[:16]))
 }
 ```
 
@@ -464,149 +406,122 @@ func main() {
 
 ```
 gost-crypto/
-├── streebog/           # Streebog-256/512 hash implementation
+├── streebog/           # GOST R 34.11-2012 Streebog hash (256/512)
 ├── gost3410/           # GOST R 34.10-2012 elliptic curve signatures
-│   ├── backend_gogost.go    # gogost library integration
-│   ├── keys.go              # key management and serialization
-│   ├── sign.go              # signing and verification
-│   └── *_test.go            # comprehensive test suite
-├── gostcrypto/         # High-level facade API
-│   ├── sign_verify.go       # combined hash and sign operations
-│   ├── options.go           # configuration options
-│   └── *_test.go            # integration tests
-├── kdf/hd/             # HD key derivation
-│   └── derive.go        # hierarchical key derivation
-└── _examples/          # Usage examples
-    ├── sign_verify/         # basic signing
-    ├── sign_verify_512/     # 512-bit signing
-    ├── hd_derivation/       # HD wallet example
-    ├── batch_signing/       # batch operations
-    └── key_serialization/   # key format examples
+│   ├── backend_gogost.go    # gogost backend integration
+│   ├── keys.go              # key generation, serialization, recovery
+│   ├── sign.go              # Sign and Verify methods
+│   └── *_test.go
+├── gostcrypto/         # High-level facade (hash + sign in one call)
+│   ├── facade.go
+│   ├── options.go
+│   └── *_test.go
+├── kdf/hd/             # HD key derivation (HKDF, BIP32-style paths)
+│   └── hd.go
+└── _examples/          # Runnable examples
 ```
 
 ## Testing
 
-The implementation includes comprehensive test coverage:
-
-- **54+ Base Tests**: Core functionality and standards compliance
-- **7 Integration Tests**: Complete workflows combining multiple operations
-- **15 Edge Case Tests**: Boundary conditions and error handling
-
-### Running Tests
-
 ```bash
-# Run all tests
+# All tests
 go test ./...
 
-# Run with verbose output
+# Verbose
 go test -v ./...
 
-# Run tests for specific package
+# Single package
 go test -v ./gost3410
 go test -v ./gostcrypto
 
-# Run with coverage report
+# Coverage
 go test -cover ./...
 
-# Run specific test
+# Specific test
 go test -run TestIntegrationSignVerifyWithSerialization256 ./gostcrypto
 ```
 
-### Test Coverage Areas
+### Coverage
 
-- **Streebog**: Empty messages, standard test vectors, large messages
-- **GOST 34.10-2012**: Key generation, signing, verification, serialization
-- **Key Recovery**: Compressed/uncompressed formats with/without prefix
-- **HD Derivation**: Path consistency, hardened/normal derivation
-- **Integration**: Complete workflows, multiple curves, batch operations
-- **Edge Cases**: Minimal/maximal keys, nil inputs, size mismatches
-- **Security**: Tampering detection, signature confirmation attacks
+| Package | Coverage | Notes |
+|---------|----------|-------|
+| `streebog` | 100% | RFC 6986 test vectors |
+| `gostcrypto` | 88.2% | Integration tests, auto hash selection |
+| `kdf/hd` | 93.7% | Path parsing, hardened/normal derivation |
+| `gost3410` | 81.5% | All supported curves, serialization roundtrips |
 
-## Implementation Details
+### What Is Tested
+
+- **Streebog**: RFC 6986 vectors (M1, M2), empty input, large messages, incremental hashing
+- **GOST R 34.10-2012**: Sign/verify roundtrip on all supported curves, property-based tests (100 iterations)
+- **Key serialization**: Compressed/uncompressed with and without prefix, roundtrip recovery
+- **HD derivation**: Path consistency, hardened/normal derivation, fuzz tests for path parsing
+- **Error handling**: Corruption detection, cross-curve rejection, invalid inputs, nil arguments
+
+## Technical Details
 
 ### Signature Format
 
-Signatures are stored in GOST OCTET STRING format: `r || s`
+Signatures use GOST OCTET STRING format: `r || s`, where each component is stored as big-endian bytes.
 
-Each component (r and s) is stored as big-endian bytes:
-- For 256-bit curves: 32 bytes each, 64 bytes total
-- For 512-bit curves: 64 bytes each, 128 bytes total
+| Curve type | Component size | Total signature |
+|------------|---------------|-----------------|
+| 256-bit | 32 bytes | 64 bytes |
+| 512-bit | 64 bytes | 128 bytes |
 
-### Key Serialization Formats
+### Public Key Encoding
 
-**Compressed Format** (with prefix):
-- Prefix byte: 0x02 (even Y) or 0x03 (odd Y)
-- X coordinate: 32 bytes (256-bit) or 64 bytes (512-bit)
-- Total: 33 bytes (256-bit) or 65 bytes (512-bit)
+**Compressed** (X coordinate + parity bit):
 
-**Uncompressed Format** (with prefix):
-- Prefix byte: 0x04
-- X coordinate: 32 bytes (256-bit) or 64 bytes (512-bit)
-- Y coordinate: 32 bytes (256-bit) or 64 bytes (512-bit)
-- Total: 65 bytes (256-bit) or 129 bytes (512-bit)
+| Curve type | With prefix | Without prefix |
+|------------|-------------|----------------|
+| 256-bit | 33 bytes (`0x02`/`0x03` + X) | 32 bytes |
+| 512-bit | 65 bytes (`0x02`/`0x03` + X) | 64 bytes |
 
-Without prefix, the corresponding prefix byte is omitted.
+**Uncompressed** (both coordinates):
 
-### Byte Order Handling
+| Curve type | With prefix | Without prefix |
+|------------|-------------|----------------|
+| 256-bit | 65 bytes (`0x04` + X + Y) | 64 bytes |
+| 512-bit | 129 bytes (`0x04` + X + Y) | 128 bytes |
 
-The implementation uses:
-- **Big-endian**: For key storage and signatures
-- **Little-endian**: For gogost backend compatibility (handled internally)
+### Byte Order
 
-This conversion is transparent to users of the public API.
+The public API uses big-endian byte order for keys and signatures. Conversion to little-endian for the gogost backend is handled internally.
 
-## Performance Characteristics
+## Security Notes
 
-Typical performance on modern hardware:
+1. Each signature uses a cryptographically random nonce (k)
+2. Private keys should never be logged or serialized to untrusted storage
+3. All inputs are validated for expected sizes and formats
+4. Verification uses constant-time comparison
+5. Implementation follows GOST R 34.10-2012 as specified in RFC 7091
 
-- **Key Generation**: ~1-2 ms per key
-- **Signing**: ~1-2 ms per operation
-- **Verification**: ~1-2 ms per operation
-- **HD Derivation**: ~0.1-0.5 ms per key
+## Limitations
 
-Batch operations benefit from:
-- Minimal memory allocation overhead
-- Efficient reuse of crypto context
-- No inter-operation dependencies
-
-## Security Considerations
-
-1. **Random Nonce**: Each signature uses a unique random nonce (k)
-2. **Private Key Protection**: Never log or serialize private keys
-3. **Input Validation**: All inputs are validated for size and format
-4. **Constant-Time Operations**: Verification uses constant-time comparison
-5. **Standard Compliance**: Follows GOST R 34.10-2012 specification
-
-## Known Limitations and Future Work
-
-1. **Verify Method Refinement**: Public key reconstruction from signature needs additional work
-2. **Additional Curves**: TC26_256_B/C/D and TC26_512_D require gogost backend support
-3. **ASN.1/PEM Codec**: No built-in ASN.1 or PEM encoding (external libraries can be used)
-4. **Official Test Vectors**: Generated vectors provided; official ТК26 vectors pending
-5. **Hardware Acceleration**: Pure Go implementation; GPU acceleration not implemented
-
-## Legal and Compliance
-
-This library implements GOST standards, which are Russian cryptographic algorithms. Use in accordance with applicable laws and regulations in your jurisdiction.
+- **Curve availability**: TC26_256_B/C/D and TC26_512_D require gogost backend support not yet present in v1.0.0
+- **No ASN.1/PEM**: Key serialization to ASN.1 or PEM formats is not built in; use external libraries if needed
+- **No official test vectors**: Validation uses generated roundtrip vectors; official TK26 vectors are pending integration
+- **Pure Go**: No hardware acceleration or assembly optimizations
 
 ## References
 
-- [GOST R 34.10-2012](https://www.tc26.ru/): Signature and verification algorithms for GOST elliptic curves
-- [GOST R 34.11-2012](https://www.tc26.ru/): Streebog cryptographic hash function
-- [RFC 7091](https://datatracker.ietf.org/doc/html/rfc7091): GOST R 34.10-2012 Public Key Signatures
-- [RFC 6986](https://datatracker.ietf.org/doc/html/rfc6986): GOST R 34.11-2012 Streebog Hash Function
-- [github.com/ddulesov/gogost](https://github.com/ddulesov/gogost): Base cryptographic implementation
-- [ТК26 Official Website](http://www.tc26.ru/): Technical specifications
+- [GOST R 34.10-2012](https://www.tc26.ru/) — Digital signature algorithm
+- [GOST R 34.11-2012](https://www.tc26.ru/) — Streebog hash function
+- [RFC 7091](https://datatracker.ietf.org/doc/html/rfc7091) — GOST R 34.10-2012 Digital Signature Algorithm
+- [RFC 6986](https://datatracker.ietf.org/doc/html/rfc6986) — GOST R 34.11-2012 Hash Function
+- [ddulesov/gogost](https://github.com/ddulesov/gogost) — Backend cryptographic implementation
+- [TK26](http://www.tc26.ru/) — Technical Committee 26 (official specifications)
 
 ## Contributing
 
-Contributions are welcome! Areas for improvement:
-- Additional TC26 curves (requires gogost backend support)
-- ASN.1/PEM codec implementation
-- Official ТК26 test vector integration
-- Performance optimizations
-- Extended documentation and examples
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Areas of interest:
+- Additional TC26 curve support (requires gogost backend changes)
+- ASN.1/PEM codec
+- Official TK26 test vector integration
 
 ## License
 
-This implementation is provided for educational and authorized security testing purposes. Ensure you have proper authorization before using in production environments.
+This implementation is provided for educational and authorized security testing purposes. Ensure proper authorization before using in production environments.

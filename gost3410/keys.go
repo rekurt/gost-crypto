@@ -47,17 +47,17 @@ type PubKey struct {
 
 // NewPrivKey randomly generates a new private key for the given curve.
 // Public key can be derived later via (*PrivKey).Public().
-func NewPrivKey(c Curve) (*PrivKey, *PubKey, error) {
+func NewPrivKey(c Curve) (*PrivKey, error) {
 	n, err := c.Size()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	d := make([]byte, n)
 	if _, err := rand.Read(d); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pk := &PrivKey{D: d, Curve: c}
-	return pk, nil, nil
+	return pk, nil
 }
 
 // FromRawPriv constructs a private key from raw big-endian bytes.
