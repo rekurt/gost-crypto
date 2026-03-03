@@ -455,8 +455,8 @@ go test -run TestIntegrationSignVerifyWithSerialization256 ./gostcrypto
 |---------|----------|-------|
 | `streebog` | 100% | RFC 6986 test vectors |
 | `gostcrypto` | 88.2% | Integration tests, auto hash selection |
-| `kdf/hd` | 93.7% | Path parsing, hardened/normal derivation |
-| `gost3410` | 81.5% | All supported curves, serialization roundtrips |
+| `kdf/hd` | 92.9% | Path parsing, hardened/normal derivation |
+| `gost3410` | 86.2% | All supported curves, serialization roundtrips, crypto.Signer |
 
 ### What Is Tested
 

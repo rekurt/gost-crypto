@@ -1,8 +1,12 @@
 # gost-crypto
 
+[![CI](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml/badge.svg)](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rekurt/gost-crypto)](https://goreportcard.com/report/github.com/rekurt/gost-crypto)
+[![GoDoc](https://pkg.go.dev/badge/github.com/rekurt/gost-crypto)](https://pkg.go.dev/github.com/rekurt/gost-crypto)
+
 Полнофункциональная реализация российских стандартов криптографии ГОСТ на чистом Go, обеспечивающая цифровые подписи, криптографическое хеширование и управление ключами для стандартов ГОСТ Р 34.10-2012 и ГОСТ Р 34.11-2012 Стрибог.
 
-**[🇬🇧 English](README.md)** | **[🔧 API Справочник](API.md)** | **[🤝 Вклад](CONTRIBUTING.md)**
+[API Справочник](API.ru.md) | [English](README.md) | [Вклад](CONTRIBUTING.md)
 
 ## Возможности
 

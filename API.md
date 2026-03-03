@@ -21,9 +21,30 @@ Complete API reference for gost-crypto.
 
 GOST R 34.11-2012 Streebog hash functions.
 
+### `New256() hash.Hash`
+
+Returns a new Streebog-256 hasher implementing `hash.Hash`. Use for incremental hashing.
+
+```go
+h := streebog.New256()
+h.Write(part1)
+h.Write(part2)
+digest := h.Sum(nil)
+```
+
+### `New512() hash.Hash`
+
+Returns a new Streebog-512 hasher implementing `hash.Hash`.
+
+```go
+h := streebog.New512()
+h.Write(data)
+digest := h.Sum(nil)
+```
+
 ### `Sum256(data []byte) [32]byte`
 
-Computes a 256-bit Streebog hash.
+Computes a 256-bit Streebog hash in a single call.
 
 ```go
 hash := streebog.Sum256([]byte("message"))
@@ -31,7 +52,7 @@ hash := streebog.Sum256([]byte("message"))
 
 ### `Sum512(data []byte) [64]byte`
 
-Computes a 512-bit Streebog hash.
+Computes a 512-bit Streebog hash in a single call.
 
 ```go
 hash := streebog.Sum512([]byte("message"))
@@ -62,7 +83,7 @@ const (
 )
 ```
 
-The `Size()` method returns the key size in bytes (32 for 256-bit curves, 64 for 512-bit curves).
+The `Size() (int, error)` method returns the key size in bytes (32 for 256-bit curves, 64 for 512-bit curves).
 
 #### `HashID`
 
@@ -78,10 +99,11 @@ const (
 
 #### `PrivKey`
 
-Private key for GOST R 34.10-2012 signatures.
+Private key for GOST R 34.10-2012 signatures. Implements `crypto.Signer`.
 
 **Fields:**
 - `D []byte` — private key scalar (32 bytes for 256-bit curves, 64 bytes for 512-bit)
+- `Curve Curve` — the TC26 curve this key belongs to
 
 #### `PubKey`
 
@@ -90,6 +112,7 @@ Public key for GOST R 34.10-2012 signatures.
 **Fields:**
 - `X []byte` — X coordinate (32 or 64 bytes)
 - `Y []byte` — Y coordinate (32 or 64 bytes)
+- `Curve Curve` — the TC26 curve this key belongs to
 
 ---
 
@@ -119,6 +142,22 @@ Derives the corresponding public key.
 ```go
 pubKey, err := privKey.PublicKey()
 ```
+
+#### `(pk *PrivKey) ToRaw() []byte`
+
+Returns a copy of the raw big-endian private key bytes.
+
+```go
+raw := privKey.ToRaw()
+```
+
+#### `(pk *PrivKey) Public() crypto.PublicKey`
+
+Returns the public key as `crypto.PublicKey`, satisfying the `crypto.Signer` interface. Returns nil if derivation fails.
+
+#### `(pk *PrivKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)`
+
+Signs a digest, satisfying the `crypto.Signer` interface. The `rand` parameter is ignored (gogost uses `crypto/rand` internally). Delegates to `SignDigest`.
 
 ---
 
@@ -274,14 +313,22 @@ childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/44'/283'/0'/0/0"
 
 ## Error Handling
 
-| Error | Cause |
-|-------|-------|
-| `ErrInvalidKeySize` | Key byte length does not match the curve |
-| `ErrInvalidDigestSize` | Digest length does not match the hash algorithm (expected 32 or 64 bytes) |
-| `ErrInvalidSignatureSize` | Signature length is incorrect for the curve |
-| `ErrInvalidCurve` | Curve is not supported by the backend |
-| `ErrKeyRecoveryFailed` | Public key cannot be reconstructed from the provided data |
-| `ErrDerivationFailed` | Key derivation failed (invalid path or parent key) |
+Errors are returned as standard Go `error` values with descriptive messages. Common error conditions:
+
+| Error message | Cause |
+|---------------|-------|
+| `"invalid private key size"` | Key byte length does not match the curve |
+| `"private key must be non-zero"` | Private key scalar is zero |
+| `"private key must be less than curve order"` | Private key scalar >= curve subgroup order q |
+| `"digest size does not match key size"` | Digest length does not match the key size (expected 32 or 64 bytes) |
+| `"invalid signature size"` | Signature length is incorrect for the curve |
+| `"unknown curve"` | Curve is not recognized |
+| `"invalid compressed length"` | Compressed key data has wrong length |
+| `"invalid uncompressed"` | Uncompressed key data has wrong length or prefix |
+| `"X[0] high bit set: use prefix=true for this key"` | Cannot use prefix-less compressed format when X[0] >= 0x80 |
+| `"path must start with 'm/'"` | HD derivation path missing required prefix |
+| `"empty path segment"` | HD derivation path contains empty segment (e.g., `"m/0//1"`) |
+| `"hash size does not match key size"` | Hash algorithm does not match parent key's curve size |
 
 ---
 
