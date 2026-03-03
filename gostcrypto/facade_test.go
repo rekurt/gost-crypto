@@ -9,7 +9,7 @@ import (
 // TestSignBasic tests high-level signing with 256-bit curve
 // Note: Verify tests are skipped due to known issue with public key reconstruction
 func TestSignBasic256(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestSignBasic256(t *testing.T) {
 
 // TestSignBasic512 tests high-level signing with 512-bit curve
 func TestSignBasic512(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestSignBasic512(t *testing.T) {
 
 // TestSignNilOptions tests signing with nil options (should use hash based on key size)
 func TestSignNilOptions256(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestSignNilOptions256(t *testing.T) {
 
 // TestSignNilOptions512 tests signing with nil options for 512-bit curve
 func TestSignNilOptions512(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestSignNilOptions512(t *testing.T) {
 
 // TestSignErrorCases tests error handling in Sign
 func TestSignErrorCases(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestSignErrorCases(t *testing.T) {
 
 // TestSignMultipleDifferent tests that multiple signatures are different
 func TestSignMultipleDifferent(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestSignMultipleDifferent(t *testing.T) {
 
 // BenchmarkSign256 benchmarks high-level signing with 256-bit curve
 func BenchmarkSign256(b *testing.B) {
-	privKey, _, _ := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, _ := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	message := []byte("test message")
 	opts := &Options{Hash: gost3410.Streebog256}
 
@@ -151,12 +151,84 @@ func BenchmarkSign256(b *testing.B) {
 
 // BenchmarkSign512 benchmarks high-level signing with 512-bit curve
 func BenchmarkSign512(b *testing.B) {
-	privKey, _, _ := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey, _ := gost3410.NewPrivKey(gost3410.TC26_512_A)
 	message := []byte("test message")
 	opts := &Options{Hash: gost3410.Streebog512}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = Sign(privKey, message, opts)
+	}
+}
+
+// TestZeroValueOptionsInference512 tests that empty Options{} with a 512-bit key
+// correctly infers Streebog512 (not Streebog256 due to zero value).
+func TestZeroValueOptionsInference512(t *testing.T) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey failed: %v", err)
+	}
+
+	pubKey, err := privKey.Public()
+	if err != nil {
+		t.Fatalf("Public() failed: %v", err)
+	}
+
+	message := []byte("Test zero-value options with 512-bit key")
+
+	// Pass &Options{} (zero value) - should auto-infer Streebog512 for 512-bit key
+	sig, err := Sign(privKey, message, &Options{})
+	if err != nil {
+		t.Fatalf("Sign with zero-value Options failed: %v", err)
+	}
+
+	// Signature should be 128 bytes for 512-bit key
+	if len(sig) != 128 {
+		t.Errorf("signature size: got %d, want 128 (zero Options should infer 512-bit hash)", len(sig))
+	}
+
+	// Verify should work too
+	valid, err := Verify(pubKey, message, sig, &Options{})
+	if err != nil {
+		t.Fatalf("Verify with zero-value Options failed: %v", err)
+	}
+
+	if !valid {
+		t.Error("Verification failed with zero-value Options")
+	}
+}
+
+// TestZeroValueOptionsInference256 tests that empty Options{} with a 256-bit key
+// correctly infers Streebog256.
+func TestZeroValueOptionsInference256(t *testing.T) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey failed: %v", err)
+	}
+
+	pubKey, err := privKey.Public()
+	if err != nil {
+		t.Fatalf("Public() failed: %v", err)
+	}
+
+	message := []byte("Test zero-value options with 256-bit key")
+
+	// Pass &Options{} - should auto-infer Streebog256
+	sig, err := Sign(privKey, message, &Options{})
+	if err != nil {
+		t.Fatalf("Sign with zero-value Options failed: %v", err)
+	}
+
+	if len(sig) != 64 {
+		t.Errorf("signature size: got %d, want 64", len(sig))
+	}
+
+	valid, err := Verify(pubKey, message, sig, &Options{})
+	if err != nil {
+		t.Fatalf("Verify with zero-value Options failed: %v", err)
+	}
+
+	if !valid {
+		t.Error("Verification failed with zero-value Options")
 	}
 }

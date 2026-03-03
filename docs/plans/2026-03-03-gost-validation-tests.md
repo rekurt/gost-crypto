@@ -55,12 +55,12 @@
 - Modify: `gostcrypto/facade.go`
 - Modify: `gost3410/sign_test.go`
 
-- [ ] Исправить `NewPrivKey`: убрать `*PubKey` из возвращаемого значения (или вычислять реально). Обновить все call-sites.
-- [ ] Добавить валидацию `padToSize`: если `len(b) > size`, обрезать до size байт (взять младшие big-endian байты).
-- [ ] Исправить `Options` hash inference в `facade.go`: использовать отдельный флаг или sentinel value для определения "не задано" (например, сделать `Hash *HashID` или добавить `hashSet bool`, или проверять opt.Hash в связке с размером ключа).
-- [ ] Исправить `BenchmarkVerify256` и `BenchmarkVerify512`: добавить `privKey.Public()` для получения реального pubKey.
-- [ ] Написать тесты для каждого исправления.
-- [ ] Запустить `go test ./...` - все тесты должны пройти.
+- [x] Исправить `NewPrivKey`: убрать `*PubKey` из возвращаемого значения (или вычислять реально). Обновить все call-sites.
+- [x] Добавить валидацию `padToSize`: если `len(b) > size`, обрезать до size байт (взять младшие big-endian байты).
+- [x] Исправить `Options` hash inference в `facade.go`: использовать отдельный флаг или sentinel value для определения "не задано" (например, сделать `Hash *HashID` или добавить `hashSet bool`, или проверять opt.Hash в связке с размером ключа).
+- [x] Исправить `BenchmarkVerify256` и `BenchmarkVerify512`: добавить `privKey.Public()` для получения реального pubKey.
+- [x] Написать тесты для каждого исправления.
+- [x] Запустить `go test ./...` - все тесты должны пройти.
 
 ### Task 2: Добавить официальные тестовые вектора Streebog из RFC 6986
 

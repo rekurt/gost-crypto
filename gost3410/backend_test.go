@@ -311,3 +311,42 @@ func allZero(b []byte) bool {
 func isOddBytes(b []byte) bool {
 	return b[len(b)-1]&1 == 1
 }
+
+// TestPadToSizeExact tests padToSize with exact size input
+func TestPadToSizeExact(t *testing.T) {
+	b := []byte{0x01, 0x02, 0x03, 0x04}
+	result := padToSize(b, 4)
+	if !bytes.Equal(result, b) {
+		t.Errorf("padToSize exact: got %x, want %x", result, b)
+	}
+}
+
+// TestPadToSizeShort tests padToSize with short input (needs padding)
+func TestPadToSizeShort(t *testing.T) {
+	b := []byte{0x01, 0x02}
+	result := padToSize(b, 4)
+	expected := []byte{0x00, 0x00, 0x01, 0x02}
+	if !bytes.Equal(result, expected) {
+		t.Errorf("padToSize short: got %x, want %x", result, expected)
+	}
+}
+
+// TestPadToSizeLong tests padToSize with oversized input (needs truncation)
+func TestPadToSizeLong(t *testing.T) {
+	b := []byte{0x00, 0x01, 0x02, 0x03, 0x04}
+	result := padToSize(b, 4)
+	expected := []byte{0x01, 0x02, 0x03, 0x04}
+	if !bytes.Equal(result, expected) {
+		t.Errorf("padToSize long: got %x, want %x", result, expected)
+	}
+}
+
+// TestPadToSizeEmpty tests padToSize with empty input
+func TestPadToSizeEmpty(t *testing.T) {
+	b := []byte{}
+	result := padToSize(b, 4)
+	expected := []byte{0x00, 0x00, 0x00, 0x00}
+	if !bytes.Equal(result, expected) {
+		t.Errorf("padToSize empty: got %x, want %x", result, expected)
+	}
+}

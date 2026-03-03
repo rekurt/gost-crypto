@@ -71,7 +71,7 @@ func TestEdgeCaseZeroPrivateKey(t *testing.T) {
 
 // TestEdgeCaseSmallMessage tests signing smallest possible message
 func TestEdgeCaseSmallMessage(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestEdgeCaseSmallMessage(t *testing.T) {
 
 // TestEdgeCaseMessageAllZeros tests message with all zero bytes
 func TestEdgeCaseMessageAllZeros(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestEdgeCaseMessageAllZeros(t *testing.T) {
 
 // TestEdgeCaseMessageAllOnes tests message with all 0xFF bytes
 func TestEdgeCaseMessageAllOnes(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestEdgeCaseMessageAllOnes(t *testing.T) {
 
 // TestEdgeCaseIncorrectDigestSize tests error handling for wrong digest size
 func TestEdgeCaseIncorrectDigestSize256(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestEdgeCaseIncorrectDigestSize256(t *testing.T) {
 
 // TestEdgeCaseIncorrectSignatureSize tests error handling for wrong signature size
 func TestEdgeCaseIncorrectSignatureSize256(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -209,13 +209,13 @@ func TestEdgeCaseIncorrectSignatureSize256(t *testing.T) {
 
 // TestEdgeCaseDifferentCurvesIncompatible tests error when mixing curves
 func TestEdgeCaseDifferentCurvesIncompatible(t *testing.T) {
-	privKey256, _, err := NewPrivKey(TC26_256_A)
+	privKey256, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate 256-bit key: %v", err)
 	}
 
 	pubKey512, err := func() (*PubKey, error) {
-		privKey512, _, err := NewPrivKey(TC26_512_A)
+		privKey512, err := NewPrivKey(TC26_512_A)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +263,7 @@ func TestEdgCase512MinimalKey(t *testing.T) {
 
 // TestEdgeCasePublicKeyRecoveryRoundTrip tests multiple serialization rounds
 func TestEdgeCasePublicKeyRecoveryRoundTrip(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -303,7 +303,7 @@ func TestEdgeCasePublicKeyRecoveryRoundTrip(t *testing.T) {
 
 // TestEdgeCaseNilInputs tests error handling for nil inputs
 func TestEdgeCaseNilInputs(t *testing.T) {
-	privKey, _, err := NewPrivKey(TC26_256_A)
+	privKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}

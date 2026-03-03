@@ -12,7 +12,7 @@ import (
 // key generation -> serialization -> deserialization -> sign -> verify
 func TestIntegrationSignVerifyWithSerialization256(t *testing.T) {
 	// Step 1: Generate key pair
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestIntegrationMultipleCurves(t *testing.T) {
 
 	// Test 256-bit curves
 	for _, curve := range curves256 {
-		privKey, _, err := gost3410.NewPrivKey(curve)
+		privKey, err := gost3410.NewPrivKey(curve)
 		if err != nil {
 			t.Fatalf("Failed to generate key for curve: %v", err)
 		}
@@ -195,7 +195,7 @@ func TestIntegrationMultipleCurves(t *testing.T) {
 
 	// Test 512-bit curves
 	for _, curve := range curves512 {
-		privKey, _, err := gost3410.NewPrivKey(curve)
+		privKey, err := gost3410.NewPrivKey(curve)
 		if err != nil {
 			t.Fatalf("Failed to generate key for curve: %v", err)
 		}
@@ -224,7 +224,7 @@ func TestIntegrationMultipleCurves(t *testing.T) {
 
 // TestIntegrationLargeMessage tests signing/verifying large messages
 func TestIntegrationLargeMessage(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestIntegrationLargeMessage(t *testing.T) {
 
 // TestIntegrationEmptyMessage tests edge case with empty message
 func TestIntegrationEmptyMessage(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestIntegrationEmptyMessage(t *testing.T) {
 
 // TestIntegrationConsistency tests that signing same message produces valid signatures
 func TestIntegrationConsistency(t *testing.T) {
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}

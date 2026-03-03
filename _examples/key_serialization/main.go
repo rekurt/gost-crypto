@@ -14,7 +14,7 @@ func main() {
 
 	// Step 1: Generate key pair
 	fmt.Println("Step 1: Generating key pair...")
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		panic(err)
 	}
@@ -169,7 +169,7 @@ func main() {
 
 	// Step 14: Test with different curve
 	fmt.Println("\nStep 14: Testing with 512-bit curve (TC26_512_A)...")
-	privKey512, _, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey512, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
 	if err != nil {
 		panic(err)
 	}

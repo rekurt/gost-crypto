@@ -13,7 +13,7 @@ func main() {
 	fmt.Println("GOST R 34.10-2012 Batch Signing Example")
 	fmt.Println("=======================================\n")
 
-	privKey, _, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {
 		panic(err)
 	}
