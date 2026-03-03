@@ -225,12 +225,12 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 
 ### Task 11: Verify acceptance criteria
 
-- [ ] Run `go build ./...` — must compile cleanly
-- [ ] Run `go test -race -count=1 ./...` — all tests pass with race detector
-- [ ] Run `go vet ./...` — no issues
-- [ ] Run `go test -cover ./...` — verify coverage >= 80% per package
-- [ ] Verify all 33 TODO.md items are addressed
-- [ ] Run `go doc` on each package to verify documentation renders
+- [x] Run `go build ./...` — must compile cleanly
+- [x] Run `go test -race -count=1 ./...` — all tests pass with race detector
+- [x] Run `go vet ./...` — no issues
+- [x] Run `go test -cover ./...` — verify coverage >= 80% per package
+- [x] Verify all 33 TODO.md items are addressed
+- [x] Run `go doc` on each package to verify documentation renders
 
 ### Task 12: Final documentation cross-check
 

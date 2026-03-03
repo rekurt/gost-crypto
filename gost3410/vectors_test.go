@@ -107,16 +107,6 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 		})
 	}
 }
-
-// mustDecodeHex is a helper to decode hex strings (panics on error)
-func mustDecodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
 // TestTC26_512_SignVerifyVectors tests signature generation and verification with TC26_512_A curve
 // Tests using generated keys to validate the sign/verify cycle with 512-bit keys
 // Reference: GOST R 34.10-2012, TC26 parameter sets (http://www.tc26.ru/)
