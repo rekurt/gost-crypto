@@ -37,6 +37,10 @@ func Sign(priv *gost3410.PrivKey, msg []byte, opt *Options) ([]byte, error) {
 		}
 	}
 
+	if (h == gost3410.Streebog256 && len(priv.D) != 32) || (h == gost3410.Streebog512 && len(priv.D) != 64) {
+		return nil, errors.New("hash size does not match key size")
+	}
+
 	var digest []byte
 	switch h {
 	case gost3410.Streebog256:
@@ -68,6 +72,10 @@ func Verify(pub *gost3410.PubKey, msg, sig []byte, opt *Options) (bool, error) {
 		default:
 			return false, errors.New("unsupported public key size")
 		}
+	}
+
+	if (h == gost3410.Streebog256 && len(pub.X) != 32) || (h == gost3410.Streebog512 && len(pub.X) != 64) {
+		return false, errors.New("hash size does not match key size")
 	}
 
 	var digest []byte

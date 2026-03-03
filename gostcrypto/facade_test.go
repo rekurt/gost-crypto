@@ -111,6 +111,51 @@ func TestSignErrorCases(t *testing.T) {
 	}
 }
 
+// TestSignHashKeyMismatch tests that using a hash mismatched with key size
+// produces a clear error rather than a confusing low-level error.
+func TestSignHashKeyMismatch(t *testing.T) {
+	priv256, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey 256 failed: %v", err)
+	}
+	priv512, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey 512 failed: %v", err)
+	}
+	msg := []byte("test")
+
+	// 256-bit key with Streebog512
+	_, err = Sign(priv256, msg, &Options{Hash: gost3410.Streebog512})
+	if err == nil {
+		t.Fatal("expected error for Streebog512 with 256-bit key")
+	}
+	if err.Error() != "hash size does not match key size" {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// 512-bit key with Streebog256
+	_, err = Sign(priv512, msg, &Options{Hash: gost3410.Streebog256})
+	if err == nil {
+		t.Fatal("expected error for Streebog256 with 512-bit key")
+	}
+	if err.Error() != "hash size does not match key size" {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Verify path: 256-bit key with Streebog512
+	pub256, err := priv256.PublicKey()
+	if err != nil {
+		t.Fatalf("PublicKey failed: %v", err)
+	}
+	_, err = Verify(pub256, msg, []byte("fake"), &Options{Hash: gost3410.Streebog512})
+	if err == nil {
+		t.Fatal("expected error for Verify with mismatched hash")
+	}
+	if err.Error() != "hash size does not match key size" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 // TestSignMultipleDifferent tests that multiple signatures are different
 func TestSignMultipleDifferent(t *testing.T) {
 	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)

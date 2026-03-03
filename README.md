@@ -456,7 +456,7 @@ go test -run TestIntegrationSignVerifyWithSerialization256 ./gostcrypto
 | `streebog` | 100% | RFC 6986 test vectors |
 | `gostcrypto` | 88.2% | Integration tests, auto hash selection |
 | `kdf/hd` | 92.9% | Path parsing, hardened/normal derivation |
-| `gost3410` | 86.2% | All supported curves, serialization roundtrips, crypto.Signer |
+| `gost3410` | 85.5% | All supported curves, serialization roundtrips, crypto.Signer |
 
 ### What Is Tested
 
@@ -502,7 +502,7 @@ The public API uses big-endian byte order for keys and signatures. Conversion to
 1. Each signature uses a cryptographically random nonce (k)
 2. Private keys should never be logged or serialized to untrusted storage
 3. All inputs are validated for expected sizes and formats
-4. Verification uses constant-time comparison
+4. Signature verification is delegated to the gogost backend
 5. Implementation follows GOST R 34.10-2012 as specified in RFC 7091
 
 ## Limitations
