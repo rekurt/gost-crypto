@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gost3410"
 )
 
 // TestSignBasic tests high-level signing with 256-bit curve

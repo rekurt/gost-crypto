@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gost3410"
 )
 
 // TestMaster256 tests master key generation with Streebog-256

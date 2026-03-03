@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/kdf/hd"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/kdf/hd"
 )
 
 // TestIntegrationSignVerifyWithSerialization tests complete workflow:

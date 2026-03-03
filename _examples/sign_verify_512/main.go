@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/gostcrypto"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gostcrypto"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 func main() {

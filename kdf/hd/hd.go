@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // Master generates a master private key and chain code from a seed using HKDF.

@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // TestEdgeCaseMinimalPrivateKey tests with minimal valid private key (0x01)

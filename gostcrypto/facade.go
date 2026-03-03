@@ -3,8 +3,8 @@ package gostcrypto
 import (
 	"errors"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // Options controls hashing and other parameters for signing/verification.

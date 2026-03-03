@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // TestSignVerify256 tests signing and verification with TC26_256_A curve

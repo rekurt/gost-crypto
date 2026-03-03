@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"gost-crypto/streebog"
+	"github.com/rekurt/gost-crypto/streebog"
 )
 
 // TestTC26_256_SignVerifyVectors tests signature generation and verification with TC26_256_A curve

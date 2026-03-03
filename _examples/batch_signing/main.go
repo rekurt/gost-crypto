@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"gost-crypto/gost3410"
-	"gost-crypto/gostcrypto"
+	"github.com/rekurt/gost-crypto/gost3410"
+	"github.com/rekurt/gost-crypto/gostcrypto"
 )
 
 func main() {
