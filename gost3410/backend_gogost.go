@@ -152,69 +152,8 @@ func isOdd(n *big.Int) bool {
 	return n.Bit(0) == 1
 }
 
-// modSqrt computes the modular square root of a modulo p using Tonelli-Shanks algorithm
-// Returns nil if no square root exists
+// modSqrt computes the modular square root of a modulo p.
+// Returns nil if no square root exists.
 func modSqrt(a, p *big.Int) *big.Int {
-	// Check if a is a quadratic residue modulo p
-	// Using Euler's criterion: a^((p-1)/2) ≡ 1 (mod p)
-	legendre := new(big.Int).Exp(a, new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), big.NewInt(2)), p)
-	if legendre.Cmp(big.NewInt(1)) != 0 {
-		return nil // No square root exists
-	}
-
-	// Find Q and S such that p - 1 = Q * 2^S
-	Q := new(big.Int).Sub(p, big.NewInt(1))
-	S := 0
-	for Q.Bit(0) == 0 {
-		Q.Rsh(Q, 1)
-		S++
-	}
-
-	// If S == 1, then p ≡ 3 (mod 4), use simple formula
-	if S == 1 {
-		result := new(big.Int).Exp(a, new(big.Int).Add(new(big.Int).Rsh(p, 2), big.NewInt(1)), p)
-		return result
-	}
-
-	// Find a quadratic non-residue z
-	z := big.NewInt(2)
-	legendre = new(big.Int).Exp(z, new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), big.NewInt(2)), p)
-	for legendre.Cmp(big.NewInt(1)) == 0 {
-		z.Add(z, big.NewInt(1))
-		legendre = new(big.Int).Exp(z, new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), big.NewInt(2)), p)
-	}
-
-	// Tonelli-Shanks algorithm
-	M := big.NewInt(int64(S))
-	c := new(big.Int).Exp(z, Q, p)
-	t := new(big.Int).Exp(a, Q, p)
-	R := new(big.Int).Exp(a, new(big.Int).Add(new(big.Int).Rsh(Q, 1), big.NewInt(1)), p)
-
-	for {
-		if t.Cmp(big.NewInt(1)) == 0 {
-			return R
-		}
-
-		// Find the least i such that t^(2^i) = 1
-		i := int64(1)
-		t2 := new(big.Int).Mul(t, t)
-		t2.Mod(t2, p)
-		for i < M.Int64() && t2.Cmp(big.NewInt(1)) != 0 {
-			t2.Mul(t2, t2)
-			t2.Mod(t2, p)
-			i++
-		}
-
-		// Compute b = c^(2^(M-i-1))
-		b := new(big.Int).Exp(big.NewInt(2), new(big.Int).Sub(new(big.Int).Sub(M, big.NewInt(i)), big.NewInt(1)), p)
-		b = new(big.Int).Exp(c, b, p)
-
-		M = big.NewInt(i)
-		c.Mul(b, b)
-		c.Mod(c, p)
-		t.Mul(t, c)
-		t.Mod(t, p)
-		R.Mul(R, b)
-		R.Mod(R, p)
-	}
+	return new(big.Int).ModSqrt(a, p)
 }

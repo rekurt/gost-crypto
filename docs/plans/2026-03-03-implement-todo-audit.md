@@ -86,11 +86,11 @@
 - Modify: `gost3410/backend_gogost.go`
 - Modify: `gost3410/backend_test.go`
 
-- [ ] Replace the custom `modSqrt(a, p *big.Int) *big.Int` function (~60 lines) with a wrapper around `new(big.Int).ModSqrt(a, p)`
-- [ ] Handle the case where `ModSqrt` returns `nil` (no square root exists) — return `nil`
-- [ ] Remove the old Tonelli-Shanks implementation entirely
-- [ ] Run existing `TestRecoverY256`, `TestRecoverY512`, and serialization roundtrip tests to verify correctness
-- [ ] Run `go test ./...` — all tests must pass
+- [x] Replace the custom `modSqrt(a, p *big.Int) *big.Int` function (~60 lines) with a wrapper around `new(big.Int).ModSqrt(a, p)`
+- [x] Handle the case where `ModSqrt` returns `nil` (no square root exists) — return `nil`
+- [x] Remove the old Tonelli-Shanks implementation entirely
+- [x] Run existing `TestRecoverY256`, `TestRecoverY512`, and serialization roundtrip tests to verify correctness
+- [x] Run `go test ./...` — all tests must pass
 
 ### Task 5: P2 — Architecture: move HashID, remove dead param, isolate gogost [2.1, 2.2, 2.4]
 
