@@ -122,7 +122,7 @@ type KeyManager struct {
 }
 
 func NewKeyManager(curve gost3410.Curve) (*KeyManager, error) {
-    privKey, _, err := gost3410.NewPrivKey(curve)
+    privKey, err := gost3410.NewPrivKey(curve)
     if err != nil {
         return nil, err
     }
@@ -204,7 +204,7 @@ func NewKeyPool(size int, curve gost3410.Curve) (*KeyPool, error) {
     }
 
     for i := 0; i < size; i++ {
-        privKey, _, err := gost3410.NewPrivKey(curve)
+        privKey, err := gost3410.NewPrivKey(curve)
         if err != nil {
             return nil, err
         }
@@ -257,7 +257,7 @@ func NewMultiSigner(curve gost3410.Curve) *MultiSigner {
 }
 
 func (ms *MultiSigner) AddSigner(id string) error {
-    privKey, _, err := gost3410.NewPrivKey(ms.curve)
+    privKey, err := gost3410.NewPrivKey(ms.curve)
     if err != nil {
         return err
     }
@@ -562,7 +562,7 @@ type DocumentProcessor struct {
 }
 
 func NewDocumentProcessor(curve gost3410.Curve) (*DocumentProcessor, error) {
-    privKey, _, err := gost3410.NewPrivKey(curve)
+    privKey, err := gost3410.NewPrivKey(curve)
     if err != nil {
         return nil, err
     }
@@ -685,7 +685,7 @@ type KeyExchangeParticipant struct {
 }
 
 func NewKeyExchangeParticipant(id string, curve gost3410.Curve) (*KeyExchangeParticipant, error) {
-    privKey, _, err := gost3410.NewPrivKey(curve)
+    privKey, err := gost3410.NewPrivKey(curve)
     if err != nil {
         return nil, err
     }

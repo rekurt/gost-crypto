@@ -96,21 +96,20 @@ const (
 
 **Методы:**
 
-##### `func NewPrivKey(curve Curve) (*PrivKey, *PubKey, error)`
+##### `func NewPrivKey(curve Curve) (*PrivKey, error)`
 
-Генерирует новый случайный приватный ключ и выводит соответствующий открытый ключ.
+Генерирует новый случайный приватный ключ для указанной кривой.
 
 **Параметры:**
 - `curve Curve` - эллиптическая кривая для использования
 
 **Возвращает:**
 - `*PrivKey` - сгенерированный приватный ключ
-- `*PubKey` - соответствующий открытый ключ
 - `error` - ошибка, если генерация ключа не удалась
 
 **Пример:**
 ```go
-privKey, pubKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 if err != nil {
     log.Fatal(err)
 }

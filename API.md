@@ -96,21 +96,20 @@ Private key structure for elliptic curve signatures.
 
 **Methods:**
 
-##### `func NewPrivKey(curve Curve) (*PrivKey, *PubKey, error)`
+##### `func NewPrivKey(curve Curve) (*PrivKey, error)`
 
-Generates a new random private key and derives the corresponding public key.
+Generates a new random private key for the given curve.
 
 **Parameters:**
 - `curve Curve` - Elliptic curve to use
 
 **Returns:**
 - `*PrivKey` - Generated private key
-- `*PubKey` - Corresponding public key
 - `error` - Error if key generation failed
 
 **Example:**
 ```go
-privKey, pubKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 if err != nil {
     log.Fatal(err)
 }

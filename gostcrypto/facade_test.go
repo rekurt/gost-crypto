@@ -133,14 +133,17 @@ func TestSignMultipleDifferent(t *testing.T) {
 	}
 
 	// Signatures should be different (due to random k)
-	// Note: This may rarely fail if random k happens to be the same
-	_ = sig1
-	_ = sig2
+	if bytes.Equal(sig1, sig2) {
+		t.Error("two signatures of same message are identical - possible randomness issue")
+	}
 }
 
 // BenchmarkSign256 benchmarks high-level signing with 256-bit curve
 func BenchmarkSign256(b *testing.B) {
-	privKey, _ := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		b.Fatalf("NewPrivKey failed: %v", err)
+	}
 	message := []byte("test message")
 	opts := &Options{Hash: gost3410.Streebog256}
 
@@ -152,7 +155,10 @@ func BenchmarkSign256(b *testing.B) {
 
 // BenchmarkSign512 benchmarks high-level signing with 512-bit curve
 func BenchmarkSign512(b *testing.B) {
-	privKey, _ := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		b.Fatalf("NewPrivKey failed: %v", err)
+	}
 	message := []byte("test message")
 	opts := &Options{Hash: gost3410.Streebog512}
 
@@ -298,34 +304,30 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 		t.Fatal("original signature should verify")
 	}
 
-	// Corrupt a byte in the signature
-	corruptedSig := make([]byte, len(sig))
-	copy(corruptedSig, sig)
-	corruptedSig[0] ^= 0xFF
+	t.Run("corrupted_byte", func(t *testing.T) {
+		corruptedSig := make([]byte, len(sig))
+		copy(corruptedSig, sig)
+		corruptedSig[0] ^= 0xFF
 
-	valid, err = Verify(pubKey, message, corruptedSig, opts)
-	if err != nil {
-		// Error is acceptable for corrupted signatures
-		return
-	}
-	if valid {
-		t.Error("corrupted signature should not verify")
-	}
+		valid, err := Verify(pubKey, message, corruptedSig, opts)
+		if err == nil && valid {
+			t.Error("corrupted signature should not verify")
+		}
+	})
 
-	// Verify with nil public key
-	_, err = Verify(nil, message, sig, opts)
-	if err == nil {
-		t.Error("Verify with nil public key should fail")
-	}
+	t.Run("nil_pubkey", func(t *testing.T) {
+		_, err := Verify(nil, message, sig, opts)
+		if err == nil {
+			t.Error("Verify with nil public key should fail")
+		}
+	})
 
-	// Verify with wrong message
-	valid, err = Verify(pubKey, []byte("wrong message"), sig, opts)
-	if err != nil {
-		return
-	}
-	if valid {
-		t.Error("signature should not verify with wrong message")
-	}
+	t.Run("wrong_message", func(t *testing.T) {
+		valid, err := Verify(pubKey, []byte("wrong message"), sig, opts)
+		if err == nil && valid {
+			t.Error("signature should not verify with wrong message")
+		}
+	})
 }
 
 // TestSignVerifyRoundtripAllCurves tests Sign-Verify roundtrip for each supported curve.
