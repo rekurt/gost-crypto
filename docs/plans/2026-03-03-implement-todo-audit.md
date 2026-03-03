@@ -55,12 +55,12 @@
 - Modify: `gost3410/backend_gogost.go` (need curve order access)
 - Modify: `gost3410/edge_cases_test.go`
 
-- [ ] Add helper function `curveOrder(c Curve) *big.Int` in `backend_gogost.go` that returns the curve's subgroup order `q` from the gogost curve object
-- [ ] In `NewPrivKey()`: after generating random bytes, convert `d` to `*big.Int`, check `0 < d < q`; if out of range, retry (rejection sampling loop with max attempts)
-- [ ] In `FromRawPriv()`: convert `d` to `*big.Int`, reject with error if `d == 0` or `d >= q`
-- [ ] Update `TestEdgeCaseZeroPrivateKey`: assert that `FromRawPriv` with all-zero bytes returns an error (not just log)
-- [ ] Add test `TestFromRawPrivRangeValidation`: test with d=0, d=q, d=q-1, d=1 to verify range check
-- [ ] Run `go test ./...` — all tests must pass
+- [x] Add helper function `curveOrder(c Curve) *big.Int` in `backend_gogost.go` that returns the curve's subgroup order `q` from the gogost curve object
+- [x] In `NewPrivKey()`: after generating random bytes, convert `d` to `*big.Int`, check `0 < d < q`; if out of range, retry (rejection sampling loop with max attempts)
+- [x] In `FromRawPriv()`: convert `d` to `*big.Int`, reject with error if `d == 0` or `d >= q`
+- [x] Update `TestEdgeCaseZeroPrivateKey`: assert that `FromRawPriv` with all-zero bytes returns an error (not just log)
+- [x] Add test `TestFromRawPrivRangeValidation`: test with d=0, d=q, d=q-1, d=1 to verify range check
+- [x] Run `go test ./...` — all tests must pass
 
 ### Task 3: P1 — ToCompressed error handling + padToSize copy [1.3, 5a]
 

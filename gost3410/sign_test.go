@@ -2,7 +2,6 @@ package gost3410
 
 import (
 	"bytes"
-	"crypto/rand"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/streebog"
@@ -327,12 +326,12 @@ func TestNewPrivKey512(t *testing.T) {
 
 // TestFromRawPriv tests creating private key from raw bytes
 func TestFromRawPriv256(t *testing.T) {
-	// Generate random bytes for private key
-	d := make([]byte, 32)
-	_, err := rand.Read(d)
+	// Generate a valid private key, then round-trip through FromRawPriv
+	genKey, err := NewPrivKey(TC26_256_A)
 	if err != nil {
-		t.Fatalf("rand.Read failed: %v", err)
+		t.Fatalf("NewPrivKey failed: %v", err)
 	}
+	d := genKey.ToRaw()
 
 	privKey, err := FromRawPriv(TC26_256_A, d)
 	if err != nil {
@@ -363,12 +362,12 @@ func TestFromRawPriv256(t *testing.T) {
 
 // TestFromRawPriv512 tests creating private key from raw bytes on 512-bit curve
 func TestFromRawPriv512(t *testing.T) {
-	// Generate random bytes for private key
-	d := make([]byte, 64)
-	_, err := rand.Read(d)
+	// Generate a valid private key, then round-trip through FromRawPriv
+	genKey, err := NewPrivKey(TC26_512_A)
 	if err != nil {
-		t.Fatalf("rand.Read failed: %v", err)
+		t.Fatalf("NewPrivKey failed: %v", err)
 	}
+	d := genKey.ToRaw()
 
 	privKey, err := FromRawPriv(TC26_512_A, d)
 	if err != nil {

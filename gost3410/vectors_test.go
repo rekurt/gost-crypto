@@ -25,7 +25,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 			// Test vector using generated keys
 			// This validates the sign/verify cycle works correctly
 			name:       "TC26_256_A generated vector 1",
-			privKeyHex: "7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28",
+			privKeyHex: "3A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28",
 			messageHex: "48656C6C6F20474F5354", // "Hello GOST"
 			source:     "Generated test vector",
 		},

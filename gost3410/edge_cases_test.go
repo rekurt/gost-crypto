@@ -3,6 +3,7 @@ package gost3410
 import (
 	"bytes"
 	"crypto/rand"
+	"math/big"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/streebog"
@@ -33,41 +34,29 @@ func TestEdgeCaseMinimalPrivateKey(t *testing.T) {
 	}
 }
 
-// TestEdgeCaseMaximalPrivateKey tests with maximum valid private key
+// TestEdgeCaseMaximalPrivateKey tests that max-value (0xFF..FF) private key is rejected (>= curve order)
 func TestEdgeCaseMaximalPrivateKey256(t *testing.T) {
 	privKeyBytes := make([]byte, 32)
 	for i := range privKeyBytes {
 		privKeyBytes[i] = 0xFF
 	}
 
-	privKey, err := FromRawPriv(TC26_256_A, privKeyBytes)
-	if err != nil {
-		t.Fatalf("Failed to create private key with max value: %v", err)
+	_, err := FromRawPriv(TC26_256_A, privKeyBytes)
+	if err == nil {
+		t.Fatal("FromRawPriv should reject d >= curve order")
 	}
-
-	pubKey, err := privKey.Public()
-	if err != nil {
-		t.Fatalf("Failed to derive public key: %v", err)
-	}
-
-	if len(pubKey.X) != 32 || len(pubKey.Y) != 32 {
-		t.Error("Invalid public key size")
-	}
+	t.Logf("Max-value private key correctly rejected: %v", err)
 }
 
-// TestEdgeCaseZeroPrivateKey tests that zero private key fails appropriately
+// TestEdgeCaseZeroPrivateKey tests that zero private key is rejected
 func TestEdgeCaseZeroPrivateKey(t *testing.T) {
 	privKeyBytes := make([]byte, 32) // All zeros
 
-	privKey, err := FromRawPriv(TC26_256_A, privKeyBytes)
-	if err != nil {
-		t.Logf("Zero private key correctly rejected: %v", err)
-		return // Expected to fail or handle gracefully
+	_, err := FromRawPriv(TC26_256_A, privKeyBytes)
+	if err == nil {
+		t.Fatal("FromRawPriv should reject zero private key")
 	}
-
-	// If it doesn't reject, verify it at least doesn't crash
-	_, err = privKey.Public()
-	// Either error is acceptable for zero key
+	t.Logf("Zero private key correctly rejected: %v", err)
 }
 
 // TestEdgeCaseSmallMessage tests signing smallest possible message
@@ -549,6 +538,62 @@ func TestNewPrivKeyInvalidCurve(t *testing.T) {
 	if err == nil {
 		t.Error("NewPrivKey should fail for invalid curve")
 	}
+}
+
+// TestFromRawPrivRangeValidation tests private key range validation (0 < d < q)
+func TestFromRawPrivRangeValidation(t *testing.T) {
+	q, err := curveOrder(TC26_256_A)
+	if err != nil {
+		t.Fatalf("curveOrder failed: %v", err)
+	}
+	size := 32
+
+	toBytes := func(v *big.Int) []byte {
+		b := v.Bytes()
+		if len(b) < size {
+			padded := make([]byte, size)
+			copy(padded[size-len(b):], b)
+			return padded
+		}
+		return b
+	}
+
+	t.Run("d=0 rejected", func(t *testing.T) {
+		_, err := FromRawPriv(TC26_256_A, make([]byte, size))
+		if err == nil {
+			t.Error("FromRawPriv should reject d=0")
+		}
+	})
+
+	t.Run("d=q rejected", func(t *testing.T) {
+		_, err := FromRawPriv(TC26_256_A, toBytes(q))
+		if err == nil {
+			t.Error("FromRawPriv should reject d=q")
+		}
+	})
+
+	t.Run("d=q-1 accepted", func(t *testing.T) {
+		qMinus1 := new(big.Int).Sub(q, big.NewInt(1))
+		pk, err := FromRawPriv(TC26_256_A, toBytes(qMinus1))
+		if err != nil {
+			t.Fatalf("FromRawPriv should accept d=q-1: %v", err)
+		}
+		_, err = pk.Public()
+		if err != nil {
+			t.Fatalf("Public() failed for d=q-1: %v", err)
+		}
+	})
+
+	t.Run("d=1 accepted", func(t *testing.T) {
+		pk, err := FromRawPriv(TC26_256_A, toBytes(big.NewInt(1)))
+		if err != nil {
+			t.Fatalf("FromRawPriv should accept d=1: %v", err)
+		}
+		_, err = pk.Public()
+		if err != nil {
+			t.Fatalf("Public() failed for d=1: %v", err)
+		}
+	})
 }
 
 // TestToRaw tests that ToRaw returns a copy of private key bytes

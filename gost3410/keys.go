@@ -3,6 +3,7 @@ package gost3410
 import (
 	"crypto/rand"
 	"errors"
+	"math/big"
 )
 
 // Curve identifies a TC26 curve parameter set for GOST R 34.10-2012.
@@ -46,21 +47,33 @@ type PubKey struct {
 }
 
 // NewPrivKey randomly generates a new private key for the given curve.
+// The generated key d satisfies 0 < d < q (curve subgroup order).
 // Public key can be derived later via (*PrivKey).Public().
 func NewPrivKey(c Curve) (*PrivKey, error) {
 	n, err := c.Size()
 	if err != nil {
 		return nil, err
 	}
-	d := make([]byte, n)
-	if _, err := rand.Read(d); err != nil {
+	q, err := curveOrder(c)
+	if err != nil {
 		return nil, err
 	}
-	pk := &PrivKey{D: d, Curve: c}
-	return pk, nil
+	const maxAttempts = 128
+	d := make([]byte, n)
+	for i := 0; i < maxAttempts; i++ {
+		if _, err := rand.Read(d); err != nil {
+			return nil, err
+		}
+		dInt := new(big.Int).SetBytes(d)
+		if dInt.Sign() > 0 && dInt.Cmp(q) < 0 {
+			return &PrivKey{D: d, Curve: c}, nil
+		}
+	}
+	return nil, errors.New("failed to generate valid private key after maximum attempts")
 }
 
 // FromRawPriv constructs a private key from raw big-endian bytes.
+// Returns an error if d is zero or d >= q (curve subgroup order).
 func FromRawPriv(c Curve, d []byte) (*PrivKey, error) {
 	n, err := c.Size()
 	if err != nil {
@@ -69,7 +82,40 @@ func FromRawPriv(c Curve, d []byte) (*PrivKey, error) {
 	if len(d) != n {
 		return nil, errors.New("invalid private key size")
 	}
+	dInt := new(big.Int).SetBytes(d)
+	if dInt.Sign() == 0 {
+		return nil, errors.New("private key must be non-zero")
+	}
+	q, err := curveOrder(c)
+	if err != nil {
+		return nil, err
+	}
+	if dInt.Cmp(q) >= 0 {
+		return nil, errors.New("private key must be less than curve order")
+	}
 	return &PrivKey{D: append([]byte(nil), d...), Curve: c}, nil
+}
+
+// FromRawPrivReduce constructs a private key by reducing d modulo (q-1) and adding 1.
+// This ensures the result is always in range [1, q-1], suitable for deterministic key derivation.
+func FromRawPrivReduce(c Curve, d []byte) (*PrivKey, error) {
+	n, err := c.Size()
+	if err != nil {
+		return nil, err
+	}
+	if len(d) != n {
+		return nil, errors.New("invalid private key size")
+	}
+	q, err := curveOrder(c)
+	if err != nil {
+		return nil, err
+	}
+	dInt := new(big.Int).SetBytes(d)
+	qMinus1 := new(big.Int).Sub(q, big.NewInt(1))
+	dInt.Mod(dInt, qMinus1)
+	dInt.Add(dInt, big.NewInt(1)) // d in [1, q-1]
+	dBytes := padToSize(dInt.Bytes(), n)
+	return &PrivKey{D: dBytes, Curve: c}, nil
 }
 
 // ToRaw returns raw big-endian private key bytes.

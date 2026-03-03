@@ -49,6 +49,15 @@ func getMode(c Curve) (gg.Mode, error) {
 	}
 }
 
+// curveOrder returns the subgroup order q for the given curve.
+func curveOrder(c Curve) (*big.Int, error) {
+	ggCurve, err := getCurve(c)
+	if err != nil {
+		return nil, err
+	}
+	return ggCurve.Q, nil
+}
+
 // mulBase multiplies the base point by scalar d and returns X, Y coordinates
 // Returns big-endian bytes of fixed length (32 or 64 bytes)
 func mulBase(c Curve, d []byte) (x, y []byte, err error) {

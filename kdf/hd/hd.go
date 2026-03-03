@@ -47,7 +47,7 @@ func Master(seed []byte, h gost3410.HashID) (*gost3410.PrivKey, []byte, error) {
 		curve = gost3410.TC26_512_A
 	}
 
-	privKey, err := gost3410.FromRawPriv(curve, masterKeyBytes)
+	privKey, err := gost3410.FromRawPrivReduce(curve, masterKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,7 +164,7 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 	childChain := okm[keySize : 2*keySize]
 
 	// Create child private key
-	childPriv, err := gost3410.FromRawPriv(privKey.Curve, childKeyBytes)
+	childPriv, err := gost3410.FromRawPrivReduce(privKey.Curve, childKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
