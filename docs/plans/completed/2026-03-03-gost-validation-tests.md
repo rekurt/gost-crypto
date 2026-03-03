@@ -112,5 +112,5 @@
 
 ### Task 6: Update documentation
 
-- [ ] update CLAUDE.md: обновить секцию Implementation Status и Known Issues
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md: обновить секцию Implementation Status и Known Issues
+- [x] move this plan to `docs/plans/completed/`
