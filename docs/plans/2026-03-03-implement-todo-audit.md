@@ -164,26 +164,26 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 - Modify: `go.mod`
 - Remove: `.idea/` from git tracking
 
-- [ ] **4.9** Add entries to `.gitignore`: `.idea/`, `*.test`, `*.out`, `coverage.*`, `.DS_Store`
-- [ ] **4.9** Remove `.idea/` from git tracking: `git rm -r --cached .idea/`
-- [ ] **4.11** Change `go 1.24` to `go 1.21` in `go.mod` (verify build still works)
-- [ ] **4.1** Create `.github/workflows/ci.yml`:
+- [x] **4.9** Add entries to `.gitignore`: `.idea/`, `*.test`, `*.out`, `coverage.*`, `.DS_Store`
+- [x] **4.9** Remove `.idea/` from git tracking: `git rm -r --cached .idea/`
+- [x] **4.11** Change `go 1.24` to `go 1.21` in `go.mod` (verify build still works)
+- [x] **4.1** Create `.github/workflows/ci.yml`:
   - Trigger on push/PR to master and develop
   - Matrix: Go 1.21, 1.22, latest
   - Steps: checkout, setup-go, `go build ./...`, `go test -race -coverprofile=coverage.out ./...`, `go vet ./...`
   - Optional: golangci-lint step
-- [ ] **4.2** Create `SECURITY.md`:
+- [x] **4.2** Create `SECURITY.md`:
   - Security vulnerability reporting policy
   - Contact for private disclosure (email or GitHub Security Advisories)
   - Supported versions
   - Disclosure timeline
-- [ ] **4.3** Create `CONTRIBUTING.md`:
+- [x] **4.3** Create `CONTRIBUTING.md`:
   - How to contribute (fork, branch, PR)
   - Code style (gofmt, go vet)
   - Testing requirements
   - Commit message conventions
-- [ ] Run `go build ./...` to verify go 1.21 compatibility
-- [ ] Run `go test ./...` — all tests must pass
+- [x] Run `go build ./...` to verify go 1.21 compatibility
+- [x] Run `go test ./...` — all tests must pass
 
 ### Task 9: P3 — README and documentation fixes [4.4-4.8, 4.10]
 

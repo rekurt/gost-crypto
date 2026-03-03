@@ -1,4 +1,15 @@
 /CLAUDE.md
 
+# IDE
+.idea/
+
+# Go build artifacts
+*.test
+*.out
+coverage.*
+
+# OS
+.DS_Store
+
 # ralphex progress logs
 .ralphex/progress/
