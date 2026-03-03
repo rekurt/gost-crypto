@@ -86,6 +86,9 @@ func Derive(parent *gost3410.PrivKey, chainCode []byte, path string, h gost3410.
 	if curveSize != keySize {
 		return nil, nil, fmt.Errorf("hash size (%d) does not match key size (%d)", keySize, curveSize)
 	}
+	if len(chainCode) != keySize {
+		return nil, nil, fmt.Errorf("chain code size (%d) does not match key size (%d)", len(chainCode), keySize)
+	}
 
 	// Parse path
 	indices, err := parsePath(path[2:]) // Skip "m/"

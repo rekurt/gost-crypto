@@ -590,6 +590,36 @@ func TestDeriveHashCurveMismatch(t *testing.T) {
 	}
 }
 
+// TestDeriveInvalidChainCodeLength verifies that Derive rejects chain codes
+// whose length does not match the expected key size for the hash variant.
+func TestDeriveInvalidChainCodeLength(t *testing.T) {
+	seed := []byte("test seed for chain code check")
+	master, _, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		t.Fatalf("Master failed: %v", err)
+	}
+
+	// Wrong-length chain code (16 bytes instead of 32)
+	shortChain := make([]byte, 16)
+	_, _, err = Derive(master, shortChain, "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Error("Derive with short chain code should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "chain code size") {
+		t.Errorf("expected 'chain code size' error, got: %v", err)
+	}
+
+	// Wrong-length chain code (64 bytes instead of 32)
+	longChain := make([]byte, 64)
+	_, _, err = Derive(master, longChain, "m/0", gost3410.Streebog256)
+	if err == nil {
+		t.Error("Derive with long chain code should fail")
+	}
+	if err != nil && !strings.Contains(err.Error(), "chain code size") {
+		t.Errorf("expected 'chain code size' error, got: %v", err)
+	}
+}
+
 // TestParsePathEmptySegment verifies that parsePath rejects paths with
 // empty segments (e.g., "0//1") and returns a descriptive error.
 func TestParsePathEmptySegment(t *testing.T) {
