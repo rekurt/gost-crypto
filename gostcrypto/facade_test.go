@@ -7,8 +7,7 @@ import (
 	"github.com/rekurt/gost-crypto/gost3410"
 )
 
-// TestSignBasic tests high-level signing with 256-bit curve
-// Note: Verify tests are skipped due to known issue with public key reconstruction
+// TestSignBasic256 tests high-level signing with 256-bit curve
 func TestSignBasic256(t *testing.T) {
 	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
 	if err != nil {

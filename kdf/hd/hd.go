@@ -161,7 +161,7 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 		if err != nil {
 			return nil, nil, err
 		}
-		data = pubKey.X
+		data = append([]byte(nil), pubKey.X...)
 	}
 
 	// Append index (big-endian, 4 bytes)

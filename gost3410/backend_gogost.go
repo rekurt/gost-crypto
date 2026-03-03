@@ -56,7 +56,7 @@ func curveOrder(c Curve) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ggCurve.Q, nil
+	return new(big.Int).Set(ggCurve.Q), nil
 }
 
 // mulBase multiplies the base point by scalar d and returns X, Y coordinates

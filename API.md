@@ -289,7 +289,7 @@ Generates a master private key and chain code from a seed.
 - `seed` — random seed (recommended: 32+ bytes)
 - `hash` — Streebog256 or Streebog512
 
-**Returns:** master private key, chain code (32 bytes), error.
+**Returns:** master private key, chain code (32 bytes for Streebog256, 64 bytes for Streebog512), error.
 
 ```go
 masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
