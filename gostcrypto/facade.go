@@ -45,7 +45,7 @@ func Sign(priv *gost3410.PrivKey, msg []byte, opt *Options) ([]byte, error) {
 	default:
 		return nil, errors.New("unknown hash id")
 	}
-	return priv.Sign(digest)
+	return priv.SignDigest(digest)
 }
 
 // Verify hashes msg with configured Streebog and verifies GOST R 34.10-2012 signature (r||s).

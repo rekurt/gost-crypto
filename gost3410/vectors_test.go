@@ -51,7 +51,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 				t.Fatalf("Failed to create private key: %v", err)
 			}
 
-			pubKey, err := privKey.Public()
+			pubKey, err := privKey.PublicKey()
 			if err != nil {
 				t.Fatalf("Failed to derive public key: %v", err)
 			}
@@ -65,7 +65,7 @@ func TestTC26_256_SignVerifyVectors(t *testing.T) {
 			digest := streebog.Sum256(message)
 
 			// Sign the message
-			sig, err := privKey.Sign(digest[:])
+			sig, err := privKey.SignDigest(digest[:])
 			if err != nil {
 				t.Fatalf("Sign failed: %v", err)
 			}
@@ -159,7 +159,7 @@ func TestTC26_512_SignVerifyVectors(t *testing.T) {
 				t.Fatalf("Failed to create private key: %v", err)
 			}
 
-			pubKey, err := privKey.Public()
+			pubKey, err := privKey.PublicKey()
 			if err != nil {
 				t.Fatalf("Failed to derive public key: %v", err)
 			}
@@ -173,7 +173,7 @@ func TestTC26_512_SignVerifyVectors(t *testing.T) {
 			digest := streebog.Sum512(message)
 
 			// Sign the message
-			sig, err := privKey.Sign(digest[:])
+			sig, err := privKey.SignDigest(digest[:])
 			if err != nil {
 				t.Fatalf("Sign failed: %v", err)
 			}

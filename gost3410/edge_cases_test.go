@@ -19,7 +19,7 @@ func TestEdgeCaseMinimalPrivateKey(t *testing.T) {
 		t.Fatalf("Failed to create private key with d=1: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestEdgeCaseSmallMessage(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestEdgeCaseSmallMessage(t *testing.T) {
 	message := []byte("A")
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestEdgeCaseMessageAllZeros(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestEdgeCaseMessageAllZeros(t *testing.T) {
 	message := make([]byte, 1000) // All zeros
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestEdgeCaseMessageAllOnes(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestEdgeCaseMessageAllOnes(t *testing.T) {
 	}
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestEdgeCaseIncorrectDigestSize256(t *testing.T) {
 	// Wrong size digest (should be 32 for 256-bit)
 	wrongDigest := make([]byte, 64)
 
-	_, err = privKey.Sign(wrongDigest)
+	_, err = privKey.SignDigest(wrongDigest)
 	if err == nil {
 		t.Error("Should reject digest of wrong size")
 	}
@@ -176,7 +176,7 @@ func TestEdgeCaseIncorrectSignatureSize256(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestEdgeCaseIncorrectSignatureSize256(t *testing.T) {
 	message := []byte("test")
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestEdgeCaseDifferentCurvesIncompatible(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return privKey512.Public()
+		return privKey512.PublicKey()
 	}()
 	if err != nil {
 		t.Fatalf("Failed to generate 512-bit key: %v", err)
@@ -219,7 +219,7 @@ func TestEdgeCaseDifferentCurvesIncompatible(t *testing.T) {
 	digest256 := streebog.Sum256(message)
 
 	// Try to verify 256-bit signature with 512-bit key (should fail)
-	sig256, err := privKey256.Sign(digest256[:])
+	sig256, err := privKey256.SignDigest(digest256[:])
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestEdgCase512MinimalKey(t *testing.T) {
 		t.Fatalf("Failed to create 512-bit private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestEdgeCasePublicKeyRecoveryRoundTrip(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	originalPubKey, err := privKey.Public()
+	originalPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
@@ -304,13 +304,13 @@ func TestEdgeCaseNilInputs(t *testing.T) {
 		t.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Failed to derive public key: %v", err)
 	}
 
 	// Test nil digest
-	_, err = privKey.Sign(nil)
+	_, err = privKey.SignDigest(nil)
 	if err == nil {
 		t.Error("Should reject nil digest")
 	}
@@ -335,7 +335,7 @@ func TestCrossCurveVerification(t *testing.T) {
 		t.Fatalf("NewPrivKey 512-B failed: %v", err)
 	}
 
-	pubKeyB, err := privKeyB.Public()
+	pubKeyB, err := privKeyB.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() 512-B failed: %v", err)
 	}
@@ -343,7 +343,7 @@ func TestCrossCurveVerification(t *testing.T) {
 	message := []byte("cross-curve test")
 	digest := streebog.Sum512(message)
 
-	sigA, err := privKeyA.Sign(digest[:])
+	sigA, err := privKeyA.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign on 512-A failed: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestPropertySignThenVerify(t *testing.T) {
 			t.Fatalf("Iteration %d: NewPrivKey failed: %v", i, err)
 		}
 
-		pubKey, err := privKey.Public()
+		pubKey, err := privKey.PublicKey()
 		if err != nil {
 			t.Fatalf("Iteration %d: Public() failed: %v", i, err)
 		}
@@ -379,7 +379,7 @@ func TestPropertySignThenVerify(t *testing.T) {
 		}
 		digest := streebog.Sum256(message)
 
-		sig, err := privKey.Sign(digest[:])
+		sig, err := privKey.SignDigest(digest[:])
 		if err != nil {
 			t.Fatalf("Iteration %d: Sign failed: %v", i, err)
 		}
@@ -584,7 +584,7 @@ func TestFromRawPrivRangeValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("FromRawPriv should accept d=q-1: %v", err)
 		}
-		_, err = pk.Public()
+		_, err = pk.PublicKey()
 		if err != nil {
 			t.Fatalf("Public() failed for d=q-1: %v", err)
 		}
@@ -595,7 +595,7 @@ func TestFromRawPrivRangeValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("FromRawPriv should accept d=1: %v", err)
 		}
-		_, err = pk.Public()
+		_, err = pk.PublicKey()
 		if err != nil {
 			t.Fatalf("Public() failed for d=1: %v", err)
 		}
@@ -626,7 +626,7 @@ func TestSignWithUnsupportedCurve(t *testing.T) {
 	d := make([]byte, 32)
 	d[31] = 1
 	privKey := &PrivKey{D: d, Curve: TC26_256_B}
-	_, err := privKey.Sign(make([]byte, 32))
+	_, err := privKey.SignDigest(make([]byte, 32))
 	if err == nil {
 		t.Error("Sign should fail for unsupported curve")
 	}

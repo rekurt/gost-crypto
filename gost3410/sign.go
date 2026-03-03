@@ -4,10 +4,10 @@ import (
 	"errors"
 )
 
-// Sign computes a GOST R 34.10-2012 signature over the message digest.
+// SignDigest computes a GOST R 34.10-2012 signature over the message digest.
 // The digest must be computed using the appropriate Streebog variant for the key size.
 // Returns signature in GOST OCTET STRING format: r||s, each of size equal to key size.
-func (k *PrivKey) Sign(digest []byte) ([]byte, error) {
+func (k *PrivKey) SignDigest(digest []byte) ([]byte, error) {
 	if k == nil {
 		return nil, errors.New("nil private key")
 	}

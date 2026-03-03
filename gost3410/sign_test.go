@@ -17,7 +17,7 @@ func TestSignVerify256(t *testing.T) {
 	}
 
 	// Derive public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestSignVerify256(t *testing.T) {
 	digest := streebog.Sum256(message)
 
 	// Sign
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestSignVerify512(t *testing.T) {
 	}
 
 	// Derive public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestSignVerify512(t *testing.T) {
 	digest := streebog.Sum512(message)
 
 	// Sign
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
@@ -124,12 +124,12 @@ func TestSignMultiple256(t *testing.T) {
 	digest := streebog.Sum256(message)
 
 	// Create two signatures
-	sig1, err := privKey.Sign(digest[:])
+	sig1, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("First sign failed: %v", err)
 	}
 
-	sig2, err := privKey.Sign(digest[:])
+	sig2, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Second sign failed: %v", err)
 	}
@@ -149,14 +149,14 @@ func TestSignErrorCases(t *testing.T) {
 
 	// Test nil private key
 	var nilKey *PrivKey
-	_, err = nilKey.Sign(make([]byte, 32))
+	_, err = nilKey.SignDigest(make([]byte, 32))
 	if err == nil {
 		t.Error("Sign with nil key should fail")
 	}
 
 	// Test wrong digest size
 	wrongDigest := make([]byte, 16)
-	_, err = privKey.Sign(wrongDigest)
+	_, err = privKey.SignDigest(wrongDigest)
 	if err == nil {
 		t.Error("Sign with wrong digest size should fail")
 	}
@@ -169,7 +169,7 @@ func TestVerifyErrorCases(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestPrivKeyPublic256(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	derivedPubKey, err := privKey.Public()
+	derivedPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestPrivKeyPublic512(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	derivedPubKey, err := privKey.Public()
+	derivedPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestNewPrivKey256(t *testing.T) {
 	}
 
 	// Derive and check public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestNewPrivKey512(t *testing.T) {
 	}
 
 	// Derive and check public key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestFromRawPriv256(t *testing.T) {
 	}
 
 	// Check that public key can be derived
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -383,7 +383,7 @@ func TestFromRawPriv512(t *testing.T) {
 	}
 
 	// Check that public key can be derived
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -404,7 +404,7 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	originalPubKey, err := privKey.Public()
+	originalPubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -413,7 +413,7 @@ func TestKeySerializationRoundTrip256(t *testing.T) {
 	message := []byte("Test message")
 	digest := streebog.Sum256(message)
 
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
@@ -460,7 +460,7 @@ func BenchmarkSign256(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = privKey.Sign(digest[:])
+		_, _ = privKey.SignDigest(digest[:])
 	}
 }
 
@@ -471,13 +471,13 @@ func BenchmarkVerify256(b *testing.B) {
 		b.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		b.Fatalf("Public() failed: %v", err)
 	}
 
 	digest := streebog.Sum256([]byte("test message"))
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		b.Fatalf("Sign failed: %v", err)
 	}
@@ -499,7 +499,7 @@ func BenchmarkSign512(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = privKey.Sign(digest[:])
+		_, _ = privKey.SignDigest(digest[:])
 	}
 }
 
@@ -510,13 +510,13 @@ func BenchmarkVerify512(b *testing.B) {
 		b.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		b.Fatalf("Public() failed: %v", err)
 	}
 
 	digest := streebog.Sum512([]byte("test message"))
-	sig, err := privKey.Sign(digest[:])
+	sig, err := privKey.SignDigest(digest[:])
 	if err != nil {
 		b.Fatalf("Sign failed: %v", err)
 	}

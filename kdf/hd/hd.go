@@ -143,7 +143,7 @@ func deriveAt(privKey *gost3410.PrivKey, chainCode []byte, index uint32, hardene
 		data = append([]byte{0x00}, privKey.D...)
 	} else {
 		// Non-hardened: public key X coordinate
-		pubKey, err := privKey.Public()
+		pubKey, err := privKey.PublicKey()
 		if err != nil {
 			return nil, nil, err
 		}

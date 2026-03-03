@@ -21,7 +21,7 @@ func main() {
 		panic(err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		panic(err)
 	}
@@ -192,7 +192,7 @@ func main() {
 		panic(err)
 	}
 
-	pubKey512, err := privKey512.Public()
+	pubKey512, err := privKey512.PublicKey()
 	if err != nil {
 		panic(err)
 	}

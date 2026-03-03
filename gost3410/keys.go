@@ -48,7 +48,7 @@ type PubKey struct {
 
 // NewPrivKey randomly generates a new private key for the given curve.
 // The generated key d satisfies 0 < d < q (curve subgroup order).
-// Public key can be derived later via (*PrivKey).Public().
+// Public key can be derived later via (*PrivKey).PublicKey().
 func NewPrivKey(c Curve) (*PrivKey, error) {
 	n, err := c.Size()
 	if err != nil {
@@ -121,8 +121,8 @@ func FromRawPrivReduce(c Curve, d []byte) (*PrivKey, error) {
 // ToRaw returns raw big-endian private key bytes.
 func (k *PrivKey) ToRaw() []byte { return append([]byte(nil), k.D...) }
 
-// Public derives the public key for this private key.
-func (k *PrivKey) Public() (*PubKey, error) {
+// PublicKey derives the public key for this private key.
+func (k *PrivKey) PublicKey() (*PubKey, error) {
 	x, y, err := mulBase(k.Curve, k.D)
 	if err != nil {
 		return nil, err

@@ -176,7 +176,7 @@ func TestZeroValueOptionsInference512(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestZeroValueOptionsInference256(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestSignVerifyExplicitStreebog512(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestVerifyCorruptedSignature(t *testing.T) {
 		t.Fatalf("NewPrivKey failed: %v", err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		t.Fatalf("Public() failed: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestSignVerifyRoundtripAllCurves(t *testing.T) {
 				t.Fatalf("NewPrivKey(%s) failed: %v", tt.name, err)
 			}
 
-			pubKey, err := privKey.Public()
+			pubKey, err := privKey.PublicKey()
 			if err != nil {
 				t.Fatalf("Public() failed: %v", err)
 			}

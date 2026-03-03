@@ -17,7 +17,7 @@ func main() {
 	}
 
 	// Derive public key from private key
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		panic(err)
 	}

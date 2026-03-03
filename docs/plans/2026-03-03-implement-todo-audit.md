@@ -124,14 +124,14 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 - Create: `gost3410/signer.go`
 - Modify: `gost3410/sign_test.go` or create `gost3410/signer_test.go`
 
-- [ ] Rename existing `Public() (*PubKey, error)` to `PublicKey() (*PubKey, error)` — this is the GOST-specific method returning the typed key
-- [ ] Add new method `Public() crypto.PublicKey` that calls `PublicKey()` internally (returns nil on error, matching `crypto.Signer` convention)
-- [ ] Add method `Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)` that satisfies `crypto.Signer` — delegates to the existing internal Sign logic (rand parameter is ignored since gogost uses crypto/rand internally)
-- [ ] Add compile-time interface assertion: `var _ crypto.Signer = (*PrivKey)(nil)`
-- [ ] Update all callers of `Public()` that expect `(*PubKey, error)` to use `PublicKey()` instead
-- [ ] Add test `TestCryptoSignerInterface` verifying `PrivKey` satisfies `crypto.Signer`
-- [ ] Add test `TestCryptoSignerSign` verifying sign-then-verify works through the `crypto.Signer` interface
-- [ ] Run `go test ./...` — all tests must pass
+- [x] Rename existing `Public() (*PubKey, error)` to `PublicKey() (*PubKey, error)` — this is the GOST-specific method returning the typed key
+- [x] Add new method `Public() crypto.PublicKey` that calls `PublicKey()` internally (returns nil on error, matching `crypto.Signer` convention)
+- [x] Add method `Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)` that satisfies `crypto.Signer` — delegates to the existing internal Sign logic (rand parameter is ignored since gogost uses crypto/rand internally)
+- [x] Add compile-time interface assertion: `var _ crypto.Signer = (*PrivKey)(nil)`
+- [x] Update all callers of `Public()` that expect `(*PubKey, error)` to use `PublicKey()` instead
+- [x] Add test `TestCryptoSignerInterface` verifying `PrivKey` satisfies `crypto.Signer`
+- [x] Add test `TestCryptoSignerSign` verifying sign-then-verify works through the `crypto.Signer` interface
+- [x] Run `go test ./...` — all tests must pass
 
 ### Task 7: P4 — Test quality fixes [3.1-3.9]
 

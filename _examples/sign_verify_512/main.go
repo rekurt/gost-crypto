@@ -15,7 +15,7 @@ func main() {
 		panic(err)
 	}
 
-	pubKey, err := privKey.Public()
+	pubKey, err := privKey.PublicKey()
 	if err != nil {
 		panic(err)
 	}
@@ -87,13 +87,13 @@ func main() {
 			continue
 		}
 
-		pub, err := priv.Public()
+		pub, err := priv.PublicKey()
 		if err != nil {
 			fmt.Printf("  Error deriving public key: %v\n", err)
 			continue
 		}
 
-		sig, err := priv.Sign(digest[:])
+		sig, err := priv.SignDigest(digest[:])
 		if err != nil {
 			fmt.Printf("  Error signing: %v\n", err)
 			continue
