@@ -2,7 +2,7 @@
 
 Полная документация API библиотеки gost-crypto.
 
-**[📖 README (English)](README.md)** | **[📖 README (Russian)](README.ru.md)** | **[📚 Documentation Index](DOCUMENTATION.md)** | **[💡 Advanced Examples](EXAMPLES.md)** | **[🤝 Contributing](CONTRIBUTING.md)**
+**[📖 README (English)](README.md)** | **[📖 README (Russian)](README.ru.md)** | **[📚 Documentation Index](DOCUMENTATION.md)** | **[💡 Advanced Examples](_examples/EXAMPLES.md)** | **[🤝 Contributing](CONTRIBUTING.md)**
 
 ## Содержание
 
