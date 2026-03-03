@@ -1,6 +1,7 @@
 package gostcrypto
 
 import (
+	"bytes"
 	"testing"
 
 	"gost-crypto/gost3410"
@@ -230,5 +231,169 @@ func TestZeroValueOptionsInference256(t *testing.T) {
 
 	if !valid {
 		t.Error("Verification failed with zero-value Options")
+	}
+}
+
+// TestSignVerifyExplicitStreebog512 tests Sign+Verify with explicit Options{Hash: Streebog512}
+// on a 512-bit key to ensure explicit hash selection works correctly.
+func TestSignVerifyExplicitStreebog512(t *testing.T) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey failed: %v", err)
+	}
+
+	pubKey, err := privKey.Public()
+	if err != nil {
+		t.Fatalf("Public() failed: %v", err)
+	}
+
+	message := []byte("Test explicit Streebog512 option with 512-bit key")
+	opts := &Options{Hash: gost3410.Streebog512}
+
+	sig, err := Sign(privKey, message, opts)
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	if len(sig) != 128 {
+		t.Errorf("signature size: got %d, want 128", len(sig))
+	}
+
+	valid, err := Verify(pubKey, message, sig, opts)
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	if !valid {
+		t.Error("Verification failed with explicit Streebog512 options")
+	}
+}
+
+// TestVerifyCorruptedSignature tests that Verify rejects corrupted signature bytes.
+func TestVerifyCorruptedSignature(t *testing.T) {
+	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	if err != nil {
+		t.Fatalf("NewPrivKey failed: %v", err)
+	}
+
+	pubKey, err := privKey.Public()
+	if err != nil {
+		t.Fatalf("Public() failed: %v", err)
+	}
+
+	message := []byte("Test corrupted signature")
+	opts := &Options{Hash: gost3410.Streebog256}
+
+	sig, err := Sign(privKey, message, opts)
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	// Verify original signature works
+	valid, err := Verify(pubKey, message, sig, opts)
+	if err != nil {
+		t.Fatalf("Verify original failed: %v", err)
+	}
+	if !valid {
+		t.Fatal("original signature should verify")
+	}
+
+	// Corrupt a byte in the signature
+	corruptedSig := make([]byte, len(sig))
+	copy(corruptedSig, sig)
+	corruptedSig[0] ^= 0xFF
+
+	valid, err = Verify(pubKey, message, corruptedSig, opts)
+	if err != nil {
+		// Error is acceptable for corrupted signatures
+		return
+	}
+	if valid {
+		t.Error("corrupted signature should not verify")
+	}
+
+	// Verify with nil public key
+	_, err = Verify(nil, message, sig, opts)
+	if err == nil {
+		t.Error("Verify with nil public key should fail")
+	}
+
+	// Verify with wrong message
+	valid, err = Verify(pubKey, []byte("wrong message"), sig, opts)
+	if err != nil {
+		return
+	}
+	if valid {
+		t.Error("signature should not verify with wrong message")
+	}
+}
+
+// TestSignVerifyRoundtripAllCurves tests Sign-Verify roundtrip for each supported curve.
+func TestSignVerifyRoundtripAllCurves(t *testing.T) {
+	tests := []struct {
+		name  string
+		curve gost3410.Curve
+		hash  gost3410.HashID
+		size  int
+	}{
+		{"256-A", gost3410.TC26_256_A, gost3410.Streebog256, 64},
+		{"512-A", gost3410.TC26_512_A, gost3410.Streebog512, 128},
+		{"512-B", gost3410.TC26_512_B, gost3410.Streebog512, 128},
+		{"512-C", gost3410.TC26_512_C, gost3410.Streebog512, 128},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			privKey, err := gost3410.NewPrivKey(tt.curve)
+			if err != nil {
+				t.Fatalf("NewPrivKey(%s) failed: %v", tt.name, err)
+			}
+
+			pubKey, err := privKey.Public()
+			if err != nil {
+				t.Fatalf("Public() failed: %v", err)
+			}
+
+			message := []byte("Roundtrip test message for curve " + tt.name)
+			opts := &Options{Hash: tt.hash}
+
+			sig, err := Sign(privKey, message, opts)
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			if len(sig) != tt.size {
+				t.Errorf("signature size: got %d, want %d", len(sig), tt.size)
+			}
+
+			valid, err := Verify(pubKey, message, sig, opts)
+			if err != nil {
+				t.Fatalf("Verify failed: %v", err)
+			}
+
+			if !valid {
+				t.Error("roundtrip verification failed")
+			}
+
+			// Also test with nil options (auto-infer)
+			sig2, err := Sign(privKey, message, nil)
+			if err != nil {
+				t.Fatalf("Sign with nil opts failed: %v", err)
+			}
+
+			valid, err = Verify(pubKey, message, sig2, nil)
+			if err != nil {
+				t.Fatalf("Verify with nil opts failed: %v", err)
+			}
+
+			if !valid {
+				t.Error("roundtrip with nil options failed")
+			}
+
+			// Signatures from two runs should differ (random k)
+			if bytes.Equal(sig, sig2) {
+				t.Log("warning: two signatures are identical (extremely unlikely)")
+			}
+		})
 	}
 }

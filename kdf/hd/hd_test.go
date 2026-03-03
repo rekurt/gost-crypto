@@ -429,3 +429,91 @@ func BenchmarkDeriveLongPath(b *testing.B) {
 		_, _, _ = Derive(master, chainCode, "m/44'/0'/0'/0/0", gost3410.Streebog256)
 	}
 }
+
+// TestDeriveEmptyPathReturnsParent tests that Derive with "m/" (empty segments after m/)
+// returns the parent key unchanged, since there are no derivation steps to apply.
+func TestDeriveEmptyPathReturnsParent(t *testing.T) {
+	seed := []byte("test seed for empty path")
+	master, chainCode, err := Master(seed, gost3410.Streebog256)
+	if err != nil {
+		t.Fatalf("Master failed: %v", err)
+	}
+
+	// "m/" means no child indices - should return the same key
+	child, childChain, err := Derive(master, chainCode, "m/", gost3410.Streebog256)
+	if err != nil {
+		t.Fatalf("Derive with m/ failed: %v", err)
+	}
+
+	// With no derivation steps, the result should be the parent key itself
+	if !bytes.Equal(child.D, master.D) {
+		t.Error("Derive with empty path should return parent key")
+	}
+
+	if !bytes.Equal(childChain, chainCode) {
+		t.Error("Derive with empty path should return parent chain code")
+	}
+}
+
+// TestMasterDifferentSeedsDifferentKeys verifies that two different seeds
+// produce different master keys for both Streebog256 and Streebog512.
+func TestMasterDifferentSeedsDifferentKeys(t *testing.T) {
+	seeds := [][]byte{
+		[]byte("first unique seed"),
+		[]byte("second unique seed"),
+		[]byte("third unique seed"),
+	}
+
+	for _, h := range []gost3410.HashID{gost3410.Streebog256, gost3410.Streebog512} {
+		keys := make([][]byte, len(seeds))
+		for i, seed := range seeds {
+			master, _, err := Master(seed, h)
+			if err != nil {
+				t.Fatalf("Master(%d) failed: %v", i, err)
+			}
+			keys[i] = master.D
+		}
+
+		// All keys must be different from each other
+		for i := 0; i < len(keys); i++ {
+			for j := i + 1; j < len(keys); j++ {
+				if bytes.Equal(keys[i], keys[j]) {
+					t.Errorf("seeds %d and %d produced identical master keys (hash=%d)", i, j, h)
+				}
+			}
+		}
+	}
+}
+
+// FuzzParsePath fuzz-tests the parsePath function with arbitrary inputs.
+func FuzzParsePath(f *testing.F) {
+	// Seed corpus with valid and edge-case paths
+	f.Add("")
+	f.Add("0")
+	f.Add("0'")
+	f.Add("0/1/2")
+	f.Add("0'/1/2'")
+	f.Add("44'/0'/0'/0/0")
+	f.Add("abc")
+	f.Add("0/abc/1")
+	f.Add("-1")
+	f.Add("999999999")
+	f.Add("/")
+	f.Add("//")
+	f.Add("'")
+
+	f.Fuzz(func(t *testing.T, path string) {
+		// parsePath should never panic - it should either return valid indices or an error
+		indices, err := parsePath(path)
+		if err != nil {
+			return
+		}
+
+		// If no error, indices should be valid
+		for _, idx := range indices {
+			// Each index value should be a valid uint32 (already guaranteed by type)
+			_ = idx.value
+			_ = idx.hardened
+		}
+	})
+}

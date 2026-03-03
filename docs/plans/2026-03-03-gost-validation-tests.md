@@ -95,13 +95,13 @@
 - Modify: `gostcrypto/facade_test.go`
 - Modify: `kdf/hd/hd_test.go`
 
-- [ ] gostcrypto: добавить тест с explicit `Options{Hash: Streebog512}` на 512-bit ключе.
-- [ ] gostcrypto: добавить тест Verify с неправильной подписью (corrupted bytes).
-- [ ] gostcrypto: добавить тест Sign-Verify roundtrip для каждой поддерживаемой кривой (256-A, 512-A/B/C).
-- [ ] kdf/hd: добавить тест что `Derive` с path "m/" (пустой путь после m/) работает корректно.
-- [ ] kdf/hd: добавить тест что два разных seed дают разные master-ключи.
-- [ ] kdf/hd: добавить fuzz-тест для `parsePath`.
-- [ ] Запустить `go test -cover ./...` - все пакеты >= 80%.
+- [x] gostcrypto: добавить тест с explicit `Options{Hash: Streebog512}` на 512-bit ключе.
+- [x] gostcrypto: добавить тест Verify с неправильной подписью (corrupted bytes).
+- [x] gostcrypto: добавить тест Sign-Verify roundtrip для каждой поддерживаемой кривой (256-A, 512-A/B/C).
+- [x] kdf/hd: добавить тест что `Derive` с path "m/" (пустой путь после m/) работает корректно.
+- [x] kdf/hd: добавить тест что два разных seed дают разные master-ключи.
+- [x] kdf/hd: добавить fuzz-тест для `parsePath`.
+- [x] Запустить `go test -cover ./...` - все пакеты >= 80%.
 
 ### Task 5: Verify acceptance criteria
 
