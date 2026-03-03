@@ -247,5 +247,5 @@ NOTE: Moving HashID to a separate package (e.g., streebog/ or root) would be ide
 
 ### Task 13: Update project documentation
 
-- [ ] Update CLAUDE.md: reflect new API signatures, updated coverage numbers, completed items
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update CLAUDE.md: reflect new API signatures, updated coverage numbers, completed items
+- [x] Move this plan to `docs/plans/completed/`
