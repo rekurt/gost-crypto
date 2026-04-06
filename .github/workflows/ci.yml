@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.22', '1.23', 'stable']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install OpenSSL and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev cmake git gcc g++
+      - name: Build and install gost-engine
+        run: |
+          chmod +x scripts/install-gost-engine.sh
+          sudo scripts/install-gost-engine.sh
+      - name: Verify gost-engine
+        run: openssl engine -t gost
+      - name: Run tests
+        run: go test -race -coverprofile=coverage.out -count=1 ./...
+      - name: Run vet
+        run: go vet ./...
+      - name: Check coverage
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          COV_INT=${COVERAGE%%.*}
+          if [ "${COV_INT}" -lt 80 ]; then
+            echo "::warning::Coverage below 80%: ${COVERAGE}%"
+          fi
