@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	gostcrypto "github.com/rekurt/gost-crypto"
 )
@@ -113,51 +112,6 @@ func main() {
 	} else {
 		fmt.Println("Attack prevented: Wrong signature rejected!")
 	}
-
-	// Performance benchmark
-	fmt.Println("\n\nPerformance Analysis")
-	fmt.Println("====================\n")
-
-	numDocs := 100
-	fmt.Printf("Signing %d documents...\n", numDocs)
-
-	startSign := time.Now()
-	for i := 0; i < numDocs; i++ {
-		msg := []byte(fmt.Sprintf("Document %d", i))
-		_, err := gostcrypto.Sign(privKey, msg)
-		if err != nil {
-			panic(err)
-		}
-	}
-	signTime := time.Since(startSign)
-
-	fmt.Printf("Signing: %.2f ms total, %.4f ms per document\n",
-		signTime.Seconds()*1000,
-		signTime.Seconds()*1000/float64(numDocs))
-
-	// Generate sample signatures for verification timing
-	sampleSigs := make([][]byte, 10)
-	for i := 0; i < 10; i++ {
-		msg := []byte(fmt.Sprintf("Document %d", i))
-		sig, _ := gostcrypto.Sign(privKey, msg)
-		sampleSigs[i] = sig
-	}
-
-	fmt.Printf("\nVerifying %d documents...\n", numDocs)
-
-	startVerify := time.Now()
-	for i := 0; i < numDocs; i++ {
-		msg := []byte(fmt.Sprintf("Document %d", i%10))
-		_, err := gostcrypto.Verify(pubKey, msg, sampleSigs[i%10])
-		if err != nil {
-			panic(err)
-		}
-	}
-	verifyTime := time.Since(startVerify)
-
-	fmt.Printf("Verification: %.2f ms total, %.4f ms per document\n",
-		verifyTime.Seconds()*1000,
-		verifyTime.Seconds()*1000/float64(numDocs))
 
 	fmt.Println("\nBatch signing example completed!")
 }

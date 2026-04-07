@@ -122,6 +122,73 @@ func main() {
 }
 ```
 
-## 5) Важное замечание про `pkg/hd`
+## 5) Шифрование Кузнечик + MGM
+
+```go
+package main
+
+import (
+    "crypto/rand"
+    "fmt"
+
+    "github.com/rekurt/gost-crypto/pkg/gost3412"
+    "github.com/rekurt/gost-crypto/pkg/gost3413"
+)
+
+func main() {
+    key := make([]byte, gost3412.KuznechikKeySize)
+    rand.Read(key)
+
+    aead, err := gost3413.NewMGMFromKey(key)
+    if err != nil {
+        panic(err)
+    }
+
+    nonce := make([]byte, aead.NonceSize())
+    rand.Read(nonce)
+
+    ct := aead.Seal(nil, nonce, []byte("секрет"), []byte("aad"))
+    pt, err := aead.Open(nil, nonce, ct, []byte("aad"))
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(string(pt)) // секрет
+}
+```
+
+## 6) Иерархическое выведение ключей (HD)
+
+```go
+package main
+
+import (
+    "fmt"
+
+    gostcrypto "github.com/rekurt/gost-crypto"
+    "github.com/rekurt/gost-crypto/pkg/hd"
+)
+
+func main() {
+    seed := []byte("my secret seed phrase - at least 16 bytes")
+
+    master, err := hd.Master(seed, gostcrypto.CurveTC26_256_A)
+    if err != nil {
+        panic(err)
+    }
+    defer master.Zeroize()
+
+    child, err := hd.Derive(master, "m/44'/0'/0", gostcrypto.CurveTC26_256_A)
+    if err != nil {
+        panic(err)
+    }
+    defer child.Zeroize()
+
+    sig, _ := gostcrypto.Sign(child.Key, []byte("tx"))
+    fmt.Printf("sig: %x...\n", sig[:8])
+}
+```
+
+## Важное замечание про `pkg/hd`
 
 `pkg/hd` сейчас детерминированно выводит chain code, но пока **не** строит детерминированные приватные ключи из seed. Если вам нужен полностью детерминированный BIP32-подобный вывод приватных ключей уже сейчас, этот пакет пока не закрывает это требование.
