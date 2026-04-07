@@ -1,0 +1,16 @@
+FROM golang:1.22-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl-dev cmake git gcc g++ pkg-config make && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY scripts/install-gost-engine.sh /tmp/
+RUN chmod +x /tmp/install-gost-engine.sh && /tmp/install-gost-engine.sh
+
+# Register gost-engine in openssl.cnf so ENGINE_by_id("gost") can find it.
+RUN OSSL_MODULES=$(find /usr/lib -name "ossl-modules" -type d 2>/dev/null | head -1) && \
+    sed -i '/^\[openssl_init\]/a engines = engine_section' /etc/ssl/openssl.cnf && \
+    printf '\n[engine_section]\ngost = gost_section\n\n[gost_section]\nengine_id = gost\ndynamic_path = %s/gost.so\ndefault_algorithms = ALL\ninit = 1\n' "$OSSL_MODULES" >> /etc/ssl/openssl.cnf
+
+ENV CGO_ENABLED=1
+WORKDIR /app
