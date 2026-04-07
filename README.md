@@ -90,6 +90,10 @@ docker run --rm -v "$(pwd):/app" -w /app gost-crypto-ci go test ./... -count=1
 
 ## Documentation
 
+- [Documentation Index](docs/DOCUMENTATION.md)
+- [Russian README](docs/README.ru.md)
+- [API Reference](docs/API.md)
+- [Examples](docs/EXAMPLES.md)
 - [Deployment Guide](docs/DEPLOYMENT.md) -- installing OpenSSL and gost-engine
 - [Security](docs/SECURITY.md) -- threat model, assumptions, vulnerability disclosure
 - [Migration Guide](docs/MIGRATION.md) -- upgrading from v0 (gogost-based) to v1
