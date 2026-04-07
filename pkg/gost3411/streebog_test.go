@@ -65,12 +65,12 @@ func TestNew256_SumDoesNotAlterState(t *testing.T) {
 
 func TestNew256_ImplementsHashInterface(t *testing.T) {
 	skipIfNoEngine(t)
-	var _ hash.Hash = New256()
+	_ = hash.Hash(New256())
 }
 
 func TestNew512_ImplementsHashInterface(t *testing.T) {
 	skipIfNoEngine(t)
-	var _ hash.Hash = New512()
+	_ = hash.Hash(New512())
 }
 
 func mustDecodeHex(t *testing.T, s string) []byte {
