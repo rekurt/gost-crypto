@@ -11,6 +11,7 @@ static const EVP_CIPHER *go_EVP_get_cipherbynid(int nid) {
 */
 import "C"
 import (
+	"fmt"
 	"runtime"
 	"unsafe"
 )
@@ -43,6 +44,9 @@ func (c *CipherCtx) InitEncrypt(nid int, key, iv []byte) error {
 	if ciph == nil {
 		return fmtSSLError("EVP_get_cipherbynid")
 	}
+	if err := validateCipherKeyIVLengths(ciph, key, iv); err != nil {
+		return err
+	}
 	var keyPtr, ivPtr *C.uchar
 	if len(key) > 0 {
 		keyPtr = (*C.uchar)(unsafe.Pointer(&key[0]))
@@ -61,6 +65,9 @@ func (c *CipherCtx) InitDecrypt(nid int, key, iv []byte) error {
 	ciph := C.go_EVP_get_cipherbynid(C.int(nid))
 	if ciph == nil {
 		return fmtSSLError("EVP_get_cipherbynid")
+	}
+	if err := validateCipherKeyIVLengths(ciph, key, iv); err != nil {
+		return err
 	}
 	var keyPtr, ivPtr *C.uchar
 	if len(key) > 0 {
@@ -172,4 +179,20 @@ func (c *CipherCtx) finalize() {
 	if c.ctx != nil {
 		C.EVP_CIPHER_CTX_free(c.ctx)
 	}
+}
+
+func validateCipherKeyIVLengths(ciph *C.EVP_CIPHER, key, iv []byte) error {
+	keyLen := int(C.EVP_CIPHER_key_length(ciph))
+	if keyLen > 0 && len(key) != keyLen {
+		return fmt.Errorf("openssl: invalid key length: got %d, want %d", len(key), keyLen)
+	}
+
+	ivLen := int(C.EVP_CIPHER_iv_length(ciph))
+	if ivLen > 0 && len(iv) != ivLen {
+		return fmt.Errorf("openssl: invalid iv length: got %d, want %d", len(iv), ivLen)
+	}
+	if ivLen == 0 && len(iv) != 0 {
+		return fmt.Errorf("openssl: invalid iv length: got %d, want 0", len(iv))
+	}
+	return nil
 }
