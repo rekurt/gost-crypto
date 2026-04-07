@@ -5,23 +5,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rekurt/gost-crypto/gost3410"
-	"github.com/rekurt/gost-crypto/gostcrypto"
+	gostcrypto "github.com/rekurt/gost-crypto"
 )
 
 func main() {
 	fmt.Println("GOST R 34.10-2012 Batch Signing Example")
 	fmt.Println("=======================================\n")
 
-	privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+	privKey, err := gostcrypto.GenerateKey(gostcrypto.CurveTC26_256_A)
 	if err != nil {
 		panic(err)
 	}
+	defer privKey.Zeroize()
 
-	pubKey, err := privKey.PublicKey()
-	if err != nil {
-		panic(err)
-	}
+	pubKey := privKey.PublicKey()
 
 	fmt.Println("Generated private/public key pair for batch signing")
 
@@ -40,11 +37,10 @@ func main() {
 	fmt.Printf("\nSigning %d documents:\n", len(documents))
 	fmt.Println(strings.Repeat("-", 60))
 
-	opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 	signatures := make([][]byte, len(documents))
 
 	for i, doc := range documents {
-		sig, err := gostcrypto.Sign(privKey, doc.data, opts)
+		sig, err := gostcrypto.Sign(privKey, doc.data)
 		if err != nil {
 			panic(err)
 		}
@@ -59,14 +55,14 @@ func main() {
 
 	allValid := true
 	for i, doc := range documents {
-		valid, err := gostcrypto.Verify(pubKey, doc.data, signatures[i], opts)
+		valid, err := gostcrypto.Verify(pubKey, doc.data, signatures[i])
 		if err != nil {
 			panic(err)
 		}
 
-		status := "✓ VALID"
+		status := "VALID"
 		if !valid {
-			status = "✗ INVALID"
+			status = "INVALID"
 			allValid = false
 		}
 
@@ -76,47 +72,46 @@ func main() {
 	fmt.Println(strings.Repeat("-", 60))
 
 	if allValid {
-		fmt.Println("\n✓ All signatures verified successfully!")
+		fmt.Println("\nAll signatures verified successfully!")
 	} else {
-		fmt.Println("\n✗ Some signatures failed verification!")
+		fmt.Println("\nSome signatures failed verification!")
 	}
 
 	// Test tampering detection
 	fmt.Println("\n\nTesting Tampering Detection")
 	fmt.Println("============================\n")
 
-	// Try to tamper with first document
 	tamperedDoc := make([]byte, len(documents[0].data))
 	copy(tamperedDoc, documents[0].data)
-	tamperedDoc[0]++ // Change one byte
+	tamperedDoc[0]++
 
 	fmt.Printf("Original: %s\n", documents[0].data)
 	fmt.Printf("Tampered: %s\n\n", tamperedDoc)
 
-	valid, err := gostcrypto.Verify(pubKey, tamperedDoc, signatures[0], opts)
+	valid, err := gostcrypto.Verify(pubKey, tamperedDoc, signatures[0])
 	if err != nil {
 		panic(err)
 	}
 
 	if valid {
-		fmt.Println("✗ ERROR: Tampering not detected!")
+		fmt.Println("ERROR: Tampering not detected!")
 	} else {
-		fmt.Println("✓ Tampering detected: Signature verification failed!")
+		fmt.Println("Tampering detected: Signature verification failed!")
 	}
 
 	// Try to use signature from different document
 	fmt.Println("\n\nTesting Signature Confusion Attack")
 	fmt.Println("===================================\n")
 
-	valid, err = gostcrypto.Verify(pubKey, documents[0].data, signatures[4], opts)
+	valid, err = gostcrypto.Verify(pubKey, documents[0].data, signatures[4])
 	if err != nil {
 		panic(err)
 	}
 
 	if valid {
-		fmt.Println("✗ ERROR: Wrong signature accepted!")
+		fmt.Println("ERROR: Wrong signature accepted!")
 	} else {
-		fmt.Println("✓ Attack prevented: Wrong signature rejected!")
+		fmt.Println("Attack prevented: Wrong signature rejected!")
 	}
 
 	// Performance benchmark
@@ -129,7 +124,7 @@ func main() {
 	startSign := time.Now()
 	for i := 0; i < numDocs; i++ {
 		msg := []byte(fmt.Sprintf("Document %d", i))
-		_, err := gostcrypto.Sign(privKey, msg, opts)
+		_, err := gostcrypto.Sign(privKey, msg)
 		if err != nil {
 			panic(err)
 		}
@@ -144,7 +139,7 @@ func main() {
 	sampleSigs := make([][]byte, 10)
 	for i := 0; i < 10; i++ {
 		msg := []byte(fmt.Sprintf("Document %d", i))
-		sig, _ := gostcrypto.Sign(privKey, msg, opts)
+		sig, _ := gostcrypto.Sign(privKey, msg)
 		sampleSigs[i] = sig
 	}
 
@@ -153,7 +148,7 @@ func main() {
 	startVerify := time.Now()
 	for i := 0; i < numDocs; i++ {
 		msg := []byte(fmt.Sprintf("Document %d", i%10))
-		_, err := gostcrypto.Verify(pubKey, msg, sampleSigs[i%10], opts)
+		_, err := gostcrypto.Verify(pubKey, msg, sampleSigs[i%10])
 		if err != nil {
 			panic(err)
 		}

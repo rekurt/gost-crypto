@@ -3,13 +3,8 @@
 //
 // It uses HKDF-Streebog to derive chain codes and key material from a
 // master seed, with a BIP-32-style path notation (e.g. "m/44'/0'/0").
-//
-// LIMITATION: deterministic private key construction from raw bytes is
-// not yet supported because pkg/gost3410 does not expose a ParsePrivKey
-// function. As a result, Master and Derive currently generate random
-// keys via GenerateKey. The HKDF-derived chain code is authentic, but
-// the private key is NOT deterministically derived from the seed. This
-// will be resolved when ParsePrivKey is implemented (future task).
+// Both chain codes and private keys are deterministically derived from
+// the seed using HKDF-Streebog and LoadPrivKey.
 package hd
 
 import (
@@ -52,14 +47,12 @@ type PathComponent struct {
 // DerivedKey bundles a GOST private key with its chain code.
 // The chain code is used as input to subsequent child derivations.
 type DerivedKey struct {
-	// Key is the GOST R 34.10-2012 private key.
-	// NOTE: currently generated randomly, not deterministically from seed.
-	// TODO: use deterministic key loading when ParsePrivKey is available.
+	// Key is the GOST R 34.10-2012 private key, deterministically
+	// derived from the seed and derivation path via HKDF-Streebog.
 	Key *PrivKey
 
 	// ChainCode is 32 bytes of HKDF-derived material used for child
-	// derivation. The chain code IS deterministically derived from the
-	// seed and path.
+	// derivation, deterministically derived from the seed and path.
 	ChainCode []byte
 }
 
@@ -154,21 +147,25 @@ func Master(seed []byte, c Curve) (*DerivedKey, error) {
 	}
 
 	// Use HKDF-Streebog-512 to extract key material + chain code.
-	// We derive 96 bytes: first 32 for key material (unused until
-	// ParsePrivKey exists), next 32 for chain code, last 32 reserved.
-	salt := []byte(masterKeySalt)
-	material := kdf.HKDF512(salt, seed, []byte("master"), 96)
-
-	// Chain code is bytes [32..64).
-	chainCode := make([]byte, 32)
-	copy(chainCode, material[32:64])
-
-	// TODO: when ParsePrivKey is available, use material[0:32] (or
-	// material[0:64] for 512-bit curves) to construct the key
-	// deterministically. For now, generate a random key.
-	key, err := gost3410.GenerateKey(c)
+	keySize, err := c.Size()
 	if err != nil {
-		return nil, fmt.Errorf("hd: master key generation: %w", err)
+		return nil, err
+	}
+	// Derive keySize bytes for private key + 32 bytes for chain code.
+	salt := []byte(masterKeySalt)
+	material := kdf.HKDF512(salt, seed, []byte("master"), keySize+32)
+
+	// Key material is bytes [0..keySize), chain code is bytes [keySize..keySize+32).
+	chainCode := make([]byte, 32)
+	copy(chainCode, material[keySize:keySize+32])
+
+	// Load the private key from HKDF-derived material.
+	// If the raw bytes happen to be >= q (curve order) or zero, retry
+	// with incremented info to get different material (standard rejection
+	// sampling approach for deterministic key derivation).
+	key, err := loadKeyWithRetry(c, material[:keySize], salt, seed, "master-retry", keySize)
+	if err != nil {
+		return nil, fmt.Errorf("hd: master key loading: %w", err)
 	}
 
 	return &DerivedKey{
@@ -192,8 +189,12 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 		return nil, err
 	}
 	if len(components) == 0 {
-		// Path "m" — return a copy of parent.
-		keyCopy, err := gost3410.GenerateKey(c)
+		// Path "m" — return a copy of parent with same key material.
+		parentBytes, err := parent.Key.Bytes()
+		if err != nil {
+			return nil, fmt.Errorf("hd: derive copy: %w", err)
+		}
+		keyCopy, err := gost3410.LoadPrivKey(c, parentBytes)
 		if err != nil {
 			return nil, fmt.Errorf("hd: derive copy: %w", err)
 		}
@@ -202,7 +203,13 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 		return &DerivedKey{Key: keyCopy, ChainCode: cc}, nil
 	}
 
+	keySize, err := c.Size()
+	if err != nil {
+		return nil, err
+	}
+
 	currentCC := parent.ChainCode
+	var lastKeyMaterial []byte
 
 	for _, comp := range components {
 		// Serialize the index as 4 big-endian bytes for the info parameter.
@@ -213,31 +220,51 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 			byte(comp.Index),
 		}
 
-		// Derive 64 bytes: first 32 for key material (unused), next 32 for child chain code.
-		//
-		// HKDF256 signature: HKDF256(salt, ikm, info, length).
-		// Here the chain code is salt (public, non-secret context) and the
-		// serialized index is ikm. This parameter order will be revisited
-		// when ParsePrivKey is implemented and the full derivation becomes
-		// deterministic. See review finding I5.
-		childMaterial := kdf.HKDF256(currentCC, info, []byte("child"), 64)
+		// Derive keySize bytes for key material + 32 bytes for child chain code.
+		childMaterial := kdf.HKDF256(currentCC, info, []byte("child"), keySize+32)
 
+		lastKeyMaterial = childMaterial[:keySize]
 		childCC := make([]byte, 32)
-		copy(childCC, childMaterial[32:64])
+		copy(childCC, childMaterial[keySize:keySize+32])
 		currentCC = childCC
 	}
 
-	// TODO: use the accumulated key material to construct a deterministic
-	// key when ParsePrivKey is available.
-	key, err := gost3410.GenerateKey(c)
+	// Load the deterministic key from derived material.
+	key, err := loadKeyWithRetry(c, lastKeyMaterial, currentCC, lastKeyMaterial, "child-retry", keySize)
 	if err != nil {
-		return nil, fmt.Errorf("hd: child key generation: %w", err)
+		return nil, fmt.Errorf("hd: child key loading: %w", err)
 	}
 
 	return &DerivedKey{
 		Key:       key,
 		ChainCode: currentCC,
 	}, nil
+}
+
+// loadKeyWithRetry attempts to load a private key from raw material.
+// If the raw bytes are outside the valid range [1, q-1] for the curve
+// (causing LoadPrivKey to fail), it re-derives material using HKDF with
+// an incremented counter until a valid key is obtained.
+// This is standard rejection sampling for deterministic key derivation.
+func loadKeyWithRetry(c gost3410.Curve, raw, salt, ikm []byte, infoPrefix string, keySize int) (*gost3410.PrivKey, error) {
+	// First attempt with the original material.
+	key, err := gost3410.LoadPrivKey(c, raw)
+	if err == nil {
+		return key, nil
+	}
+
+	// Rejection sampling: re-derive with incremented counter.
+	const maxRetries = 255
+	for i := 1; i <= maxRetries; i++ {
+		info := []byte(fmt.Sprintf("%s-%d", infoPrefix, i))
+		newMaterial := kdf.HKDF256(salt, ikm, info, keySize)
+		key, err = gost3410.LoadPrivKey(c, newMaterial)
+		if err == nil {
+			return key, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to derive valid key after %d attempts", maxRetries)
 }
 
 // Zeroize securely wipes the key and chain code using OPENSSL_cleanse

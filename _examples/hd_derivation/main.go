@@ -1,130 +1,129 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 
-	"github.com/rekurt/gost-crypto/gost3410"
-	"github.com/rekurt/gost-crypto/kdf/hd"
+	gostcrypto "github.com/rekurt/gost-crypto"
+	"github.com/rekurt/gost-crypto/pkg/hd"
 )
 
 func main() {
 	fmt.Println("GOST R 34.10-2012 Hierarchical Key Derivation Example")
 	fmt.Println("=======================================================\n")
 
-	seed := []byte("my random seed for HD wallet")
+	seed := []byte("my random seed for HD wallet - at least 16 bytes")
 	fmt.Printf("Master seed: %s\n", seed)
 	fmt.Printf("Seed (hex): %x\n\n", seed)
 
 	fmt.Println("Creating master key from seed...")
-	masterKey, masterChain, err := hd.Master(seed, gost3410.Streebog256)
+	masterDK, err := hd.Master(seed, gostcrypto.CurveTC26_256_A)
 	if err != nil {
 		panic(err)
 	}
+	defer masterDK.Zeroize()
 
-	fmt.Printf("Master private key (d): %x\n", masterKey.D)
-	fmt.Printf("Master chain code: %x\n", masterChain)
+	masterBytes, err := masterDK.Key.Bytes()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Master private key: %x\n", masterBytes)
+	fmt.Printf("Master chain code: %x\n", masterDK.ChainCode)
 
 	fmt.Println("\n--- Deriving keys from path m/0/1/2 ---\n")
 
-	key, chain, err := hd.Derive(masterKey, masterChain, "m/0/1/2", gost3410.Streebog256)
+	childDK, err := hd.Derive(masterDK, "m/0/1/2", gostcrypto.CurveTC26_256_A)
 	if err != nil {
 		panic(err)
 	}
+	defer childDK.Zeroize()
 
-	fmt.Printf("Derived key (m/0/1/2) private key: %x\n", key.D)
-	fmt.Printf("Derived key (m/0/1/2) chain code: %x\n", chain)
-
-	pubKey, err := key.PublicKey()
+	childBytes, err := childDK.Key.Bytes()
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Derived key (m/0/1/2) private key: %x\n", childBytes)
+	fmt.Printf("Derived key (m/0/1/2) chain code: %x\n", childDK.ChainCode)
 
-	fmt.Printf("Derived public key X: %x\n", pubKey.X)
-	fmt.Printf("Derived public key Y: %x\n", pubKey.Y)
+	// Sign with derived key
+	msg := []byte("HD wallet transaction")
+	sig, err := gostcrypto.Sign(childDK.Key, msg)
+	if err != nil {
+		panic(err)
+	}
+	ok, err := gostcrypto.Verify(childDK.Key.PublicKey(), msg, sig)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Sign/Verify with derived key: %v\n", ok)
 
 	fmt.Println("\n--- Deriving hardened keys from path m/0'/1' ---\n")
 
-	hardenedKey, hardenedChain, err := hd.Derive(masterKey, masterChain, "m/0'/1'", gost3410.Streebog256)
+	hardenedDK, err := hd.Derive(masterDK, "m/0'/1'", gostcrypto.CurveTC26_256_A)
 	if err != nil {
 		panic(err)
 	}
+	defer hardenedDK.Zeroize()
 
-	fmt.Printf("Hardened key (m/0'/1') private key: %x\n", hardenedKey.D)
-	fmt.Printf("Hardened key (m/0'/1') chain code: %x\n", hardenedChain)
+	hardenedBytes, err := hardenedDK.Key.Bytes()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Hardened key (m/0'/1') private key: %x\n", hardenedBytes)
+	fmt.Printf("Hardened key (m/0'/1') chain code: %x\n", hardenedDK.ChainCode)
 
 	fmt.Println("\n--- Deriving multiple siblings ---\n")
 
 	fmt.Println("Deriving keys at m/0, m/1, m/2:")
 	for i := 0; i < 3; i++ {
 		path := fmt.Sprintf("m/%d", i)
-		childKey, _, err := hd.Derive(masterKey, masterChain, path, gost3410.Streebog256)
+		siblingDK, err := hd.Derive(masterDK, path, gostcrypto.CurveTC26_256_A)
 		if err != nil {
 			fmt.Printf("%s: Error - %v\n", path, err)
 			continue
 		}
 
-		childPub, err := childKey.PublicKey()
+		sibBytes, err := siblingDK.Key.Bytes()
 		if err != nil {
-			fmt.Printf("%s: Error deriving public key - %v\n", path, err)
+			siblingDK.Zeroize()
+			fmt.Printf("%s: Error getting bytes - %v\n", path, err)
 			continue
 		}
 
-		fmt.Printf("%s: private=%x... public_x=%x...\n",
-			path,
-			childKey.D[:8],
-			childPub.X[:8])
+		fmt.Printf("%s: private=%x...\n", path, sibBytes[:8])
+		siblingDK.Zeroize()
 	}
 
 	fmt.Println("\n--- Deriving with 512-bit curve ---\n")
 
 	fmt.Println("Creating HD keys with 512-bit TC26_512_A curve...")
-	masterKey512, masterChain512, err := hd.Master(seed, gost3410.Streebog512)
+	masterDK512, err := hd.Master(seed, gostcrypto.CurveTC26_512_A)
 	if err != nil {
 		panic(err)
 	}
+	defer masterDK512.Zeroize()
 
-	fmt.Printf("Master private key (512-bit): %x\n", masterKey512.D)
-
-	key512, _, err := hd.Derive(masterKey512, masterChain512, "m/0/1", gost3410.Streebog512)
+	masterBytes512, err := masterDK512.Key.Bytes()
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Master private key (512-bit): %x\n", masterBytes512)
 
-	fmt.Printf("Derived key (m/0/1, 512-bit): %x\n", key512.D)
-
-	pub512, err := key512.PublicKey()
+	child512, err := hd.Derive(masterDK512, "m/0/1", gostcrypto.CurveTC26_512_A)
 	if err != nil {
 		panic(err)
 	}
+	defer child512.Zeroize()
 
-	fmt.Printf("Derived public key X (512-bit): %x\n", pub512.X)
-
-	fmt.Println("\n--- Testing path consistency ---\n")
-
-	fmt.Println("Verifying that same path produces same keys:")
-
-	key1, _, err := hd.Derive(masterKey, masterChain, "m/44/0/0", gost3410.Streebog256)
+	childBytes512, err := child512.Key.Bytes()
 	if err != nil {
 		panic(err)
 	}
-
-	key2, _, err := hd.Derive(masterKey, masterChain, "m/44/0/0", gost3410.Streebog256)
-	if err != nil {
-		panic(err)
-	}
-
-	if hex.EncodeToString(key1.D) == hex.EncodeToString(key2.D) {
-		fmt.Println("✓ Path m/44/0/0 produces consistent keys")
-	} else {
-		fmt.Println("✗ Path m/44/0/0 produces inconsistent keys")
-	}
+	fmt.Printf("Derived key (m/0/1, 512-bit): %x\n", childBytes512)
 
 	fmt.Println("\n--- Error handling ---\n")
 
 	fmt.Println("Testing invalid paths:")
 	invalidPaths := []string{
-		"0/1/2",             // missing m prefix
 		"m/abc",             // invalid index
 		"m/-1",              // negative index
 		"m/",                // empty path
@@ -132,10 +131,11 @@ func main() {
 	}
 
 	for _, invalidPath := range invalidPaths {
-		_, _, err := hd.Derive(masterKey, masterChain, invalidPath, gost3410.Streebog256)
+		dk, err := hd.Derive(masterDK, invalidPath, gostcrypto.CurveTC26_256_A)
 		if err != nil {
 			fmt.Printf("  %s: %v\n", invalidPath, err)
 		} else {
+			dk.Zeroize()
 			if invalidPath == "m/0/1/2/3/4/5/6/7" {
 				fmt.Printf("  %s: OK (long paths are allowed)\n", invalidPath)
 			} else {

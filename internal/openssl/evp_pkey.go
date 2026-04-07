@@ -127,6 +127,40 @@ static int go_i2d_pubkey(EVP_PKEY *pkey, unsigned char **out) {
     return len2;
 }
 
+// go_load_gost_privkey loads a GOST private key from raw bytes.
+// Strategy: generate a throwaway key to obtain a valid DER template,
+// then patch the raw private key bytes and deserialize.
+// Returns NULL on error.
+static EVP_PKEY *go_load_gost_privkey(ENGINE *eng, int sign_nid,
+                                       const char *curve_oid,
+                                       const unsigned char *raw, int raw_len) {
+    // Step 1: generate a throwaway key to get a valid DER structure.
+    EVP_PKEY *tmpl = go_generate_gost_key(eng, sign_nid, curve_oid);
+    if (!tmpl) return NULL;
+
+    // Step 2: serialize to DER.
+    unsigned char *der = NULL;
+    int der_len = go_i2d_private_key(tmpl, &der);
+    EVP_PKEY_free(tmpl);
+    if (der_len <= 0 || !der) return NULL;
+    if (der_len < raw_len) {
+        OPENSSL_cleanse(der, der_len);
+        free(der);
+        return NULL;
+    }
+
+    // Step 3: patch the raw key bytes at the end of the DER
+    // (mirrors the extraction logic in ExtractRawPrivKey).
+    memcpy(der + der_len - raw_len, raw, raw_len);
+
+    // Step 4: deserialize back.
+    const unsigned char *p = der;
+    EVP_PKEY *pkey = d2i_PrivateKey(sign_nid, NULL, &p, der_len);
+    OPENSSL_cleanse(der, der_len);
+    free(der);
+    return pkey;
+}
+
 // go_evp_pkey_param_check runs EVP_PKEY_param_check on the key.
 static int go_evp_pkey_param_check(EVP_PKEY *pkey, ENGINE *eng) {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, eng);
@@ -149,6 +183,27 @@ import "C"
 import (
 	"unsafe"
 )
+
+// LoadGOSTPrivKey creates a GOST R 34.10-2012 key from raw private key bytes.
+// The raw bytes are big-endian and must be exactly keySize bytes long.
+func LoadGOSTPrivKey(signNID int, curveOID string, raw []byte) (*C.EVP_PKEY, error) {
+	if err := Init(); err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 {
+		return nil, &OpenSSLError{Op: "LoadGOSTPrivKey", Text: "empty raw key"}
+	}
+
+	cOID := C.CString(curveOID)
+	defer C.free(unsafe.Pointer(cOID))
+
+	pkey := C.go_load_gost_privkey(gostEngine, C.int(signNID), cOID,
+		(*C.uchar)(unsafe.Pointer(&raw[0])), C.int(len(raw)))
+	if pkey == nil {
+		return nil, fmtSSLError("LoadGOSTPrivKey")
+	}
+	return pkey, nil
+}
 
 // GenerateGOSTKey generates a new GOST R 34.10-2012 key pair.
 // signNID must be NID_GostR3410_2012_256 or _512.
