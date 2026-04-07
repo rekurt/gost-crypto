@@ -4,20 +4,26 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rekurt/gost-crypto)](https://goreportcard.com/report/github.com/rekurt/gost-crypto)
 [![GoDoc](https://pkg.go.dev/badge/github.com/rekurt/gost-crypto)](https://pkg.go.dev/github.com/rekurt/gost-crypto)
 
-Полнофункциональная реализация российских стандартов криптографии ГОСТ на чистом Go, обеспечивающая цифровые подписи, криптографическое хеширование и управление ключами для стандартов ГОСТ Р 34.10-2012 и ГОСТ Р 34.11-2012 Стрибог.
+Реализация российских криптографических стандартов ГОСТ на Go с использованием OpenSSL gost-engine: цифровые подписи (ГОСТ Р 34.10-2012), криптографическое хеширование (ГОСТ Р 34.11-2012 Стрибог), блочный шифр (ГОСТ Р 34.12-2015 Кузнечик), аутентифицированное шифрование (ГОСТ Р 34.13-2015 MGM), согласование ключей VKO и иерархическое деривирование ключей HD.
 
 [API Справочник](API.ru.md) | [English](README.md) | [Вклад](CONTRIBUTING.md)
 
 ## Возможности
 
-- **ГОСТ Р 34.11-2012 Стрибог**: Криптографические функции хеширования на 256 и 512 бит
-- **ГОСТ Р 34.10-2012 Цифровые подписи**: Подписи на эллиптических кривых с параметрами ТК26
-- **Управление ключами**: Поддержка сжатого и несжатого кодирования открытых ключей с восстановлением
-- **Сериализация ключей**: Несколько форматов сериализации с поддержкой префиксов
-- **Иерархическое производное получение ключей (HD)**: HKDF-основанное иерархическое детерминированное производное получение ключей для приложений кошельков
-- **Пакетные операции**: Эффективное подписание и проверка нескольких документов
-- **Комплексное тестирование**: 76+ тестов, покрывающих интеграцию, граничные случаи и тестовые векторы
-- **Высокоуровневый API**: Фасад, объединяющий хеширование и подписание для упрощенного использования
+- **ГОСТ Р 34.11-2012 Стрибог** — криптографические хеш-функции 256 и 512 бит
+- **ГОСТ Р 34.10-2012** — цифровые подписи на эллиптических кривых со всеми 8 параметрами ТК26
+- **ГОСТ Р 34.12-2015 Кузнечик** — 128-битный блочный шифр (интерфейс cipher.Block)
+- **ГОСТ Р 34.13-2015 MGM** — аутентифицированное шифрование (интерфейс cipher.AEAD)
+- **Согласование ключей VKO** — вычисление общего секрета на основе ECDH
+- **HD деривирование ключей** — детерминированное иерархическое деривирование в стиле BIP32
+- **Высокоуровневый API** — фасад, объединяющий хеширование и подписание в одном вызове
+- **Без внешних Go-зависимостей** — только OpenSSL gost-engine через CGO
+
+## Требования
+
+- Go 1.22 или новее
+- OpenSSL 3.x с установленным gost-engine
+- CGO включён
 
 ## Установка
 
@@ -25,579 +31,162 @@
 go get github.com/rekurt/gost-crypto
 ```
 
-Импортируйте в ваш код:
-
 ```go
 import (
-    "github.com/rekurt/gost-crypto/gostcrypto"
-    "github.com/rekurt/gost-crypto/gost3410"
+    gostcrypto "github.com/rekurt/gost-crypto"
 )
 ```
-
-**Требования**: Go 1.21 или позже
 
 ## Поддерживаемые кривые
 
-Реализация поддерживает стандартизированные ТК26 эллиптические кривые:
+Поддерживаются все 8 стандартизированных кривых ТК26:
 
-| ID кривой | Размер ключа | Статус |
-|-----------|----------|--------|
-| TC26_256_A | 256-бит | ✓ Поддерживается |
-| TC26_256_B | 256-бит | Недоступна в gogost v1.0.0 |
-| TC26_256_C | 256-бит | Недоступна в gogost v1.0.0 |
-| TC26_256_D | 256-бит | Недоступна в gogost v1.0.0 |
-| TC26_512_A | 512-бит | ✓ Поддерживается |
-| TC26_512_B | 512-бит | ✓ Поддерживается |
-| TC26_512_C | 512-бит | ✓ Поддерживается |
-| TC26_512_D | 512-бит | Недоступна в gogost v1.0.0 |
+| Кривая | Размер ключа | OID |
+|--------|-------------|-----|
+| CurveTC26_256_A | 256-бит | 1.2.643.7.1.2.1.1.1 |
+| CurveTC26_256_B | 256-бит | 1.2.643.2.2.35.1 (КриптоПро-A) |
+| CurveTC26_256_C | 256-бит | 1.2.643.2.2.35.2 (КриптоПро-B) |
+| CurveTC26_256_D | 256-бит | 1.2.643.2.2.35.3 (КриптоПро-C) |
+| CurveTC26_512_A | 512-бит | 1.2.643.7.1.2.1.2.1 |
+| CurveTC26_512_B | 512-бит | 1.2.643.7.1.2.1.2.2 |
+| CurveTC26_512_C | 512-бит | 1.2.643.7.1.2.1.2.3 |
+| CurveTC26_512_D | 512-бит | 1.2.643.7.1.2.1.2.0 (тестовая) |
 
 ## Быстрый старт
 
-### Базовое подписание и проверка
-
-Самый простой способ подписать и проверить сообщения:
+### Подписание и проверка
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-    "github.com/rekurt/gost-crypto/gostcrypto"
+    gostcrypto "github.com/rekurt/gost-crypto"
 )
 
 func main() {
-    // Генерируем новую пару ключей
-    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
+    privKey, err := gostcrypto.GenerateKey(gostcrypto.CurveTC26_256_A)
     if err != nil {
         panic(err)
     }
+    defer privKey.Zeroize()
 
-    pubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
+    pubKey := privKey.PublicKey()
 
-    // Подписываем сообщение
     message := []byte("Привет, ГОСТ Р 34.10-2012!")
-    opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
-    signature, err := gostcrypto.Sign(privKey, message, opts)
+
+    // Подпись (автоматически выбирает Стрибог-256 для 256-битной кривой)
+    signature, err := gostcrypto.Sign(privKey, message)
     if err != nil {
         panic(err)
     }
 
-    // Проверяем подпись
-    valid, err := gostcrypto.Verify(pubKey, message, signature, opts)
+    // Проверка
+    valid, err := gostcrypto.Verify(pubKey, message, signature)
     if err != nil {
         panic(err)
     }
 
-    fmt.Printf("Подпись действительна: %v\n", valid)
+    fmt.Printf("Подпись верна: %v\n", valid)
 }
 ```
 
-### Работа с различными кривыми
-
-Используйте 512-битные кривые для повышенной безопасности:
+### Согласование ключей VKO
 
 ```go
-package main
+privA, _ := gostcrypto.GenerateKey(gostcrypto.CurveTC26_256_A)
+privB, _ := gostcrypto.GenerateKey(gostcrypto.CurveTC26_256_A)
+defer privA.Zeroize()
+defer privB.Zeroize()
 
-import (
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-    "github.com/rekurt/gost-crypto/gostcrypto"
-)
+ukm := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-func main() {
-    // Генерируем пару ключей на 512-бит
-    privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
-    if err != nil {
-        panic(err)
-    }
-
-    pubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
-
-    message := []byte("Защищённое сообщение")
-
-    // Подписываем с Streebog-512
-    opts := &gostcrypto.Options{Hash: gost3410.Streebog512}
-    signature, err := gostcrypto.Sign(privKey, message, opts)
-    if err != nil {
-        panic(err)
-    }
-
-    // Проверяем с Streebog-512
-    valid, err := gostcrypto.Verify(pubKey, message, signature, opts)
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Printf("Подпись действительна: %v\n", valid)
-}
+// Общий секрет симметричен: Agree(A, pubB) == Agree(B, pubA)
+secretAB, _ := gostcrypto.Agree(privA, privB.PublicKey(), ukm)
+secretBA, _ := gostcrypto.Agree(privB, privA.PublicKey(), ukm)
+// secretAB == secretBA
 ```
 
-### Сериализация открытых ключей
-
-Сериализуйте открытые ключи в несколько форматов для хранения или передачи:
+### HD деривирование ключей
 
 ```go
-package main
-
 import (
-    "encoding/hex"
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
+    gostcrypto "github.com/rekurt/gost-crypto"
+    "github.com/rekurt/gost-crypto/pkg/hd"
 )
 
-func main() {
-    // Генерируем пару ключей
-    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
-    if err != nil {
-        panic(err)
-    }
+seed := []byte("мой секретный сид - минимум 16 байт")
 
-    pubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
+masterDK, _ := hd.Master(seed, gostcrypto.CurveTC26_256_A)
+defer masterDK.Zeroize()
 
-    // Сжатый формат с префиксом (33 байта всего)
-    compressed, err := pubKey.ToCompressed(true)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Printf("Сжатый (с префиксом): %s\n", hex.EncodeToString(compressed))
-    fmt.Printf("Размер: %d байт\n", len(compressed))
+childDK, _ := hd.Derive(masterDK, "m/44'/0'/0", gostcrypto.CurveTC26_256_A)
+defer childDK.Zeroize()
 
-    // Несжатый формат с префиксом (65 байт всего)
-    uncompressed := pubKey.ToUncompressed(true)
-    fmt.Printf("Несжатый (с префиксом): %s...\n", hex.EncodeToString(uncompressed[:16]))
-    fmt.Printf("Размер: %d байт\n", len(uncompressed))
-
-    // Несжатый формат без префикса (64 байта)
-    uncompressedNoPrefix := pubKey.ToUncompressed(false)
-    fmt.Printf("Несжатый (без префикса): %s...\n", hex.EncodeToString(uncompressedNoPrefix[:16]))
-    fmt.Printf("Размер: %d байт\n", len(uncompressedNoPrefix))
-}
+sig, _ := gostcrypto.Sign(childDK.Key, []byte("Транзакция HD-кошелька"))
 ```
 
-### Восстановление открытых ключей из сериализованных форм
-
-Восстановите открытые ключи из любого формата сериализации:
+### Загрузка ключей из сырых байтов
 
 ```go
-package main
+raw := []byte{...} // 32 байта для 256-битной кривой
 
-import (
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-    "github.com/rekurt/gost-crypto/gostcrypto"
-)
-
-func main() {
-    // Генерируем исходную пару ключей
-    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
-    if err != nil {
-        panic(err)
-    }
-
-    originalPubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
-
-    message := []byte("Тестовое сообщение")
-    opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
-
-    // Подписываем исходным ключом
-    signature, err := gostcrypto.Sign(privKey, message, opts)
-    if err != nil {
-        panic(err)
-    }
-
-    // Сериализуем открытый ключ
-    compressed, err := originalPubKey.ToCompressed(true)
-    if err != nil {
-        panic(err)
-    }
-
-    // Восстанавливаем открытый ключ из сжатого формата
-    recoveredPubKey, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressed, true)
-    if err != nil {
-        panic(err)
-    }
-
-    // Проверяем подпись восстановленным ключом
-    valid, err := gostcrypto.Verify(recoveredPubKey, message, signature, opts)
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Printf("Восстановленный ключ совпадает с исходным: %v\n", valid)
+priv, err := gostcrypto.LoadPrivKey(gostcrypto.CurveTC26_256_A, raw)
+if err != nil {
+    panic(err)
 }
+defer priv.Zeroize()
 ```
 
-### Пакетное подписание нескольких документов
-
-Эффективно подписывайте и проверяйте несколько документов:
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-    "github.com/rekurt/gost-crypto/gostcrypto"
-)
-
-func main() {
-    // Генерируем пару ключей
-    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
-    if err != nil {
-        panic(err)
-    }
-
-    pubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
-
-    // Несколько документов для подписания
-    documents := []struct {
-        name string
-        data []byte
-    }{
-        {"Счёт 001", []byte("Счёт #001 Сумма: 1000 РУБ")},
-        {"Счёт 002", []byte("Счёт #002 Сумма: 2500 РУБ")},
-        {"Сертификат", []byte("Сертификат подлинности ГОСТ")},
-    }
-
-    opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
-    signatures := make([][]byte, len(documents))
-
-    // Подписываем все документы
-    for i, doc := range documents {
-        sig, err := gostcrypto.Sign(privKey, doc.data, opts)
-        if err != nil {
-            panic(err)
-        }
-        signatures[i] = sig
-        fmt.Printf("Подписан: %s\n", doc.name)
-    }
-
-    // Проверяем все подписи
-    fmt.Println("\nПроверка подписей:")
-    for i, doc := range documents {
-        valid, err := gostcrypto.Verify(pubKey, doc.data, signatures[i], opts)
-        if err != nil {
-            panic(err)
-        }
-        fmt.Printf("%s: %v\n", doc.name, valid)
-    }
-}
-```
-
-### Иерархическое производное получение ключей (HD кошельки)
-
-Генерируйте детерминированные иерархии ключей из одного семена:
-
-```go
-package main
-
-import (
-    "encoding/hex"
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-    "github.com/rekurt/gost-crypto/gostcrypto"
-    "github.com/rekurt/gost-crypto/kdf/hd"
-)
-
-func main() {
-    // Создаём главный ключ из семени
-    seed := []byte("моя секретная фраза семени для кошелька")
-    masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Printf("Главный ключ создан\n")
-    fmt.Printf("Код цепи: %s\n", hex.EncodeToString(chainCode))
-
-    // Выводим дочерние ключи в разных путях
-    paths := []string{"m/0", "m/1", "m/0'/1'", "m/44'/283'/0'/0/0"}
-
-    derivedKeys := make([]*gost3410.PrivKey, len(paths))
-
-    for i, path := range paths {
-        childKey, newChainCode, err := hd.Derive(masterKey, chainCode, path, gost3410.Streebog256)
-        if err != nil {
-            panic(err)
-        }
-
-        derivedKeys[i] = childKey
-        fmt.Printf("\nПуть: %s\n", path)
-        fmt.Printf("Код цепи: %s\n", hex.EncodeToString(newChainCode))
-
-        // Получаем открытый ключ для этого пути
-        pubKey, err := childKey.PublicKey()
-        if err != nil {
-            panic(err)
-        }
-
-        // Каждый путь имеет уникальный ключ
-        fmt.Printf("Открытый ключ: %s...\n", hex.EncodeToString(pubKey.X[:16]))
-    }
-
-    // Используем выведённые ключи для подписания
-    message := []byte("Транзакция HD кошелька")
-    opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
-
-    for i, path := range paths {
-        pubKey, _ := derivedKeys[i].PublicKey()
-        signature, _ := gostcrypto.Sign(derivedKeys[i], message, opts)
-        valid, _ := gostcrypto.Verify(pubKey, message, signature, opts)
-
-        fmt.Printf("Подпись пути %s действительна: %v\n", path, valid)
-    }
-}
-```
-
-### Формат пути иерархического производного получения ключей
-
-Реализация поддерживает BIP32-подобные пути со следующим форматом:
-
-```
-m/путь/к/ключам
-  ↓    ↓  ↓
-главный дочерний дочерний...
-
-- Защищённое выведение: используйте суффикс ' (например, m/0'/1')
-- Обычное выведение: просто число (например, m/0/1)
-- Корень: всегда начинайте с 'm/'
-```
-
-Примеры:
-- `m/0` - дочерний ключ на индексе 0 (обычный)
-- `m/0'` - дочерний ключ на индексе 0 (защищённый)
-- `m/44'/283'/0'/0/0` - типичный путь учётной записи кошелька
-- `m/0'/1'/2'/3'/4'` - глубоко защищённый путь
-
-## Низкоуровневый API
-
-Для большего контроля используйте низкоуровневый API напрямую:
-
-### Прямое подписание с неформатированными дайджестами
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-    "github.com/rekurt/gost-crypto/streebog"
-)
-
-func main() {
-    // Генерируем пару ключей
-    privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
-    if err != nil {
-        panic(err)
-    }
-
-    pubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
-
-    // Вручную вычисляем дайджест
-    message := []byte("Пример прямого подписания")
-    digest := streebog.Sum256(message)
-
-    // Подписываем дайджест напрямую
-    signature, err := privKey.SignDigest(digest[:])
-    if err != nil {
-        panic(err)
-    }
-
-    // Проверяем подпись
-    valid, err := pubKey.Verify(digest[:], signature)
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Printf("Подпись действительна: %v\n", valid)
-}
-```
-
-### Создание ключей из неформатированных байт
-
-```go
-package main
-
-import (
-    "encoding/hex"
-    "fmt"
-    "github.com/rekurt/gost-crypto/gost3410"
-)
-
-func main() {
-    // Создаём приватный ключ из 32-байтного семени (для 256-битной кривой)
-    privKeyBytes, _ := hex.DecodeString(
-        "7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28")
-
-    privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, privKeyBytes)
-    if err != nil {
-        panic(err)
-    }
-
-    pubKey, err := privKey.PublicKey()
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Printf("Ключ создан из неформатированных байт\n")
-    fmt.Printf("Открытый ключ X: %s\n", hex.EncodeToString(pubKey.X[:16]))
-    fmt.Printf("Открытый ключ Y: %s\n", hex.EncodeToString(pubKey.Y[:16]))
-}
-```
-
-## Структура пакета
+## Структура пакетов
 
 ```
 gost-crypto/
-├── streebog/           # Реализация хеша Streebog-256/512
-│   └── streebog.go
-├── gost3410/           # Цифровые подписи ГОСТ Р 34.10-2012
-│   ├── backend_gogost.go    # Интеграция библиотеки gogost
-│   ├── hash.go              # Тип HashID и константы
-│   ├── keys.go              # Управление ключами и сериализация
-│   ├── sign.go              # SignDigest и Verify методы
-│   ├── signer.go            # Интерфейс crypto.Signer
-│   └── *_test.go            # Комплексный набор тестов
-├── gostcrypto/         # API высокоуровневого фасада
-│   ├── facade.go            # Объединённые операции хеш и подпись
-│   └── *_test.go            # Интеграционные тесты
-├── kdf/hd/             # Производное получение ключей HD
-│   └── hd.go               # Иерархическое производное получение ключей
+├── gostcrypto.go       # Высокоуровневый фасад: Sign, Verify, HashSum, Agree
+├── keys.go             # GenerateKey, LoadPrivKey, алиасы PrivKey/PubKey
+├── curves.go           # Тип Curve, константы TC26, AllCurves
+├── errors.go           # Реэкспортированные ошибки
+├── pkg/
+│   ├── gost3410/       # ГОСТ Р 34.10-2012 подписи (бэкенд OpenSSL)
+│   ├── gost3411/       # ГОСТ Р 34.11-2012 хеш Стрибог (бэкенд OpenSSL)
+│   ├── gost3412/       # ГОСТ Р 34.12-2015 шифр Кузнечик
+│   ├── gost3413/       # ГОСТ Р 34.13-2015 MGM AEAD
+│   ├── hd/             # HD деривирование ключей (HKDF, пути BIP32)
+│   └── kdf/            # Функции деривирования ключей (HKDF-Стрибог)
+├── internal/openssl/   # CGO биндинги для OpenSSL gost-engine
 └── _examples/          # Примеры использования
-    ├── sign_verify_256/     # Базовое подписание
-    ├── sign_verify_512/     # 512-битное подписание
-    ├── hd_derivation/       # Пример HD кошелька
-    ├── batch_signing/       # Пакетные операции
-    └── key_serialization/   # Примеры форматов ключей
 ```
 
 ## Тестирование
 
-Реализация включает комплексное покрытие тестами:
-
-- **54+ базовых тестов**: Основная функциональность и соответствие стандартам
-- **7 интеграционных тестов**: Полные рабочие процессы, объединяющие несколько операций
-- **15 тестов граничных случаев**: Граничные условия и обработка ошибок
-
-### Запуск тестов
-
 ```bash
-# Запустить все тесты
 go test ./...
-
-# Запустить с подробным выводом
-go test -v ./...
-
-# Запустить тесты для определённого пакета
-go test -v ./gost3410
-go test -v ./gostcrypto
-
-# Запустить с отчётом о покрытии
+go test -race ./...
+go test -bench=. -benchmem ./pkg/gost3410/ ./pkg/gost3411/
 go test -cover ./...
-
-# Запустить конкретный тест
-go test -run TestIntegrationSignVerifyWithSerialization256 ./gostcrypto
 ```
 
-### Области покрытия тестами
+## Безопасность
 
-- **Streebog**: Пустые сообщения, стандартные тестовые векторы, большие сообщения
-- **ГОСТ 34.10-2012**: Генерация ключей, подписание, проверка, сериализация
-- **Восстановление ключей**: Сжатые/несжатые форматы с/без префикса
-- **HD выведение**: Согласованность пути, защищённое/обычное выведение
-- **Интеграция**: Полные рабочие процессы, несколько кривых, пакетные операции
-- **Граничные случаи**: Минимальные/максимальные ключи, нулевые входы, несоответствие размеров
-- **Безопасность**: Обнаружение повреждений, атаки подтверждения подписи
+1. Каждая подпись использует криптографически случайный нонс (k) через OpenSSL
+2. Приватные ключи должны быть явно зануленны через `Zeroize()` после использования
+3. Все входные данные проверяются на корректность размеров и форматов
+4. Криптографические операции делегируются OpenSSL gost-engine
 
-## Детали реализации
+## Ограничения
 
-### Формат подписи
-
-Подписи хранятся в формате ГОСТ OCTET STRING: `r || s`
-
-Каждый компонент (r и s) хранится как big-endian байты:
-- Для 256-битных кривых: по 32 байта каждый, всего 64 байта
-- Для 512-битных кривых: по 64 байта каждый, всего 128 байт
-
-### Форматы сериализации ключей
-
-**Сжатый формат** (с префиксом):
-- Байт префикса: 0x02 (чётный Y) или 0x03 (нечётный Y)
-- Координата X: 32 байта (256-бит) или 64 байта (512-бит)
-- Всего: 33 байта (256-бит) или 65 байт (512-бит)
-
-**Несжатый формат** (с префиксом):
-- Байт префикса: 0x04
-- Координата X: 32 байта (256-бит) или 64 байта (512-бит)
-- Координата Y: 32 байта (256-бит) или 64 байта (512-бит)
-- Всего: 65 байт (256-бит) или 129 байт (512-бит)
-
-Без префикса соответствующий байт префикса опускается.
-
-### Обработка порядка байт
-
-Реализация использует:
-- **Big-endian**: Для хранения ключей и подписей
-- **Little-endian**: Для совместимости с backend gogost (обрабатывается внутри)
-
-Это преобразование прозрачно для пользователей публичного API.
-
-## Характеристики производительности
-
-Типичная производительность на современном оборудовании:
-
-- **Генерация ключей**: ~1-2 мс за ключ
-- **Подписание**: ~1-2 мс за операцию
-- **Проверка**: ~1-2 мс за операцию
-- **HD выведение**: ~0.1-0.5 мс за ключ
-
-Пакетные операции выигрывают от:
-- Минимального накладного расхода при выделении памяти
-- Эффективного повторного использования контекста криптографии
-- Отсутствия зависимостей между операциями
-
-## Соображения по безопасности
-
-1. **Случайный Nonce**: Каждая подпись использует уникальный случайный nonce (k)
-2. **Защита приватного ключа**: Никогда не логируйте и не сериализуйте приватные ключи
-3. **Проверка входов**: Все входы проверяются на размер и формат
-4. **Операции в постоянное время**: Проверка использует сравнение в постоянное время
-5. **Соответствие стандартам**: Соответствует спецификации ГОСТ Р 34.10-2012
-
-## Правовые и нормативные требования
-
-Эта библиотека реализует стандарты ГОСТ, которые являются российскими криптографическими алгоритмами. Используйте в соответствии с применимыми законами и нормативными актами вашей юрисдикции.
+- **Требуется OpenSSL**: OpenSSL 3.x с gost-engine и CGO; нет чисто-Go фоллбэка
+- **Нет ASN.1/PEM**: Сериализация ключей в ASN.1/PEM не встроена
+- **Устаревший ENGINE API**: Использует OpenSSL ENGINE API (deprecated в 3.0); миграция на provider API запланирована
 
 ## Ссылки
 
-- [ГОСТ Р 34.10-2012](https://www.tc26.ru/): Алгоритмы подписания и проверки для эллиптических кривых ГОСТ
-- [ГОСТ Р 34.11-2012](https://www.tc26.ru/): Криптографическая функция хеш Стрибог
-- [RFC 7091](https://datatracker.ietf.org/doc/html/rfc7091): Публичные подписи ГОСТ Р 34.10-2012
-- [RFC 6986](https://datatracker.ietf.org/doc/html/rfc6986): Функция хеш ГОСТ Р 34.11-2012 Стрибог
-- [github.com/ddulesov/gogost](https://github.com/ddulesov/gogost): Базовая реализация криптографии
-- [Официальный веб-сайт ТК26](http://www.tc26.ru/): Технические спецификации
-
+- [ГОСТ Р 34.10-2012](https://www.tc26.ru/) — Алгоритм цифровой подписи
+- [ГОСТ Р 34.11-2012](https://www.tc26.ru/) — Хеш-функция Стрибог
+- [RFC 7091](https://datatracker.ietf.org/doc/html/rfc7091) — GOST R 34.10-2012
+- [RFC 6986](https://datatracker.ietf.org/doc/html/rfc6986) — GOST R 34.11-2012
+- [ТК26](http://www.tc26.ru/) — Технический комитет 26
 
 ## Лицензия
 
-Лицензия MIT. Подробности в файле [LICENSE](LICENSE).
+MIT License. Подробнее в [LICENSE](LICENSE).

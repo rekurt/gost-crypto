@@ -1,6 +1,6 @@
 # Migration Guide: v0 to v1
 
-This document covers the breaking changes and migration path from the original gost-crypto (v0, backed by gogost) to v1 (backed by OpenSSL + gost-engine).
+This document covers the breaking changes and migration path from the original gost-crypto (v0, which used a GPL-licensed pure-Go backend) to v1 (backed by OpenSSL + gost-engine, MIT license, zero external Go dependencies).
 
 ## Overview of Changes
 
@@ -8,8 +8,8 @@ v1 is a complete rewrite. The module path, API surface, and cryptographic backen
 
 | Aspect | v0 | v1 |
 |--------|----|----|
-| Backend | gogost (pure Go) | OpenSSL 3.0+ gost-engine (cgo) |
-| Module | `github.com/ddulesov/gogost` | `github.com/rekurt/gost-crypto` |
+| Backend | gogost (pure Go, GPL v3) | OpenSSL 3.0+ gost-engine (cgo) |
+| Module | v0 packages (removed) | `github.com/rekurt/gost-crypto` |
 | Curves | 5 (256A, 512A/B/C + limited) | 8 (all TC26 parameter sets) |
 | VKO | Not supported | Supported (GOST VKO key agreement) |
 | Kuznechik | Not supported | Supported (GOST R 34.12-2015) |

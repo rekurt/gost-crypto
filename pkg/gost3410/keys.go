@@ -34,6 +34,36 @@ type PubKey struct {
 	curve  Curve
 }
 
+// LoadPrivKey creates a GOST R 34.10-2012 private key from raw bytes.
+// The raw bytes must be big-endian and exactly the key size for the curve
+// (32 bytes for 256-bit curves, 64 bytes for 512-bit curves).
+// The raw value must be in range [1, q-1] where q is the curve order.
+func LoadPrivKey(c Curve, raw []byte) (*PrivKey, error) {
+	sz, err := c.Size()
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) != sz {
+		return nil, ErrInvalidKeySize
+	}
+
+	nid, err := c.signNID()
+	if err != nil {
+		return nil, err
+	}
+	oid, err := c.oid()
+	if err != nil {
+		return nil, err
+	}
+
+	h, err := openssl.LoadGOSTPrivKeyHandle(nid, oid, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PrivKey{handle: h, curve: c}, nil
+}
+
 // GenerateKey generates a new GOST R 34.10-2012 key pair for the given curve.
 func GenerateKey(c Curve) (*PrivKey, error) {
 	nid, err := c.signNID()
