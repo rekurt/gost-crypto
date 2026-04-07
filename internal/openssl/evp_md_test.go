@@ -60,8 +60,12 @@ func TestMDCtx_IncrementalHash(t *testing.T) {
 	}
 	defer ctx.Close()
 
-	ctx.Update(part1)
-	ctx.Update(part2)
+	if err := ctx.Update(part1); err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Update(part2); err != nil {
+		t.Fatal(err)
+	}
 	incremental, err := ctx.Final()
 	if err != nil {
 		t.Fatal(err)

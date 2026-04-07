@@ -10,7 +10,6 @@ package hd
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
 	"strings"
 
@@ -157,15 +156,14 @@ func Master(seed []byte, c Curve) (*DerivedKey, error) {
 	material := kdf.HKDF512(salt, seed, []byte("master"), keySize+32)
 
 	// Key material is bytes [0..keySize), chain code is bytes [keySize..keySize+32).
-	rawKey := material[:keySize]
 	chainCode := make([]byte, 32)
 	copy(chainCode, material[keySize:keySize+32])
 
-	// Reduce raw key material to valid range [1, q-1] by taking mod (q-1) + 1.
-	// This ensures the key is always valid for the curve.
-	reduced := reduceKeyMaterial(rawKey)
-
-	key, err := gost3410.LoadPrivKey(c, reduced)
+	// Load the private key from HKDF-derived material.
+	// If the raw bytes happen to be >= q (curve order) or zero, retry
+	// with incremented info to get different material (standard rejection
+	// sampling approach for deterministic key derivation).
+	key, err := loadKeyWithRetry(c, material[:keySize], salt, seed, "master-retry", keySize)
 	if err != nil {
 		return nil, fmt.Errorf("hd: master key loading: %w", err)
 	}
@@ -231,9 +229,8 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 		currentCC = childCC
 	}
 
-	// Reduce and load the deterministic key.
-	reduced := reduceKeyMaterial(lastKeyMaterial)
-	key, err := gost3410.LoadPrivKey(c, reduced)
+	// Load the deterministic key from derived material.
+	key, err := loadKeyWithRetry(c, lastKeyMaterial, currentCC, lastKeyMaterial, "child-retry", keySize)
 	if err != nil {
 		return nil, fmt.Errorf("hd: child key loading: %w", err)
 	}
@@ -244,25 +241,30 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 	}, nil
 }
 
-// reduceKeyMaterial reduces raw HKDF output to a valid private key scalar.
-// It computes (raw mod 0xFFFFFFFFFFFFFFFE) + 1 to ensure the result is
-// in the range [1, 2^(8*len)-1], which is a subset of [1, q-1] for all
-// TC26 curves. The returned slice has the same length as the input.
-func reduceKeyMaterial(raw []byte) []byte {
-	n := len(raw)
-	v := new(big.Int).SetBytes(raw)
+// loadKeyWithRetry attempts to load a private key from raw material.
+// If the raw bytes are outside the valid range [1, q-1] for the curve
+// (causing LoadPrivKey to fail), it re-derives material using HKDF with
+// an incremented counter until a valid key is obtained.
+// This is standard rejection sampling for deterministic key derivation.
+func loadKeyWithRetry(c gost3410.Curve, raw, salt, ikm []byte, infoPrefix string, keySize int) (*gost3410.PrivKey, error) {
+	// First attempt with the original material.
+	key, err := gost3410.LoadPrivKey(c, raw)
+	if err == nil {
+		return key, nil
+	}
 
-	// max = 2^(8*n) - 2 (= 0xFF...FE)
-	max := new(big.Int).Lsh(big.NewInt(1), uint(8*n))
-	max.Sub(max, big.NewInt(2))
+	// Rejection sampling: re-derive with incremented counter.
+	const maxRetries = 255
+	for i := 1; i <= maxRetries; i++ {
+		info := []byte(fmt.Sprintf("%s-%d", infoPrefix, i))
+		newMaterial := kdf.HKDF256(salt, ikm, info, keySize)
+		key, err = gost3410.LoadPrivKey(c, newMaterial)
+		if err == nil {
+			return key, nil
+		}
+	}
 
-	v.Mod(v, max)
-	v.Add(v, big.NewInt(1)) // v in [1, 2^(8*n)-1]
-
-	result := make([]byte, n)
-	b := v.Bytes()
-	copy(result[n-len(b):], b)
-	return result
+	return nil, fmt.Errorf("failed to derive valid key after %d attempts", maxRetries)
 }
 
 // Zeroize securely wipes the key and chain code using OPENSSL_cleanse

@@ -98,18 +98,6 @@ func (c Curve) signNID() (int, error) {
 	}
 }
 
-// digestNID returns the matching Streebog digest NID for this curve.
-func (c Curve) digestNID() (int, error) {
-	switch {
-	case c.is256():
-		return openssl.NID_Streebog256, nil
-	case c.is512():
-		return openssl.NID_Streebog512, nil
-	default:
-		return 0, ErrUnknownCurve
-	}
-}
-
 // AllCurves returns all eight TC26 parameter sets.
 func AllCurves() []Curve {
 	all := make([]Curve, curveCount)
