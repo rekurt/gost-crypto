@@ -13,3 +13,5 @@ coverage.*
 
 # ralphex progress logs
 .ralphex/progress/
+
+docs
