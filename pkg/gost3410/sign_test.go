@@ -298,6 +298,88 @@ func TestDigestSizeMismatch(t *testing.T) {
 	}
 }
 
+// TestLoadPrivKey_Roundtrip verifies that LoadPrivKey creates a functional key
+// that produces valid signatures.
+func TestLoadPrivKey_Roundtrip(t *testing.T) {
+	skipIfNoEngine(t)
+
+	for _, c := range AllCurves() {
+		c := c
+		t.Run(c.String(), func(t *testing.T) {
+			// Generate a key and extract raw bytes.
+			orig, err := GenerateKey(c)
+			if err != nil {
+				t.Fatalf("GenerateKey(%s): %v", c, err)
+			}
+			raw, err := orig.Bytes()
+			if err != nil {
+				t.Fatalf("Bytes: %v", err)
+			}
+			orig.Zeroize()
+
+			// Load the same key from raw bytes.
+			loaded, err := LoadPrivKey(c, raw)
+			if err != nil {
+				t.Fatalf("LoadPrivKey(%s): %v", c, err)
+			}
+			defer loaded.Zeroize()
+
+			// Verify loaded key bytes match original.
+			loadedRaw, err := loaded.Bytes()
+			if err != nil {
+				t.Fatalf("loaded.Bytes: %v", err)
+			}
+			if len(loadedRaw) != len(raw) {
+				t.Fatalf("key bytes length: got %d, want %d", len(loadedRaw), len(raw))
+			}
+			for i := range raw {
+				if raw[i] != loadedRaw[i] {
+					t.Fatalf("key byte %d differs: got %02x, want %02x", i, loadedRaw[i], raw[i])
+				}
+			}
+
+			// Sign with loaded key and verify.
+			keySize, _ := c.Size()
+			digest := make([]byte, keySize)
+			for i := range digest {
+				digest[i] = byte(i + 42)
+			}
+
+			sig, err := SignDigest(loaded, digest)
+			if err != nil {
+				t.Fatalf("SignDigest: %v", err)
+			}
+
+			pub := loaded.PublicKey()
+			ok, err := VerifyDigest(pub, digest, sig)
+			if err != nil {
+				t.Fatalf("VerifyDigest: %v", err)
+			}
+			if !ok {
+				t.Error("valid signature rejected for loaded key")
+			}
+
+			openssl.CleanseBytes(raw)
+			openssl.CleanseBytes(loadedRaw)
+		})
+	}
+}
+
+// TestLoadPrivKey_InvalidSize verifies that LoadPrivKey rejects wrong-size input.
+func TestLoadPrivKey_InvalidSize(t *testing.T) {
+	skipIfNoEngine(t)
+
+	_, err := LoadPrivKey(CurveTC26_256_A, make([]byte, 16))
+	if err != ErrInvalidKeySize {
+		t.Errorf("LoadPrivKey(16 bytes): got %v, want ErrInvalidKeySize", err)
+	}
+
+	_, err = LoadPrivKey(CurveTC26_256_A, make([]byte, 64))
+	if err != ErrInvalidKeySize {
+		t.Errorf("LoadPrivKey(64 bytes for 256-bit curve): got %v, want ErrInvalidKeySize", err)
+	}
+}
+
 // TestSignatureSizeMismatch verifies that wrong-length signatures are rejected.
 func TestSignatureSizeMismatch(t *testing.T) {
 	skipIfNoEngine(t)

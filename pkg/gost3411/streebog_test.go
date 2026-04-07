@@ -3,6 +3,7 @@ package gost3411
 import (
 	"encoding/hex"
 	"hash"
+	"os"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/internal/openssl"
@@ -71,6 +72,37 @@ func TestNew256_ImplementsHashInterface(t *testing.T) {
 func TestNew512_ImplementsHashInterface(t *testing.T) {
 	skipIfNoEngine(t)
 	_ = hash.Hash(New512())
+}
+
+func TestWrite_AcceptsLargeInputWithoutError(t *testing.T) {
+	h := &streebogHash{}
+	defer h.closeResources()
+
+	in := make([]byte, memoryBufferLimit+1)
+	n, err := h.Write(in)
+	if err != nil {
+		t.Fatalf("Write() error = %v, want nil", err)
+	}
+	if n != len(in) {
+		t.Fatalf("Write() n = %d, want %d", n, len(in))
+	}
+	if h.spill == nil {
+		t.Fatal("expected spill file for large write")
+	}
+}
+
+func TestReset_RemovesSpillFile(t *testing.T) {
+	h := &streebogHash{}
+	in := make([]byte, memoryBufferLimit+1)
+	if _, err := h.Write(in); err != nil {
+		t.Fatalf("Write() error = %v, want nil", err)
+	}
+	name := h.spill.Name()
+	h.Reset()
+
+	if _, err := os.Stat(name); !os.IsNotExist(err) {
+		t.Fatalf("spill file still exists after Reset(), stat err = %v", err)
+	}
 }
 
 func mustDecodeHex(t *testing.T, s string) []byte {

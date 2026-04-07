@@ -59,6 +59,16 @@ func GenerateGOSTKeyHandle(signNID int, curveOID string) (*KeyHandle, error) {
 	return NewKeyHandle(pkey), nil
 }
 
+// LoadGOSTPrivKeyHandle creates a GOST key from raw private key bytes
+// and returns a KeyHandle.
+func LoadGOSTPrivKeyHandle(signNID int, curveOID string, raw []byte) (*KeyHandle, error) {
+	pkey, err := LoadGOSTPrivKey(signNID, curveOID, raw)
+	if err != nil {
+		return nil, err
+	}
+	return NewKeyHandle(pkey), nil
+}
+
 // ExtractRawPrivKeyH extracts the raw private key bytes from a KeyHandle.
 func ExtractRawPrivKeyH(h *KeyHandle, keySize int) ([]byte, error) {
 	if h.IsNil() {

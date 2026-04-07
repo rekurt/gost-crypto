@@ -1,457 +1,230 @@
 # Справочник API
 
-Полная документация API библиотеки gost-crypto.
+Полный справочник API для gost-crypto.
 
-**[README (English)](README.md)** | **[README (Russian)](README.ru.md)** | **[Contributing](CONTRIBUTING.md)**
+[README](README.md) | [README (Русский)](README.ru.md)
+
+---
 
 ## Содержание
 
-- [Пакет streebog](#пакет-streebog)
-- [Пакет gost3410](#пакет-gost3410)
-- [Пакет gostcrypto](#пакет-gostcrypto)
-- [Пакет kdf/hd](#пакет-kdfhd)
-
-## Пакет streebog
-
-Реализация хеша для ГОСТ Р 34.11-2012 Стрибог.
-
-### Функции
-
-#### `New256() hash.Hash`
-
-Возвращает новый хешер Стрибог-256, реализующий `hash.Hash`. Для инкрементального хеширования.
-
-```go
-h := streebog.New256()
-h.Write(part1)
-h.Write(part2)
-digest := h.Sum(nil)
-```
-
-#### `New512() hash.Hash`
-
-Возвращает новый хешер Стрибог-512, реализующий `hash.Hash`.
-
-```go
-h := streebog.New512()
-h.Write(data)
-digest := h.Sum(nil)
-```
-
-#### `Sum256(data []byte) [32]byte`
-
-Вычисляет 256-битный хеш Стрибог входных данных за один вызов.
-
-**Пример:**
-```go
-message := []byte("Привет, Мир!")
-hash := streebog.Sum256(message)
-```
-
-#### `Sum512(data []byte) [64]byte`
-
-Вычисляет 512-битный хеш Стрибог входных данных за один вызов.
-
-**Пример:**
-```go
-message := []byte("Привет, Мир!")
-hash := streebog.Sum512(message)
-```
+- [Корневой пакет (gostcrypto)](#корневой-пакет-gostcrypto)
+- [pkg/gost3410](#pkggost3410)
+- [pkg/gost3411](#pkggost3411)
+- [pkg/gost3412](#pkggost3412)
+- [pkg/gost3413](#pkggost3413)
+- [pkg/hd](#pkghd)
+- [pkg/kdf](#pkgkdf)
+- [Обработка ошибок](#обработка-ошибок)
+- [Потокобезопасность](#потокобезопасность)
 
 ---
 
-## Пакет gost3410
+## Корневой пакет (gostcrypto)
 
-Цифровые подписи на эллиптических кривых ГОСТ Р 34.10-2012 и управление ключами.
+`import gostcrypto "github.com/rekurt/gost-crypto"`
+
+Высокоуровневый фасад, реэкспортирующий типы из `pkg/gost3410` и предоставляющий удобные функции Sign/Verify/Hash/Agree.
 
 ### Типы
 
-#### `Curve`
+```go
+type Curve = gost3410.Curve
+type PrivKey = gost3410.PrivKey
+type PubKey = gost3410.PubKey
+```
 
-Перечисление поддерживаемых эллиптических кривых.
+### Константы
 
-**Значения:**
 ```go
 const (
-    TC26_256_A Curve = iota
-    TC26_256_B
-    TC26_256_C
-    TC26_256_D
-    TC26_512_A
-    TC26_512_B
-    TC26_512_C
-    TC26_512_D
+    CurveTC26_256_A  // id-tc26-gost-3410-2012-256-paramSetA
+    CurveTC26_256_B  // КриптоПро-A
+    CurveTC26_256_C  // КриптоПро-B
+    CurveTC26_256_D  // КриптоПро-C
+    CurveTC26_512_A
+    CurveTC26_512_B
+    CurveTC26_512_C
+    CurveTC26_512_D  // тестовая
 )
-```
-
-Метод `Size() (int, error)` возвращает размер ключа в байтах (32 для 256-битных кривых, 64 для 512-битных).
-
-#### `HashID`
-
-Выбор алгоритма хеширования.
-
-**Значения:**
-```go
-const (
-    HashAuto    HashID = iota // Нулевое значение; хеш определяется по размеру ключа
-    Streebog256               // ГОСТ Р 34.11-2012, 256-бит
-    Streebog512               // ГОСТ Р 34.11-2012, 512-бит
-)
-```
-
-#### `PrivKey`
-
-Структура приватного ключа для подписей на эллиптических кривых. Реализует `crypto.Signer`.
-
-**Поля:**
-- `D []byte` - скаляр приватного ключа (32 байта для 256-битных кривых, 64 байта для 512-битных кривых)
-- `Curve Curve` - кривая TC26, к которой относится ключ
-
-**Методы:**
-
-##### `func NewPrivKey(curve Curve) (*PrivKey, error)`
-
-Генерирует новый случайный приватный ключ для указанной кривой.
-
-**Параметры:**
-- `curve Curve` - эллиптическая кривая для использования
-
-**Возвращает:**
-- `*PrivKey` - сгенерированный приватный ключ
-- `error` - ошибка, если генерация ключа не удалась
-
-**Пример:**
-```go
-privKey, err := gost3410.NewPrivKey(gost3410.TC26_256_A)
-if err != nil {
-    log.Fatal(err)
-}
-```
-
-##### `func FromRawPriv(curve Curve, d []byte) (*PrivKey, error)`
-
-Создает приватный ключ из неформатированных байт.
-
-**Параметры:**
-- `curve Curve` - эллиптическая кривая для использования
-- `d []byte` - скаляр приватного ключа (32 байта для 256-бит, 64 байта для 512-бит)
-
-**Возвращает:**
-- `*PrivKey` - приватный ключ
-- `error` - ошибка, если ключ недействителен
-
-**Пример:**
-```go
-keyBytes, _ := hex.DecodeString("7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28")
-privKey, err := gost3410.FromRawPriv(gost3410.TC26_256_A, keyBytes)
-```
-
-##### `func (pk *PrivKey) PublicKey() (*PubKey, error)`
-
-Выводит открытый ключ из приватного ключа.
-
-**Возвращает:**
-- `*PubKey` - соответствующий открытый ключ
-- `error` - ошибка, если вывод не удался
-
-**Пример:**
-```go
-pubKey, err := privKey.PublicKey()
-```
-
-##### `func (pk *PrivKey) ToRaw() []byte`
-
-Возвращает копию неформатированных байт приватного ключа (big-endian).
-
-```go
-raw := privKey.ToRaw()
-```
-
-##### `func (pk *PrivKey) Public() crypto.PublicKey`
-
-Возвращает открытый ключ как `crypto.PublicKey`, реализуя интерфейс `crypto.Signer`. Возвращает nil при ошибке.
-
-##### `func (pk *PrivKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)`
-
-Подписывает дайджест, реализуя интерфейс `crypto.Signer`. Параметр `rand` игнорируется (gogost использует `crypto/rand` внутри). Делегирует в `SignDigest`.
-
-##### `func (pk *PrivKey) SignDigest(digest []byte) ([]byte, error)`
-
-Подписывает дайджест сообщения.
-
-**Параметры:**
-- `digest []byte` - предварительно вычисленный дайджест сообщения (32 байта для 256-битных кривых, 64 байта для 512-битных)
-
-**Возвращает:**
-- `[]byte` - подпись (64 байта для 256-битных кривых, 128 байт для 512-битных кривых)
-- `error` - ошибка, если подписание не удалось
-
-**Пример:**
-```go
-digest := streebog.Sum256(message)
-sig, err := privKey.SignDigest(digest[:])
-```
-
-#### `PubKey`
-
-Структура открытого ключа для подписей на эллиптических кривых.
-
-**Поля:**
-- `X []byte` - координата X (32 байта для 256-битных кривых, 64 байта для 512-битных кривых)
-- `Y []byte` - координата Y (32 байта для 256-битных кривых, 64 байта для 512-битных кривых)
-- `Curve Curve` - кривая TC26, к которой относится ключ
-
-**Методы:**
-
-##### `func (pk *PubKey) Verify(digest, signature []byte) (bool, error)`
-
-Проверяет подпись на дайджесте сообщения.
-
-**Параметры:**
-- `digest []byte` - предварительно вычисленный дайджест сообщения
-- `signature []byte` - подпись для проверки
-
-**Возвращает:**
-- `bool` - истина, если подпись действительна
-- `error` - ошибка, если проверка не удалась
-
-**Пример:**
-```go
-valid, err := pubKey.Verify(digest[:], signature)
-if err == nil && valid {
-    fmt.Println("Подпись действительна")
-}
-```
-
-##### `func (pk *PubKey) ToCompressed(withPrefix bool) ([]byte, error)`
-
-Сериализует открытый ключ в сжатый формат.
-
-**Параметры:**
-- `withPrefix bool` - включить байт префикса (0x02/0x03 для чётного/нечётного Y)
-
-**Возвращает:**
-- `[]byte` - сжатый открытый ключ (33 байта для 256-бит с префиксом, 32 без)
-- `error` - ошибка, если без префикса и X[0] >= 0x80
-
-**Пример:**
-```go
-compressed, err := pubKey.ToCompressed(true)
-```
-
-##### `func (pk *PubKey) ToUncompressed(withPrefix bool) []byte`
-
-Сериализует открытый ключ в несжатый формат.
-
-**Параметры:**
-- `withPrefix bool` - включить байт префикса (0x04)
-
-**Возвращает:**
-- `[]byte` - несжатый открытый ключ (65 байт для 256-бит с префиксом, 64 без)
-
-**Пример:**
-```go
-uncompressed := pubKey.ToUncompressed(true)
-fmt.Printf("Несжатый ключ: %s\n", hex.EncodeToString(uncompressed))
-```
-
-##### `func FromCompressed(curve Curve, data []byte, hasPrefix bool) (*PubKey, error)`
-
-Восстанавливает открытый ключ из сжатого формата.
-
-**Параметры:**
-- `curve Curve` - используемая эллиптическая кривая
-- `data []byte` - данные сжатого ключа
-- `hasPrefix bool` - включает ли данные байт префикса
-
-**Возвращает:**
-- `*PubKey` - восстановленный открытый ключ
-- `error` - ошибка, если восстановление не удалось
-
-**Пример:**
-```go
-recovered, err := gost3410.FromCompressed(gost3410.TC26_256_A, compressed, true)
-```
-
-##### `func FromUncompressed(curve Curve, data []byte, hasPrefix bool) (*PubKey, error)`
-
-Восстанавливает открытый ключ из несжатого формата.
-
-**Параметры:**
-- `curve Curve` - используемая эллиптическая кривая
-- `data []byte` - данные несжатого ключа
-- `hasPrefix bool` - включает ли данные байт префикса
-
-**Возвращает:**
-- `*PubKey` - восстановленный открытый ключ
-- `error` - ошибка, если восстановление не удалось
-
-**Пример:**
-```go
-recovered, err := gost3410.FromUncompressed(gost3410.TC26_256_A, uncompressed, true)
-```
-
----
-
-## Пакет gostcrypto
-
-Высокоуровневый фасад, объединяющий хеширование и операции подписания.
-
-### Типы
-
-#### `Options`
-
-Опции конфигурации для подписания и проверки.
-
-**Поля:**
-- `Hash HashID` - используемый алгоритм хеширования (Streebog256 или Streebog512). Если ноль (HashAuto), определяется по размеру ключа.
-
-**Пример:**
-```go
-opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
 ```
 
 ### Функции
 
-#### `func Sign(privKey *gost3410.PrivKey, message []byte, opts *Options) ([]byte, error)`
+#### `GenerateKey(c Curve) (*PrivKey, error)`
 
-Подписывает сообщение, используя приватный ключ.
+Генерирует новую пару ключей ГОСТ Р 34.10-2012 для заданной кривой.
 
-**Параметры:**
-- `privKey *gost3410.PrivKey` - приватный ключ для подписания
-- `message []byte` - сообщение для подписания
-- `opts *Options` - опции подписания (если nil или Hash равен HashAuto, хеш определяется по размеру ключа)
+#### `LoadPrivKey(c Curve, raw []byte) (*PrivKey, error)`
 
-**Возвращает:**
-- `[]byte` - подпись
-- `error` - ошибка, если подписание не удалось
+Создаёт приватный ключ из сырых байт (big-endian). Размер должен точно соответствовать кривой (32 для 256-бит, 64 для 512-бит).
 
-**Пример:**
-```go
-opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
-sig, err := gostcrypto.Sign(privKey, message, opts)
-```
+#### `Sign(priv *PrivKey, msg []byte) ([]byte, error)`
 
-#### `func Verify(pubKey *gost3410.PubKey, message, signature []byte, opts *Options) (bool, error)`
+Хеширует `msg` Стрибогом (автоматически выбирается по размеру кривой) и подписывает ГОСТ Р 34.10-2012. Возвращает подпись `r||s`.
 
-Проверяет подпись на сообщении.
+#### `Verify(pub *PubKey, msg, sig []byte) (bool, error)`
 
-**Параметры:**
-- `pubKey *gost3410.PubKey` - открытый ключ для проверки
-- `message []byte` - исходное сообщение
-- `signature []byte` - подпись для проверки
-- `opts *Options` - опции проверки (если nil или Hash равен HashAuto, хеш определяется по размеру ключа)
+Хеширует `msg` Стрибогом и проверяет подпись ГОСТ Р 34.10-2012.
 
-**Возвращает:**
-- `bool` - истина, если подпись действительна
-- `error` - ошибка, если проверка не удалась
+#### `HashSum256(data []byte) [32]byte`
 
-**Пример:**
-```go
-opts := &gostcrypto.Options{Hash: gost3410.Streebog256}
-valid, err := gostcrypto.Verify(pubKey, message, signature, opts)
-if err == nil && valid {
-    fmt.Println("Подпись проверена")
-}
-```
+Возвращает Стрибог-256 дайджест данных.
+
+#### `HashSum512(data []byte) [64]byte`
+
+Возвращает Стрибог-512 дайджест данных.
+
+#### `Agree(priv *PrivKey, pub *PubKey, ukm []byte) ([]byte, error)`
+
+Выполняет согласование ключей VKO. Симметричен: `Agree(A, pubB, ukm) == Agree(B, pubA, ukm)`.
+
+#### `AllCurves() []Curve`
+
+Возвращает все 8 наборов параметров ТК26.
 
 ---
 
-## Пакет kdf/hd
+## pkg/gost3410
 
-Иерархическое производное получение ключей с использованием HKDF.
+`import "github.com/rekurt/gost-crypto/pkg/gost3410"`
 
-### Функции
+Низкоуровневые операции ГОСТ Р 34.10-2012 через OpenSSL gost-engine.
 
-#### `func Master(seed []byte, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
+### `GenerateKey(c Curve) (*PrivKey, error)`
 
-Генерирует главный ключ и код цепи из семени.
+Генерирует случайную пару ключей.
 
-**Параметры:**
-- `seed []byte` - случайное семя (рекомендуется: 32+ байта)
-- `hash gost3410.HashID` - алгоритм хеширования (Streebog256 или Streebog512)
+### `LoadPrivKey(c Curve, raw []byte) (*PrivKey, error)`
 
-**Возвращает:**
-- `*gost3410.PrivKey` - главный приватный ключ
-- `[]byte` - код цепи для выведения (32 байта для Streebog256, 64 байта для Streebog512)
-- `error` - ошибка, если генерация не удалась
+Создаёт приватный ключ из сырых байт через OpenSSL.
 
-**Пример:**
+### `SignDigest(priv *PrivKey, digest []byte) ([]byte, error)`
+
+Подписывает предвычисленный дайджест. Размер дайджеста должен точно совпадать с размером ключа.
+
+### `VerifyDigest(pub *PubKey, digest, sig []byte) (bool, error)`
+
+Проверяет подпись над предвычисленным дайджестом.
+
+### Методы PrivKey
+
+- `Bytes() ([]byte, error)` — возвращает сырые байты приватного ключа
+- `Curve() Curve` — возвращает набор параметров кривой
+- `PublicKey() *PubKey` — выводит публичный ключ
+- `Zeroize()` — безопасно стирает ключевой материал
+
+### Методы PubKey
+
+- `Curve() Curve` — возвращает набор параметров кривой
+- `Validate() error` — проверяет, что точка лежит на кривой
+
+---
+
+## pkg/gost3411
+
+`import "github.com/rekurt/gost-crypto/pkg/gost3411"`
+
+Хеш-функции ГОСТ Р 34.11-2012 Стрибог через OpenSSL gost-engine.
+
+### `New256() hash.Hash`
+
+Возвращает хешер Стрибог-256, реализующий `hash.Hash`.
+
+### `New512() hash.Hash`
+
+Возвращает хешер Стрибог-512, реализующий `hash.Hash`.
+
+### `Sum256(data []byte) [32]byte`
+
+Вычисляет дайджест Стрибог-256 за один вызов.
+
+### `Sum512(data []byte) [64]byte`
+
+Вычисляет дайджест Стрибог-512 за один вызов.
+
+---
+
+## pkg/gost3412
+
+`import "github.com/rekurt/gost-crypto/pkg/gost3412"`
+
+Блочный шифр ГОСТ Р 34.12-2015 Кузнечик через OpenSSL gost-engine.
+
+### `NewCipher(key []byte) (cipher.Block, error)`
+
+Создаёт блок шифра Кузнечик. Ключ — 32 байта. Размер блока — 16 байт.
+
+---
+
+## pkg/gost3413
+
+`import "github.com/rekurt/gost-crypto/pkg/gost3413"`
+
+Аутентифицированное шифрование ГОСТ Р 34.13-2015 MGM через OpenSSL gost-engine.
+
+### `NewMGM(block cipher.Block) (cipher.AEAD, error)`
+
+Создаёт MGM AEAD из блока шифра Кузнечик.
+
+---
+
+## pkg/hd
+
+`import "github.com/rekurt/gost-crypto/pkg/hd"`
+
+Иерархическое детерминированное деривирование ключей через HKDF-Стрибог.
+
+### `Master(seed []byte, c Curve) (*DerivedKey, error)`
+
+Выводит мастер-ключ из сида (минимум 16 байт). Цепной код и приватный ключ детерминированно выводятся через HKDF-Стрибог.
+
+### `Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error)`
+
+Выводит дочерний ключ по пути в стиле BIP-32. Поддерживает усиленное (`'` или `h`) и обычное деривирование.
+
+### DerivedKey
+
 ```go
-seed := []byte("мое секретное семя")
-masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
+type DerivedKey struct {
+    Key       *PrivKey  // Приватный ключ ГОСТ Р 34.10-2012
+    ChainCode []byte    // 32-байтный цепной код
+}
 ```
 
-#### `func Derive(parentKey *gost3410.PrivKey, parentChain []byte, path string, hash gost3410.HashID) (*gost3410.PrivKey, []byte, error)`
+- `Zeroize()` — безопасно стирает ключ и цепной код
 
-Выводит дочерний ключ по указанному пути.
+---
 
-**Параметры:**
-- `parentKey *gost3410.PrivKey` - родительский приватный ключ
-- `parentChain []byte` - родительский код цепи
-- `path string` - путь выведения (например, "m/0'/1/2'")
-- `hash gost3410.HashID` - алгоритм хеширования
+## pkg/kdf
 
-**Возвращает:**
-- `*gost3410.PrivKey` - выведённый дочерний ключ
-- `[]byte` - дочерний код цепи
-- `error` - ошибка, если выведение не удалось
+`import "github.com/rekurt/gost-crypto/pkg/kdf"`
 
-**Формат пути:**
-- `m/` - корень (обязателен в начале)
-- `0-2147483647` - индексы обычного выведения
-- `n'` или `n H` - защищённое выведение (рекомендуется: суффикс ', не H)
-- Примеры: `m/0`, `m/0'/1`, `m/44'/283'/0'/0/0`
+### `HKDF256(salt, ikm, info []byte, length int) []byte`
 
-**Пример:**
-```go
-childKey, childChain, err := hd.Derive(masterKey, chainCode, "m/0'/1/2'", gost3410.Streebog256)
-```
+Выводит `length` байт через HKDF с Стрибог-256.
+
+### `HKDF512(salt, ikm, info []byte, length int) []byte`
+
+Выводит `length` байт через HKDF с Стрибог-512.
 
 ---
 
 ## Обработка ошибок
 
-Ошибки возвращаются как стандартные значения Go `error` с описательными сообщениями. Распространённые ошибки:
-
-| Сообщение об ошибке | Причина |
-|---------------------|---------|
-| `"invalid private key size"` | Размер ключа не соответствует кривой |
-| `"private key must be non-zero"` | Скаляр приватного ключа равен нулю |
-| `"private key must be less than curve order"` | Скаляр приватного ключа >= порядку подгруппы кривой q |
-| `"digest size does not match key size"` | Размер дайджеста не соответствует размеру ключа (ожидается 32 или 64 байта) |
-| `"invalid signature size"` | Размер подписи неправильный для данной кривой |
-| `"unknown curve"` | Кривая не распознана |
-| `"invalid compressed length"` | Данные сжатого ключа имеют неправильную длину |
-| `"invalid uncompressed"` | Данные несжатого ключа имеют неправильную длину или префикс |
-| `"X[0] high bit set: use prefix=true for this key"` | Невозможно использовать сжатый формат без префикса когда X[0] >= 0x80 |
-| `"path must start with 'm/'"` | Путь HD-выведения не содержит обязательный префикс |
-| `"empty path segment"` | Путь HD-выведения содержит пустой сегмент (например, `"m/0//1"`) |
-| `"hash size does not match key size"` | Алгоритм хеширования не соответствует размеру кривой родительского ключа |
+| Ошибка | Когда |
+|--------|-------|
+| `ErrNilKey` | передан nil или зануленный ключ |
+| `ErrInvalidKeySize` | несоответствие размера дайджеста/ключа |
+| `ErrInvalidSignature` | неверная длина подписи |
+| `ErrUnknownCurve` | недопустимый идентификатор кривой |
+| `ErrCurveMismatch` | VKO с ключами на разных кривых |
+| `ErrEmptyUKM` | VKO без User Keying Material |
 
 ---
 
-## Безопасность потоков
+## Потокобезопасность
 
-- **PrivKey/PubKey**: Неизменяемые после создания, безопасны для одновременного чтения
-- **Master/Derive**: Безопасны для одновременных вызовов с разными путями
-- **Sign/Verify**: Безопасны для одновременных операций с разными ключами
-
----
-
-## Советы по производительности
-
-1. **Переиспользуйте объекты ключей**: Создание ключей дорого, переиспользуйте их
-2. **Предварительно вычисляйте хеши**: Хешируйте один раз, подписывайте много раз при необходимости
-3. **Пакетные операции**: Подписывайте/проверяйте несколько сообщений без создания ключей
-4. **HD выведение**: Кешируйте родительские цепи, если выводите много дочерних ключей
-5. **Параллельное подписание**: Каждая горутина может безопасно использовать разные объекты ключей
-
----
-
-## Примечания совместимости
-
-- Подписи недетерминированы: одно и то же сообщение создаёт разные подписи из-за случайного nonce (k)
-- Форматы ключей совместимы со стандартами эллиптических кривых
-- Big-endian порядок байт для всех многобайтовых значений
-- Встроенное кодирование ASN.1 отсутствует; используйте внешние библиотеки для поддержки PEM/ASN.1
+- Генерация ключей и подписание потокобезопасны (OpenSSL управляет блокировками)
+- Один `*PrivKey` или `*PubKey` не должен разделяться между горутинами без синхронизации
+- `Zeroize()` инвалидирует как приватный, так и производные публичные ключи

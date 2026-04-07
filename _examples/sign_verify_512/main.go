@@ -3,35 +3,28 @@ package main
 import (
 	"fmt"
 
-	"github.com/rekurt/gost-crypto/gost3410"
-	"github.com/rekurt/gost-crypto/gostcrypto"
-	"github.com/rekurt/gost-crypto/streebog"
+	gostcrypto "github.com/rekurt/gost-crypto"
 )
 
 func main() {
 	fmt.Println("Generating GOST R 34.10-2012 512-bit key pair...")
-	privKey, err := gost3410.NewPrivKey(gost3410.TC26_512_A)
+	privKey, err := gostcrypto.GenerateKey(gostcrypto.CurveTC26_512_A)
 	if err != nil {
 		panic(err)
 	}
+	defer privKey.Zeroize()
 
-	pubKey, err := privKey.PublicKey()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Private key generated for curve: TC26_512_A\n")
-	fmt.Printf("Private key size: %d bytes\n", len(privKey.D))
-	fmt.Printf("Public key size: %d bytes (X) + %d bytes (Y)\n", len(pubKey.X), len(pubKey.Y))
+	pubKey := privKey.PublicKey()
+	fmt.Println("Private key generated for curve: TC26_512_A")
 
 	message := []byte("512-bit GOST signature example")
 	fmt.Printf("\nMessage: %s\n", message)
 
-	digest := streebog.Sum512(message)
+	digest := gostcrypto.HashSum512(message)
 	fmt.Printf("Streebog-512 digest: %x\n", digest[:16])
 
 	fmt.Println("\nSigning message...")
-	sig, err := gostcrypto.Sign(privKey, message, &gostcrypto.Options{Hash: gost3410.Streebog512})
+	sig, err := gostcrypto.Sign(privKey, message)
 	if err != nil {
 		panic(err)
 	}
@@ -40,72 +33,53 @@ func main() {
 	fmt.Printf("Signature (first 16 bytes): %x\n", sig[:16])
 
 	fmt.Println("\nVerifying signature...")
-	valid, err := gostcrypto.Verify(pubKey, message, sig, &gostcrypto.Options{Hash: gost3410.Streebog512})
+	valid, err := gostcrypto.Verify(pubKey, message, sig)
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Printf("Signature valid: %v\n", valid)
 
 	fmt.Println("\nTesting with wrong message...")
 	wrongMessage := []byte("Different message")
-	valid, err = gostcrypto.Verify(pubKey, wrongMessage, sig, &gostcrypto.Options{Hash: gost3410.Streebog512})
+	valid, err = gostcrypto.Verify(pubKey, wrongMessage, sig)
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Printf("Signature valid for wrong message: %v (expected: false)\n", valid)
-
-	fmt.Println("\nPublic key serialization:")
-	compressed, err := pubKey.ToCompressed(true)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Compressed form: %d bytes\n", len(compressed))
-
-	uncompressed := pubKey.ToUncompressed(true)
-	fmt.Printf("Uncompressed form: %d bytes\n", len(uncompressed))
-
-	recovered, err := gost3410.FromCompressed(gost3410.TC26_512_A, compressed, true)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Recovered public key matches: X=%v, Y=%v\n",
-		len(recovered.X) == len(pubKey.X),
-		len(recovered.Y) == len(pubKey.Y))
 
 	fmt.Println("\nTesting other 512-bit curves...")
 
-	for i, curve := range []gost3410.Curve{gost3410.TC26_512_B, gost3410.TC26_512_C} {
-		names := []string{"TC26_512_B", "TC26_512_C"}
-		fmt.Printf("\n%s:\n", names[i])
+	for _, tc := range []struct {
+		curve gostcrypto.Curve
+		name  string
+	}{
+		{gostcrypto.CurveTC26_512_B, "TC26_512_B"},
+		{gostcrypto.CurveTC26_512_C, "TC26_512_C"},
+	} {
+		fmt.Printf("\n%s:\n", tc.name)
 
-		priv, err := gost3410.NewPrivKey(curve)
+		priv, err := gostcrypto.GenerateKey(tc.curve)
 		if err != nil {
 			fmt.Printf("  Error creating key: %v\n", err)
 			continue
 		}
+		defer priv.Zeroize()
 
-		pub, err := priv.PublicKey()
-		if err != nil {
-			fmt.Printf("  Error deriving public key: %v\n", err)
-			continue
-		}
+		pub := priv.PublicKey()
 
-		sig, err := priv.SignDigest(digest[:])
+		s, err := gostcrypto.Sign(priv, message)
 		if err != nil {
 			fmt.Printf("  Error signing: %v\n", err)
 			continue
 		}
 
-		valid, err := pub.Verify(digest[:], sig)
+		ok, err := gostcrypto.Verify(pub, message, s)
 		if err != nil {
 			fmt.Printf("  Error verifying: %v\n", err)
 			continue
 		}
 
-		fmt.Printf("  Key generation: OK, Signature verification: %v\n", valid)
+		fmt.Printf("  Key generation: OK, Signature verification: %v\n", ok)
 	}
 
 	fmt.Println("\nAll examples completed successfully!")
