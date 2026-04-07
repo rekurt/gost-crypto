@@ -3,6 +3,7 @@
 package gost3411
 
 import (
+	"errors"
 	"hash"
 
 	"github.com/rekurt/gost-crypto/internal/openssl"
@@ -22,11 +23,19 @@ type streebogHash struct {
 	blockSize int // 64 (Streebog processes 512-bit blocks)
 }
 
+// MaxBufferedInput is the maximum number of bytes accepted by New256/New512
+// incremental hashers before Write returns ErrInputTooLarge.
+const MaxBufferedInput = 64 << 20 // 64 MiB
+
+// ErrInputTooLarge is returned by Write when incremental input exceeds
+// MaxBufferedInput. Use Sum256/Sum512 for one-shot hashing large payloads.
+var ErrInputTooLarge = errors.New("gost3411: incremental input too large")
+
 // New256 returns a new hash.Hash computing Streebog-256.
 //
-// Note: This implementation accumulates all Write() data in memory.
-// For inputs larger than available RAM, use Sum256()/Sum512() directly
-// or process data in application-level chunks.
+// Note: Sum() semantics require buffering written data because gost-engine's
+// Streebog state cannot be safely cloned. To prevent unbounded memory growth,
+// Write returns ErrInputTooLarge once MaxBufferedInput is exceeded.
 func New256() hash.Hash {
 	if err := openssl.Init(); err != nil {
 		panic("gost3411: failed to init OpenSSL: " + err.Error())
@@ -40,9 +49,9 @@ func New256() hash.Hash {
 
 // New512 returns a new hash.Hash computing Streebog-512.
 //
-// Note: This implementation accumulates all Write() data in memory.
-// For inputs larger than available RAM, use Sum256()/Sum512() directly
-// or process data in application-level chunks.
+// Note: Sum() semantics require buffering written data because gost-engine's
+// Streebog state cannot be safely cloned. To prevent unbounded memory growth,
+// Write returns ErrInputTooLarge once MaxBufferedInput is exceeded.
 func New512() hash.Hash {
 	if err := openssl.Init(); err != nil {
 		panic("gost3411: failed to init OpenSSL: " + err.Error())
@@ -55,6 +64,9 @@ func New512() hash.Hash {
 }
 
 func (h *streebogHash) Write(p []byte) (int, error) {
+	if len(p) > MaxBufferedInput-len(h.buf) {
+		return 0, ErrInputTooLarge
+	}
 	h.buf = append(h.buf, p...)
 	return len(p), nil
 }

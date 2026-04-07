@@ -2,6 +2,7 @@ package gost3411
 
 import (
 	"encoding/hex"
+	"errors"
 	"hash"
 	"testing"
 
@@ -71,6 +72,22 @@ func TestNew256_ImplementsHashInterface(t *testing.T) {
 func TestNew512_ImplementsHashInterface(t *testing.T) {
 	skipIfNoEngine(t)
 	var _ hash.Hash = New512()
+}
+
+func TestWrite_RejectsInputOverLimit(t *testing.T) {
+	h := &streebogHash{}
+	_, err := h.Write(make([]byte, MaxBufferedInput+1))
+	if !errors.Is(err, ErrInputTooLarge) {
+		t.Fatalf("Write() error = %v, want %v", err, ErrInputTooLarge)
+	}
+}
+
+func TestWrite_RejectsGrowthBeyondLimit(t *testing.T) {
+	h := &streebogHash{buf: make([]byte, MaxBufferedInput)}
+	_, err := h.Write([]byte{1})
+	if !errors.Is(err, ErrInputTooLarge) {
+		t.Fatalf("Write() error = %v, want %v", err, ErrInputTooLarge)
+	}
 }
 
 func mustDecodeHex(t *testing.T, s string) []byte {
