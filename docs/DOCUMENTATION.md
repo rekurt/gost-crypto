@@ -13,7 +13,8 @@ This index lists all актуальные documents for `github.com/rekurt/gost-
 - [EXAMPLES.md](EXAMPLES.md) — validated usage patterns based on current API.
 - [DEPLOYMENT.md](DEPLOYMENT.md) — OpenSSL + gost-engine installation.
 - [MIGRATION.md](MIGRATION.md) — v0 → v1 migration notes.
-- [SECURITY.md](SECURITY.md) — threat model and disclosure process.
+- [THREAT_MODEL.md](THREAT_MODEL.md) — threat model and security design.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — contribution guidelines and development setup.
 
 ## Russian translations
 

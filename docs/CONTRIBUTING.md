@@ -13,8 +13,10 @@ Thank you for your interest in contributing to gost-crypto!
 
 ## Development Requirements
 
-- Go 1.21 or later
-- No additional tools required (optional: `golangci-lint`)
+- Go 1.22 or later
+- OpenSSL 3.x with gost-engine installed (see [DEPLOYMENT.md](DEPLOYMENT.md))
+- CGO enabled (`CGO_ENABLED=1`)
+- Optional: `golangci-lint`
 
 ## Code Style
 
@@ -27,11 +29,22 @@ Thank you for your interest in contributing to gost-crypto!
 All changes must include tests. Before submitting a PR:
 
 ```bash
-go build ./...        # Must compile
-go test ./...         # All tests must pass
-go vet ./...          # No warnings
-go test -race ./...   # No race conditions
+go build ./...                                          # Must compile
+go test ./...                                           # All tests must pass
+go vet ./...                                            # No warnings
+go test -race ./...                                     # No race conditions
+go test -bench=. -benchmem ./pkg/gost3410/ ./pkg/gost3411/  # Benchmarks
+go test -cover ./...                                    # Coverage
 ```
+
+### What Is Tested
+
+- **Streebog**: RFC 6986 vectors (M1, M2), empty input, large messages, incremental hashing
+- **GOST R 34.10-2012**: Sign/verify roundtrip on all 8 curves, property-based tests (100 iterations)
+- **LoadPrivKey**: Generate-extract-load roundtrip on all curves, sign/verify with loaded keys
+- **HD derivation**: Deterministic key derivation, path parsing, hardened/normal, fuzz tests
+- **VKO**: Symmetric key agreement, different UKM values, cross-curve rejection
+- **Error handling**: Corruption detection, cross-curve rejection, nil/zeroized keys, size mismatches
 
 ## Commit Messages
 

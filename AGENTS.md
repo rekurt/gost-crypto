@@ -49,7 +49,7 @@ The codebase is organized into a root facade package and internal implementation
   - `key_handle.go`: Opaque key handle wrapper
   - `vko.go`: VKO key agreement
 
-- **`_examples/`** - Usage examples (sign_verify_256, sign_verify_512, batch_signing, hd_derivation, key_serialization)
+- **`_examples/`** - Runnable examples (sign_verify, vko_agreement, encrypt_decrypt, batch_signing, hd_derivation, key_serialization)
 
 ### Key Data Flow
 
@@ -73,6 +73,21 @@ The codebase is organized into a root facade package and internal implementation
 - **Zero external Go dependencies** (go.mod has no `require` directives)
 - **System requirements**: OpenSSL 3.x with gost-engine installed, CGO enabled
 - **License**: MIT
+
+## Documentation Structure
+
+```
+README.md              # Quickstart and library pitch
+SECURITY.md            # Vulnerability disclosure policy
+docs/
+├── API.md             # Complete API reference
+├── CONTRIBUTING.md    # Contributing guidelines
+├── DEPLOYMENT.md      # OpenSSL + gost-engine setup
+├── EXAMPLES.md        # Usage examples
+├── MIGRATION.md       # v0 → v1 migration guide
+├── THREAT_MODEL.md    # Threat model and security design
+└── (*.ru.md)          # Russian translations
+```
 
 ## Signature Format
 

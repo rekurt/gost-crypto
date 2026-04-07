@@ -13,7 +13,8 @@
 - [EXAMPLES.md](EXAMPLES.md) — рабочие паттерны использования на текущем API.
 - [DEPLOYMENT.md](DEPLOYMENT.md) — установка OpenSSL + gost-engine.
 - [MIGRATION.md](MIGRATION.md) — переход с v0 на v1.
-- [SECURITY.md](SECURITY.md) — модель угроз и процесс disclosure.
+- [THREAT_MODEL.md](THREAT_MODEL.md) — модель угроз и безопасность.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — руководство для контрибьюторов.
 
 ## Переводы на русский
 

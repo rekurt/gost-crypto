@@ -86,9 +86,12 @@ masterKey, chainCode, err := hd.Master(seed, gost3410.Streebog256)
 childKey, newChainCode, err := hd.Derive(masterKey, chainCode, path, gost3410.Streebog256)
 
 // v1
-import "github.com/rekurt/gost-crypto/pkg/hd"
-master, chainCode, err := hd.NewMaster(seed)
-child, childChain, err := hd.DeriveChild(master, chainCode, index, hardened)
+import (
+    gostcrypto "github.com/rekurt/gost-crypto"
+    "github.com/rekurt/gost-crypto/pkg/hd"
+)
+masterDK, err := hd.Master(seed, gostcrypto.CurveTC26_256_A)
+childDK, err := hd.Derive(masterDK, "m/44'/0'/0", gostcrypto.CurveTC26_256_A)
 ```
 
 ### New in v1 (No v0 Equivalent)
@@ -107,7 +110,7 @@ aead, err := gost3413.NewMGM(cipher)
 
 // GOST R KDF
 import "github.com/rekurt/gost-crypto/pkg/kdf"
-derived := kdf.GostrKDF(key, label, seed)
+derived := kdf.KDF_GOSTR3411_256(key, label, seed)
 ```
 
 ## Migration Steps
