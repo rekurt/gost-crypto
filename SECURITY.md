@@ -35,3 +35,7 @@ Instead, use one of the following methods:
 ### Disclosure
 
 We follow coordinated disclosure. Please allow time for a fix before public disclosure.
+
+## Threat Model
+
+For detailed threat model, security assumptions, and known limitations, see [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
