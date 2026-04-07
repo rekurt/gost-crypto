@@ -351,10 +351,10 @@ func VerifyDigest(pkey *C.EVP_PKEY, digest, sig []byte) (bool, error) {
 		(*C.uchar)(unsafe.Pointer(&digest[0])), C.size_t(len(digest)),
 		(*C.uchar)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)))
 
-	switch {
-	case rc == 1:
+	switch rc {
+	case 1:
 		return true, nil
-	case rc == 0:
+	case 0:
 		// Invalid signature — not an error condition.
 		drainSSLErrors()
 		return false, nil
