@@ -151,7 +151,10 @@ func CMSVerify(ci *CMSContentInfo, data []byte, noCertVerify bool) error {
 		flags |= C.CMS_NO_SIGNER_CERT_VERIFY | C.CMS_NOVERIFY
 	}
 
-	var dataPtr *C.uchar
+	// Pass a valid pointer even for empty data (same as CMSSign) so
+	// OpenSSL creates a content BIO for zero-length detached payloads.
+	var dummy C.uchar
+	dataPtr := &dummy
 	dataLen := C.int(0)
 	if len(data) > 0 {
 		dataPtr = (*C.uchar)(unsafe.Pointer(&data[0]))

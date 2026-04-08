@@ -31,6 +31,9 @@ func PBKDF2_512(password, salt []byte, iterations, keyLen int) []byte {
 // newHash must return a plain hash function (not HMAC). The HMAC wrapping
 // is done internally by hmac.New per the RFC specification.
 func pbkdf2(password, salt []byte, iterations, keyLen int, newHash func() hash.Hash, hLen int) []byte {
+	if iterations < 1 {
+		panic("kdf: PBKDF2 iterations must be >= 1")
+	}
 	numBlocks := (keyLen + hLen - 1) / hLen
 	dk := make([]byte, 0, numBlocks*hLen)
 
