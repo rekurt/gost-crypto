@@ -3,6 +3,7 @@ package kdf
 import (
 	"hash"
 
+	"github.com/rekurt/gost-crypto/internal/openssl"
 	"github.com/rekurt/gost-crypto/pkg/gost3411"
 )
 
@@ -54,7 +55,12 @@ func hkdf(newHMAC func([]byte) hash.Hash, salt, ikm, info []byte, length, hashSi
 	prk := mac.Sum(nil)
 
 	// Expand
-	return hkdfExpand(newHMAC, prk, info, length, hashSize)
+	result := hkdfExpand(newHMAC, prk, info, length, hashSize)
+
+	// Securely wipe the PRK — it is sensitive key material.
+	openssl.CleanseBytes(prk)
+
+	return result
 }
 
 func hkdfExpand(newHMAC func([]byte) hash.Hash, prk, info []byte, length, hashSize int) []byte {
@@ -75,8 +81,17 @@ func hkdfExpand(newHMAC func([]byte) hash.Hash, prk, info []byte, length, hashSi
 		mac.Write(prev)
 		mac.Write(info)
 		mac.Write([]byte{byte(i)})
-		prev = mac.Sum(nil)
+		newPrev := mac.Sum(nil)
+		// Wipe previous intermediate output — it is derived key material.
+		if len(prev) > 0 {
+			openssl.CleanseBytes(prev)
+		}
+		prev = newPrev
 		result = append(result, prev...)
+	}
+	// Wipe the last prev (already copied into result).
+	if len(prev) > 0 {
+		openssl.CleanseBytes(prev)
 	}
 
 	return result[:length]

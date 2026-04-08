@@ -19,11 +19,50 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev cmake curl gcc g++ pkg-config make
+
+      - name: Install gost-engine
+        run: |
+          chmod +x scripts/install-gost-engine.sh
+          sudo scripts/install-gost-engine.sh
+
+      - name: Configure OpenSSL for gost-engine
+        run: |
+          OSSL_MODULES=$(find /usr/lib -name "ossl-modules" -type d 2>/dev/null | head -1)
+          if [ -z "$OSSL_MODULES" ]; then
+            OSSL_MODULES="/usr/lib/ossl-modules"
+          fi
+          # Append gost-engine config to openssl.cnf
+          OPENSSL_CNF=$(openssl version -d | sed 's/.*"\(.*\)"/\1/')/openssl.cnf
+          sudo tee -a "$OPENSSL_CNF" > /dev/null <<CONF
+
+          # GOST engine configuration
+          openssl_conf = openssl_def
+
+          [openssl_def]
+          engines = engine_section
+
+          [engine_section]
+          gost = gost_section
+
+          [gost_section]
+          engine_id = gost
+          dynamic_path = ${OSSL_MODULES}/gost.so
+          default_algorithms = ALL
+          CONF
+
+      - name: Verify gost-engine loads
+        run: openssl engine gost -t
+
       - name: Build
-        run: go build ./...
+        run: CGO_ENABLED=1 go build ./...
 
       - name: Test
-        run: go test -race -coverprofile=coverage.out ./...
+        run: CGO_ENABLED=1 go test -race -count=1 -coverprofile=coverage.out ./...
 
       - name: Upload coverage
         if: matrix.go-version == 'stable'
@@ -44,6 +83,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config
 
       - uses: golangci/golangci-lint-action@v6
         with:

@@ -4,16 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"testing"
-
-	"github.com/rekurt/gost-crypto/internal/openssl"
 )
-
-func skipIfNoEngine(t *testing.T) {
-	t.Helper()
-	if err := openssl.Init(); err != nil {
-		t.Skip("gost-engine not available:", err)
-	}
-}
 
 func TestMGM_SealOpen_Roundtrip(t *testing.T) {
 	skipIfNoEngine(t)

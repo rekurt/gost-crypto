@@ -1,10 +1,15 @@
 package gost3410
 
 import (
+	"crypto"
 	"errors"
+	"io"
 
 	"github.com/rekurt/gost-crypto/internal/openssl"
 )
+
+// Compile-time assertion: PrivKey implements crypto.Signer.
+var _ crypto.Signer = (*PrivKey)(nil)
 
 // Sentinel errors for key operations.
 var (
@@ -92,6 +97,23 @@ func (k *PrivKey) PublicKey() *PubKey {
 // Curve returns the curve parameter set associated with this private key.
 func (k *PrivKey) Curve() Curve { return k.curve }
 
+// Public returns the public key corresponding to this private key,
+// implementing the crypto.Signer interface.
+func (k *PrivKey) Public() crypto.PublicKey {
+	return k.PublicKey()
+}
+
+// Sign signs digest with the private key, implementing the crypto.Signer
+// interface. The rand parameter is ignored because OpenSSL uses its own
+// CSPRNG internally. The opts parameter is currently unused but accepted
+// for interface compliance.
+//
+// The digest must be a pre-computed Streebog hash of the correct size
+// for the curve (32 bytes for 256-bit curves, 64 bytes for 512-bit curves).
+func (k *PrivKey) Sign(_ io.Reader, digest []byte, _ crypto.SignerOpts) ([]byte, error) {
+	return SignDigest(k, digest)
+}
+
 // Bytes returns the raw private key bytes.
 // The returned slice should be treated as sensitive material and cleansed
 // by the caller when no longer needed (openssl.CleanseBytes).
@@ -118,6 +140,15 @@ func (k *PrivKey) Zeroize() {
 
 // Curve returns the curve parameter set associated with this public key.
 func (p *PubKey) Curve() Curve { return p.curve }
+
+// Bytes returns the raw public key bytes (SubjectPublicKeyInfo DER or
+// raw X||Y point, depending on what gost-engine supports).
+func (p *PubKey) Bytes() ([]byte, error) {
+	if p.handle.IsNil() {
+		return nil, ErrNilKey
+	}
+	return openssl.ExtractRawPubKeyH(p.handle)
+}
 
 // Validate checks that the public key point lies on the curve by calling
 // OpenSSL's EVP_PKEY_param_check and EVP_PKEY_public_check.

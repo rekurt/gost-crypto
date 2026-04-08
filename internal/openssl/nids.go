@@ -21,8 +21,18 @@ var (
 
 	NID_Kuznechik_ECB       int
 	NID_Kuznechik_CTR       int
+	NID_Kuznechik_CBC       int
+	NID_Kuznechik_CFB       int
+	NID_Kuznechik_OFB       int
 	NID_Kuznechik_MGM       int
 	NID_Kuznechik_CTR_ACPKM int
+
+	NID_Magma_ECB       int
+	NID_Magma_CTR       int
+	NID_Magma_CBC       int
+	NID_Magma_CFB       int
+	NID_Magma_MGM       int
+	NID_Magma_CTR_ACPKM int
 
 	// CurveOIDs maps Curve index to OID string for all 8 TC26 parameter sets.
 	CurveOIDs = [8]string{
@@ -45,8 +55,18 @@ func resolveNIDs() {
 		NID_GostR3410_2012_512 = txt2nid("gost2012_512")
 		NID_Kuznechik_ECB = txt2nid("kuznyechik-ecb")
 		NID_Kuznechik_CTR = txt2nid("kuznyechik-ctr")
+		NID_Kuznechik_CBC = txt2nid("kuznyechik-cbc")
+		NID_Kuznechik_CFB = txt2nid("kuznyechik-cfb")
+		NID_Kuznechik_OFB = txt2nid("kuznyechik-ofb")
 		NID_Kuznechik_MGM = txt2nid("kuznyechik-mgm")
 		NID_Kuznechik_CTR_ACPKM = txt2nid("kuznyechik-ctr-acpkm")
+
+		NID_Magma_ECB = txt2nid("magma-ecb")
+		NID_Magma_CTR = txt2nid("magma-ctr")
+		NID_Magma_CBC = txt2nid("magma-cbc")
+		NID_Magma_CFB = txt2nid("magma-cfb")
+		NID_Magma_MGM = txt2nid("magma-mgm")
+		NID_Magma_CTR_ACPKM = txt2nid("magma-ctr-acpkm")
 	})
 }
 
