@@ -155,6 +155,7 @@ import (
 	"errors"
 	"math/big"
 	"time"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -218,8 +219,14 @@ func CreateSelfSignedCert(privKey *KeyHandle, subject X509Name, serial *big.Int,
 	C.ASN1_INTEGER_free(asn1Int)
 
 	// Set validity period.
-	setASN1Time(C.X509_getm_notBefore(cert), notBefore)
-	setASN1Time(C.X509_getm_notAfter(cert), notAfter)
+	if err := setASN1Time(C.X509_getm_notBefore(cert), notBefore); err != nil {
+		C.X509_free(cert)
+		return nil, err
+	}
+	if err := setASN1Time(C.X509_getm_notAfter(cert), notAfter); err != nil {
+		C.X509_free(cert)
+		return nil, err
+	}
 
 	// Set subject name.
 	name := C.X509_get_subject_name(cert)
@@ -416,6 +423,9 @@ func setNameEntry(name *C.X509_NAME, field, value string) {
 	if value == "" {
 		return
 	}
+	if !utf8.ValidString(value) {
+		return // silently skip invalid UTF-8 to avoid malformed certificates
+	}
 	cField := C.CString(field)
 	defer C.free(unsafe.Pointer(cField))
 	cValue := C.CString(value)
@@ -446,9 +456,12 @@ func getNameEntry(name *C.X509_NAME, nid C.int) string {
 	return C.GoStringN((*C.char)(unsafe.Pointer(utf8)), C.int(length))
 }
 
-func setASN1Time(t *C.ASN1_TIME, goTime time.Time) {
+func setASN1Time(t *C.ASN1_TIME, goTime time.Time) error {
 	s := goTime.UTC().Format("20060102150405Z")
 	cStr := C.CString(s)
 	defer C.free(unsafe.Pointer(cStr))
-	C.ASN1_TIME_set_string(t, cStr)
+	if C.ASN1_TIME_set_string(t, cStr) != 1 {
+		return fmtSSLError("ASN1_TIME_set_string")
+	}
+	return nil
 }
