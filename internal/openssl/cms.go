@@ -118,7 +118,10 @@ func CMSSign(cert *X509Cert, privKey *KeyHandle, data []byte, mdNID int, detache
 		flags |= C.CMS_DETACHED
 	}
 
-	var dataPtr *C.uchar
+	// BIO_new_mem_buf(NULL, 0) returns NULL, so pass a valid pointer
+	// even for empty data to support zero-length CMS payloads.
+	var dummy C.uchar
+	dataPtr := &dummy
 	if len(data) > 0 {
 		dataPtr = (*C.uchar)(unsafe.Pointer(&data[0]))
 	}

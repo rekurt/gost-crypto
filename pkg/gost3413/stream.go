@@ -6,12 +6,13 @@ import (
 	"github.com/rekurt/gost-crypto/internal/openssl"
 )
 
-// EncryptReader returns an io.Reader that encrypts all data read from src
+// EncryptReader returns an io.ReadCloser that encrypts all data read from src
 // using the given cipher NID, key, and IV. The entire stream shares a single
 // cipher context, preserving correct counter/feedback state across reads.
 //
-// This is the correct way to stream-encrypt data with CTR, CFB, or OFB modes.
-func EncryptReader(nid int, key, iv []byte, src io.Reader) (io.Reader, error) {
+// Call Close() when done to release the cipher context deterministically.
+// The context is also released automatically when the source returns io.EOF.
+func EncryptReader(nid int, key, iv []byte, src io.Reader) (io.ReadCloser, error) {
 	if err := openssl.Init(); err != nil {
 		return nil, err
 	}
@@ -26,9 +27,11 @@ func EncryptReader(nid int, key, iv []byte, src io.Reader) (io.Reader, error) {
 	return &cipherStreamReader{ctx: ctx, src: src}, nil
 }
 
-// DecryptReader returns an io.Reader that decrypts all data read from src
+// DecryptReader returns an io.ReadCloser that decrypts all data read from src
 // using the given cipher NID, key, and IV.
-func DecryptReader(nid int, key, iv []byte, src io.Reader) (io.Reader, error) {
+//
+// Call Close() when done to release the cipher context deterministically.
+func DecryptReader(nid int, key, iv []byte, src io.Reader) (io.ReadCloser, error) {
 	if err := openssl.Init(); err != nil {
 		return nil, err
 	}
@@ -60,6 +63,8 @@ func (r *cipherStreamReader) Read(p []byte) (int, error) {
 		return n, nil
 	}
 	if r.eof {
+		// Auto-close on subsequent reads after EOF.
+		r.Close()
 		return 0, io.EOF
 	}
 
