@@ -12,6 +12,11 @@ package openssl
 #include <stdlib.h>
 #include <string.h>
 
+// go_openssl_free wraps OPENSSL_free (which may be a macro).
+static void go_openssl_free(void *ptr) {
+    OPENSSL_free(ptr);
+}
+
 // go_x509_sign signs a certificate with the given key and digest NID.
 static int go_x509_sign(X509 *cert, EVP_PKEY *pkey, int md_nid, ENGINE *eng) {
     const EVP_MD *md = EVP_get_digestbynid(md_nid);
@@ -437,7 +442,7 @@ func getNameEntry(name *C.X509_NAME, nid C.int) string {
 	if length < 0 {
 		return ""
 	}
-	defer C.free(unsafe.Pointer(utf8))
+	defer C.go_openssl_free(unsafe.Pointer(utf8))
 	return C.GoStringN((*C.char)(unsafe.Pointer(utf8)), C.int(length))
 }
 

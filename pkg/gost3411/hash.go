@@ -4,24 +4,18 @@ import "crypto"
 
 // Streebog hash function identifiers for use with crypto.SignerOpts.
 //
-// These constants identify the Streebog hash algorithm when used with
-// the crypto.Signer interface. They are NOT registered with
-// crypto.RegisterHash because Go's internal maxHash limit prevents
-// registration of custom hash IDs.
+// These constants provide unique non-zero identifiers so callers can
+// distinguish between Streebog-256 and Streebog-512 when used as
+// crypto.SignerOpts.HashFunc(). They are intentionally set to values
+// within Go's internal range but NOT registered with crypto.RegisterHash
+// (Go's maxHash limit prevents registration of custom hash IDs).
 //
-// To create a Streebog hasher, use New256() or New512() directly
-// instead of HashStreebog256.New().
+// To create a Streebog hasher, use New256() or New512() directly.
+// Do NOT call HashStreebog256.New() — the hashes are not registered.
 const (
 	// HashStreebog256 identifies Streebog-256 for crypto.SignerOpts.
-	// Use gost3411.New256() to create a hasher.
-	HashStreebog256 crypto.Hash = 0
+	HashStreebog256 crypto.Hash = 17
 
 	// HashStreebog512 identifies Streebog-512 for crypto.SignerOpts.
-	// Use gost3411.New512() to create a hasher.
-	HashStreebog512 crypto.Hash = 0
+	HashStreebog512 crypto.Hash = 18
 )
-
-// Note: crypto.RegisterHash is NOT used because Go limits hash IDs
-// to its internal maxHash constant (~20). Custom hash algorithms
-// cannot be registered via the standard mechanism. Use New256()/New512()
-// directly for creating hash instances.
