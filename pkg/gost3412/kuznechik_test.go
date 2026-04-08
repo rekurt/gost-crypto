@@ -2,10 +2,52 @@ package gost3412
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/internal/openssl"
 )
+
+// mustHex decodes a hex string or panics.
+func mustHex(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		panic("bad hex: " + err.Error())
+	}
+	return b
+}
+
+// TestKuznechik_GOSTR3412_AppendixA verifies the normative test vector
+// from GOST R 34.12-2015, Appendix A.1.
+// Key:        8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef
+// Plaintext:  1122334455667700ffeeddccbbaa9988
+// Ciphertext: 7f679d90bebc24305a468d42b9d4edcd
+func TestKuznechik_GOSTR3412_AppendixA(t *testing.T) {
+	skipIfNoEngine(t)
+
+	key := mustHex("8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef")
+	plaintext := mustHex("1122334455667700ffeeddccbbaa9988")
+	expectedCT := mustHex("7f679d90bebc24305a468d42b9d4edcd")
+
+	b, err := NewKuznechik(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ct := make([]byte, KuznechikBlockSize)
+	b.Encrypt(ct, plaintext)
+
+	if !bytes.Equal(ct, expectedCT) {
+		t.Errorf("Kuznechik encrypt mismatch (GOST R 34.12-2015 A.1):\n  got  %x\n  want %x", ct, expectedCT)
+	}
+
+	pt := make([]byte, KuznechikBlockSize)
+	b.Decrypt(pt, ct)
+
+	if !bytes.Equal(pt, plaintext) {
+		t.Errorf("Kuznechik decrypt mismatch:\n  got  %x\n  want %x", pt, plaintext)
+	}
+}
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()
