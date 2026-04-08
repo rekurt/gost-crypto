@@ -39,6 +39,7 @@ func NewKuznechik(key []byte) (cipher.Block, error) {
 
 	k := new(kuznechikCipher)
 	copy(k.key[:], key)
+	openssl.MlockBytes(k.key[:])
 
 	// Pre-initialise encrypt context.
 	var err error
@@ -143,6 +144,7 @@ func (k *kuznechikCipher) Decrypt(dst, src []byte) {
 // The cipher must not be used after calling Zeroize.
 func (k *kuznechikCipher) Zeroize() {
 	openssl.CleanseBytes(k.key[:])
+	openssl.MunlockBytes(k.key[:])
 	if k.encCtx != nil {
 		k.encCtx.Close()
 		k.encCtx = nil

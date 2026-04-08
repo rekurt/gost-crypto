@@ -251,6 +251,84 @@ func TestKuznechikCFB_Roundtrip(t *testing.T) {
 	}
 }
 
+// --- OFB mode tests ---
+
+func TestKuznechikOFB_Roundtrip(t *testing.T) {
+	skipIfNoEngine(t)
+
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
+
+	ofb, err := NewKuznechikOFB(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ofb.Zeroize()
+
+	iv := make([]byte, 16)
+	if _, err := rand.Read(iv); err != nil {
+		t.Fatal(err)
+	}
+
+	plaintext := []byte("OFB mode does not require block-aligned input!")
+
+	ct, err := ofb.Encrypt(iv, plaintext)
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
+
+	if bytes.Equal(ct, plaintext) {
+		t.Fatal("ciphertext equals plaintext")
+	}
+
+	recovered, err := ofb.Decrypt(iv, ct)
+	if err != nil {
+		t.Fatalf("Decrypt: %v", err)
+	}
+
+	if !bytes.Equal(recovered, plaintext) {
+		t.Errorf("roundtrip failed:\n  got  %x\n  want %x", recovered, plaintext)
+	}
+}
+
+func TestMagmaOFB_Roundtrip(t *testing.T) {
+	skipIfNoEngine(t)
+
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
+
+	ofb, err := NewMagmaOFB(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ofb.Zeroize()
+
+	iv := make([]byte, 8)
+	if _, err := rand.Read(iv); err != nil {
+		t.Fatal(err)
+	}
+
+	plaintext := []byte("Magma OFB test")
+
+	ct, err := ofb.Encrypt(iv, plaintext)
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
+
+	recovered, err := ofb.Decrypt(iv, ct)
+	if err != nil {
+		t.Fatalf("Decrypt: %v", err)
+	}
+
+	if !bytes.Equal(recovered, plaintext) {
+		t.Errorf("roundtrip failed:\n  got  %x\n  want %x", recovered, plaintext)
+	}
+}
+
 func TestMagmaCFB_Roundtrip(t *testing.T) {
 	skipIfNoEngine(t)
 

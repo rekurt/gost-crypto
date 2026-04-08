@@ -2,8 +2,49 @@ package gost3412
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 )
+
+// TestMagma_GOSTR3412_AppendixA verifies the normative test vector
+// from GOST R 34.12-2015, Appendix A.2.
+// Key:        ffeeddccbbaa99887766554433221100f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+// Plaintext:  fedcba9876543210
+// Ciphertext: 4ee901e5c2d8ca3d
+func TestMagma_GOSTR3412_AppendixA(t *testing.T) {
+	skipIfNoEngine(t)
+
+	key := mustMagmaHex("ffeeddccbbaa99887766554433221100f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff")
+	plaintext := mustMagmaHex("fedcba9876543210")
+	expectedCT := mustMagmaHex("4ee901e5c2d8ca3d")
+
+	b, err := NewMagma(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ct := make([]byte, MagmaBlockSize)
+	b.Encrypt(ct, plaintext)
+
+	if !bytes.Equal(ct, expectedCT) {
+		t.Errorf("Magma encrypt mismatch (GOST R 34.12-2015 A.2):\n  got  %x\n  want %x", ct, expectedCT)
+	}
+
+	pt := make([]byte, MagmaBlockSize)
+	b.Decrypt(pt, ct)
+
+	if !bytes.Equal(pt, plaintext) {
+		t.Errorf("Magma decrypt mismatch:\n  got  %x\n  want %x", pt, plaintext)
+	}
+}
+
+func mustMagmaHex(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		panic("bad hex: " + err.Error())
+	}
+	return b
+}
 
 func TestMagma_BlockSize(t *testing.T) {
 	skipIfNoEngine(t)

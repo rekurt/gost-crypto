@@ -130,12 +130,18 @@ Performs VKO key agreement.
 - `Bytes() ([]byte, error)` — returns raw private key bytes (sensitive!)
 - `Curve() Curve` — returns the curve parameter set
 - `PublicKey() *PubKey` — derives the public key
+- `Public() crypto.PublicKey` — implements `crypto.Signer`
+- `Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)` — implements `crypto.Signer`
+- `MarshalBinary() ([]byte, error)` — implements `encoding.BinaryMarshaler` (format: `[curve_id][raw_key]`)
+- `UnmarshalBinary(data []byte) error` — implements `encoding.BinaryUnmarshaler`
 - `Zeroize()` — securely wipes key material and frees OpenSSL handle
 
 ### PubKey Methods
 
+- `Bytes() ([]byte, error)` — returns raw public key bytes (SPKI DER or raw X||Y)
 - `Curve() Curve` — returns the curve parameter set
 - `Validate() error` — checks that the point lies on the curve
+- `MarshalBinary() ([]byte, error)` — implements `encoding.BinaryMarshaler`
 
 ---
 
@@ -161,17 +167,40 @@ Computes Streebog-256 digest in one call.
 
 Computes Streebog-512 digest in one call.
 
+### `NewHMAC256(key []byte) hash.Hash`
+
+Returns HMAC-Streebog-256 with the given key.
+
+### `NewHMAC512(key []byte) hash.Hash`
+
+Returns HMAC-Streebog-512 with the given key.
+
+### Hash Constants
+
+```go
+const (
+    HashStreebog256 crypto.Hash = 100  // registered via crypto.RegisterHash
+    HashStreebog512 crypto.Hash = 101
+)
+```
+
+These are registered with `crypto.RegisterHash` in `init()`, enabling standard Go `crypto.Hash` lookup.
+
 ---
 
 ## pkg/gost3412 Package
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3412"`
 
-GOST R 34.12-2015 Kuznechik block cipher via OpenSSL gost-engine.
+GOST R 34.12-2015 block ciphers via OpenSSL gost-engine.
 
-### `NewCipher(key []byte) (cipher.Block, error)`
+### `NewKuznechik(key []byte) (cipher.Block, error)`
 
-Creates a Kuznechik cipher block. Key must be 32 bytes. Block size is 16 bytes.
+Creates a Kuznechik cipher block. Key must be 32 bytes. Block size is 16 bytes (128 bits).
+
+### `NewMagma(key []byte) (cipher.Block, error)`
+
+Creates a Magma cipher block. Key must be 32 bytes. Block size is 8 bytes (64 bits).
 
 ---
 
@@ -179,11 +208,56 @@ Creates a Kuznechik cipher block. Key must be 32 bytes. Block size is 16 bytes.
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3413"`
 
-GOST R 34.13-2015 MGM authenticated encryption via OpenSSL gost-engine.
+GOST R 34.13-2015 block cipher modes of operation via OpenSSL gost-engine.
 
-### `NewMGM(block cipher.Block) (cipher.AEAD, error)`
+### AEAD (Authenticated Encryption)
 
-Creates an MGM AEAD from a Kuznechik cipher block.
+#### `NewMGMFromKey(key []byte) (cipher.AEAD, error)`
+Creates a Kuznechik-MGM AEAD. Nonce: 16 bytes, tag: 16 bytes.
+
+#### `NewMagmaMGMFromKey(key []byte) (cipher.AEAD, error)`
+Creates a Magma-MGM AEAD. Nonce: 8 bytes, tag: 8 bytes.
+
+### CTR (Counter Mode)
+
+#### `NewKuznechikCTR(key []byte) (*CTR, error)`
+#### `NewMagmaCTR(key []byte) (*CTR, error)`
+Methods: `Encrypt(iv, plaintext) ([]byte, error)`, `Decrypt(iv, ciphertext) ([]byte, error)`, `Zeroize()`.
+
+### CBC (Cipher Block Chaining)
+
+#### `NewKuznechikCBC(key []byte) (*CBC, error)`
+#### `NewMagmaCBC(key []byte) (*CBC, error)`
+Plaintext must be block-aligned. No padding. Methods: `Encrypt`, `Decrypt`, `BlockSize`, `Zeroize`.
+
+### CFB (Cipher Feedback)
+
+#### `NewKuznechikCFB(key []byte) (*CFB, error)`
+#### `NewMagmaCFB(key []byte) (*CFB, error)`
+Stream cipher mode. Methods: `Encrypt`, `Decrypt`, `Zeroize`.
+
+### OFB (Output Feedback)
+
+#### `NewKuznechikOFB(key []byte) (*OFB, error)`
+#### `NewMagmaOFB(key []byte) (*OFB, error)`
+Synchronous stream cipher. Methods: `Encrypt`, `Decrypt`, `Zeroize`.
+
+### CMAC (OMAC1)
+
+#### `NewKuznechikCMAC(key []byte) (*CMAC, error)`
+#### `NewMagmaCMAC(key []byte) (*CMAC, error)`
+Methods: `MAC(message []byte) ([]byte, error)`, `Zeroize()`. Output: block-size bytes.
+
+### Streaming io.Reader Wrappers
+
+```go
+NewCTREncryptReader(ctr *CTR, iv []byte, r io.Reader) io.Reader
+NewCTRDecryptReader(ctr *CTR, iv []byte, r io.Reader) io.Reader
+NewCFBEncryptReader(cfb *CFB, iv []byte, r io.Reader) io.Reader
+NewCFBDecryptReader(cfb *CFB, iv []byte, r io.Reader) io.Reader
+NewOFBEncryptReader(ofb *OFB, iv []byte, r io.Reader) io.Reader
+NewOFBDecryptReader(ofb *OFB, iv []byte, r io.Reader) io.Reader
+```
 
 ---
 
@@ -222,15 +296,37 @@ type DerivedKey struct {
 
 `import "github.com/rekurt/gost-crypto/pkg/kdf"`
 
-Key derivation functions based on HKDF-Streebog.
+Key derivation functions based on GOST primitives.
 
-### `HKDF256(salt, ikm, info []byte, length int) []byte`
+### HKDF (RFC 5869)
 
-Derives `length` bytes using HKDF with Streebog-256.
+#### `HKDF256(salt, ikm, info []byte, length int) []byte`
+Derives `length` bytes using HKDF with HMAC-Streebog-256.
 
-### `HKDF512(salt, ikm, info []byte, length int) []byte`
+#### `HKDF512(salt, ikm, info []byte, length int) []byte`
+Derives `length` bytes using HKDF with HMAC-Streebog-512.
 
-Derives `length` bytes using HKDF with Streebog-512.
+#### `HKDFExtract256(salt, ikm []byte) []byte` / `HKDFExtract512`
+HKDF-Extract phase only.
+
+#### `HKDFExpand256(prk, info []byte, length int) []byte` / `HKDFExpand512`
+HKDF-Expand phase only.
+
+### KDF_GOSTR3411 (R 50.1.113-2016)
+
+#### `KDF_GOSTR3411_256(key, label, seed []byte) []byte`
+Russian national KDF. Output: 32 bytes.
+
+#### `KDF_GOSTR3411_512(key, label, seed []byte) []byte`
+Output: 64 bytes.
+
+### PBKDF2 (RFC 8018)
+
+#### `PBKDF2_256(password, salt []byte, iterations, keyLen int) []byte`
+PBKDF2 with HMAC-Streebog-256.
+
+#### `PBKDF2_512(password, salt []byte, iterations, keyLen int) []byte`
+PBKDF2 with HMAC-Streebog-512.
 
 ---
 

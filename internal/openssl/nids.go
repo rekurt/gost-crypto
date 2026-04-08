@@ -31,6 +31,7 @@ var (
 	NID_Magma_CTR       int
 	NID_Magma_CBC       int
 	NID_Magma_CFB       int
+	NID_Magma_OFB       int
 	NID_Magma_MGM       int
 	NID_Magma_CTR_ACPKM int
 
@@ -65,6 +66,7 @@ func resolveNIDs() {
 		NID_Magma_CTR = txt2nid("magma-ctr")
 		NID_Magma_CBC = txt2nid("magma-cbc")
 		NID_Magma_CFB = txt2nid("magma-cfb")
+		NID_Magma_OFB = txt2nid("magma-ofb")
 		NID_Magma_MGM = txt2nid("magma-mgm")
 		NID_Magma_CTR_ACPKM = txt2nid("magma-ctr-acpkm")
 	})
