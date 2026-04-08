@@ -8,6 +8,7 @@ package openssl
 #include <openssl/err.h>
 #include <openssl/bio.h>
 #include <openssl/asn1.h>
+#include <openssl/crypto.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -436,7 +437,7 @@ func getNameEntry(name *C.X509_NAME, nid C.int) string {
 	if length < 0 {
 		return ""
 	}
-	defer C.OPENSSL_free(unsafe.Pointer(utf8))
+	defer C.free(unsafe.Pointer(utf8))
 	return C.GoStringN((*C.char)(unsafe.Pointer(utf8)), C.int(length))
 }
 

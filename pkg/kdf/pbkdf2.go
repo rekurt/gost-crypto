@@ -15,7 +15,7 @@ import (
 // iterations is the cost parameter (recommended minimum: 10000).
 // keyLen is the desired output key length in bytes.
 func PBKDF2_256(password, salt []byte, iterations, keyLen int) []byte {
-	return pbkdf2(password, salt, iterations, keyLen, gost3411.NewHMAC256, 32)
+	return pbkdf2(password, salt, iterations, keyLen, gost3411.New256, 32)
 }
 
 // PBKDF2_512 derives a key from a password using PBKDF2 (RFC 8018) with
@@ -24,26 +24,28 @@ func PBKDF2_256(password, salt []byte, iterations, keyLen int) []byte {
 // iterations is the cost parameter (recommended minimum: 10000).
 // keyLen is the desired output key length in bytes.
 func PBKDF2_512(password, salt []byte, iterations, keyLen int) []byte {
-	return pbkdf2(password, salt, iterations, keyLen, gost3411.NewHMAC512, 64)
+	return pbkdf2(password, salt, iterations, keyLen, gost3411.New512, 64)
 }
 
 // pbkdf2 implements PBKDF2 per RFC 8018 §5.2.
-func pbkdf2(password, salt []byte, iterations, keyLen int, newHMAC func([]byte) hash.Hash, hLen int) []byte {
+// newHash must return a plain hash function (not HMAC). The HMAC wrapping
+// is done internally by hmac.New per the RFC specification.
+func pbkdf2(password, salt []byte, iterations, keyLen int, newHash func() hash.Hash, hLen int) []byte {
 	numBlocks := (keyLen + hLen - 1) / hLen
 	dk := make([]byte, 0, numBlocks*hLen)
 
 	for block := 1; block <= numBlocks; block++ {
-		dk = append(dk, pbkdf2F(password, salt, iterations, block, newHMAC)...)
+		dk = append(dk, pbkdf2F(password, salt, iterations, block, newHash)...)
 	}
 
 	return dk[:keyLen]
 }
 
 // pbkdf2F computes F(Password, Salt, c, i) = U_1 ^ U_2 ^ ... ^ U_c
-// where U_1 = PRF(Password, Salt || INT(i)).
-func pbkdf2F(password, salt []byte, iterations, block int, newHMAC func([]byte) hash.Hash) []byte {
-	// U_1 = PRF(Password, Salt || INT_32_BE(i))
-	mac := hmac.New(func() hash.Hash { return newHMAC(password) }, password)
+// where U_1 = PRF(Password, Salt || INT(i)) and PRF = HMAC-Hash.
+func pbkdf2F(password, salt []byte, iterations, block int, newHash func() hash.Hash) []byte {
+	// PRF = HMAC(password, ...) where Hash is the underlying hash function.
+	mac := hmac.New(newHash, password)
 
 	mac.Write(salt)
 	var blockBuf [4]byte
