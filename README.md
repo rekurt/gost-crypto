@@ -5,6 +5,7 @@
 [![GoDoc](https://pkg.go.dev/badge/github.com/rekurt/gost-crypto)](https://pkg.go.dev/github.com/rekurt/gost-crypto)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/rekurt/gost-crypto)](go.mod)
+[![codecov](https://codecov.io/gh/rekurt/gost-crypto/branch/master/graph/badge.svg)](https://codecov.io/gh/rekurt/gost-crypto)
 
 Go library for Russian GOST cryptographic standards (GOST R 34.10-2012, GOST R 34.11-2012 Streebog, GOST R 34.12-2015 Kuznechik, GOST R 34.13-2015 MGM), powered by OpenSSL gost-engine. Digital signatures, hashing, encryption, key agreement, and key derivation with zero external Go dependencies.
 

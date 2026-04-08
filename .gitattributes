@@ -1,0 +1,6 @@
+# Ensure GitHub linguist detects Go as primary language
+*.go linguist-detectable
+_examples/** linguist-documentation=false
+
+# Exclude generated and vendored from stats
+*.pb.go linguist-generated
