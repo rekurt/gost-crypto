@@ -6,7 +6,6 @@ package openssl
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
-#include <openssl/pem.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,7 +51,6 @@ static CMS_ContentInfo *go_cms_sign(X509 *cert, EVP_PKEY *pkey,
 }
 
 // go_cms_verify verifies a CMS SignedData against the given data.
-// cert_store can be NULL for no chain verification. flags control behavior.
 static int go_cms_verify(CMS_ContentInfo *cms,
                           const unsigned char *data, int data_len,
                           X509_STORE *store, unsigned int flags) {
@@ -88,31 +86,10 @@ static CMS_ContentInfo *go_cms_from_der(const unsigned char *data, int len) {
     const unsigned char *p = data;
     return d2i_CMS_ContentInfo(NULL, &p, len);
 }
-
-// go_cms_to_pem serializes CMS to PEM.
-static int go_cms_to_pem(CMS_ContentInfo *cms, char **out, int *out_len) {
-    BIO *bio = BIO_new(BIO_s_mem());
-    if (!bio) return -1;
-    if (PEM_write_bio_CMS(bio, cms) != 1) {
-        BIO_free(bio);
-        return -2;
-    }
-    char *data = NULL;
-    long len = BIO_get_mem_data(bio, &data);
-    *out = (char *)malloc(len + 1);
-    if (!*out) {
-        BIO_free(bio);
-        return -3;
-    }
-    memcpy(*out, data, len);
-    (*out)[len] = '\0';
-    *out_len = (int)len;
-    BIO_free(bio);
-    return 0;
-}
 */
 import "C"
 import (
+	"encoding/pem"
 	"errors"
 	"unsafe"
 )
@@ -197,15 +174,17 @@ func (ci *CMSContentInfo) MarshalDER() ([]byte, error) {
 }
 
 // MarshalPEM serializes the CMS structure to PEM format.
+// Uses Go's encoding/pem over DER to avoid OpenSSL macro compatibility issues.
 func (ci *CMSContentInfo) MarshalPEM() ([]byte, error) {
-	var cPem *C.char
-	var pemLen C.int
-	rc := C.go_cms_to_pem(ci.cms, &cPem, &pemLen)
-	if rc != 0 || cPem == nil {
-		return nil, fmtSSLError("PEM_write_bio_CMS")
+	der, err := ci.MarshalDER()
+	if err != nil {
+		return nil, err
 	}
-	defer C.free(unsafe.Pointer(cPem))
-	return C.GoBytes(unsafe.Pointer(cPem), pemLen), nil
+	block := &pem.Block{
+		Type:  "CMS",
+		Bytes: der,
+	}
+	return pem.EncodeToMemory(block), nil
 }
 
 // ParseCMSDER parses a CMS structure from DER bytes.
