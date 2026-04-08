@@ -25,6 +25,7 @@ func NewKuznechikOFB(key []byte) (*OFB, error) {
 	}
 	o := &OFB{nid: openssl.NID_Kuznechik_OFB}
 	copy(o.key[:], key)
+	openssl.MlockBytes(o.key[:])
 	return o, nil
 }
 
@@ -39,6 +40,7 @@ func NewMagmaOFB(key []byte) (*OFB, error) {
 	}
 	o := &OFB{nid: openssl.NID_Magma_OFB}
 	copy(o.key[:], key)
+	openssl.MlockBytes(o.key[:])
 	return o, nil
 }
 
@@ -88,4 +90,5 @@ func (o *OFB) xor(iv, data []byte, encrypt bool) ([]byte, error) {
 // Zeroize securely wipes the key material from memory.
 func (o *OFB) Zeroize() {
 	openssl.CleanseBytes(o.key[:])
+	openssl.MunlockBytes(o.key[:])
 }

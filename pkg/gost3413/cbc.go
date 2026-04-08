@@ -26,6 +26,7 @@ func NewKuznechikCBC(key []byte) (*CBC, error) {
 	}
 	c := &CBC{nid: openssl.NID_Kuznechik_CBC, blockSize: 16}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -40,6 +41,7 @@ func NewMagmaCBC(key []byte) (*CBC, error) {
 	}
 	c := &CBC{nid: openssl.NID_Magma_CBC, blockSize: 8}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -122,4 +124,5 @@ func (c *CBC) Decrypt(iv, ciphertext []byte) ([]byte, error) {
 // Zeroize securely wipes the key material from memory.
 func (c *CBC) Zeroize() {
 	openssl.CleanseBytes(c.key[:])
+	openssl.MunlockBytes(c.key[:])
 }

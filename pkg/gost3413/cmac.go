@@ -24,6 +24,7 @@ func NewKuznechikCMAC(key []byte) (*CMAC, error) {
 	}
 	c := &CMAC{nid: openssl.NID_Kuznechik_CBC}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -38,6 +39,7 @@ func NewMagmaCMAC(key []byte) (*CMAC, error) {
 	}
 	c := &CMAC{nid: openssl.NID_Magma_CBC}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -50,4 +52,5 @@ func (c *CMAC) MAC(message []byte) ([]byte, error) {
 // Zeroize securely wipes the key material from memory.
 func (c *CMAC) Zeroize() {
 	openssl.CleanseBytes(c.key[:])
+	openssl.MunlockBytes(c.key[:])
 }

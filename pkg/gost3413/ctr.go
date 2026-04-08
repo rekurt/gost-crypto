@@ -26,6 +26,7 @@ func NewKuznechikCTR(key []byte) (*CTR, error) {
 	}
 	c := &CTR{nid: openssl.NID_Kuznechik_CTR}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -40,6 +41,7 @@ func NewMagmaCTR(key []byte) (*CTR, error) {
 	}
 	c := &CTR{nid: openssl.NID_Magma_CTR}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -104,4 +106,5 @@ func (c *CTR) Decrypt(iv, ciphertext []byte) ([]byte, error) {
 // Zeroize securely wipes the key material from memory.
 func (c *CTR) Zeroize() {
 	openssl.CleanseBytes(c.key[:])
+	openssl.MunlockBytes(c.key[:])
 }

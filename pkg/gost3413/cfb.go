@@ -24,6 +24,7 @@ func NewKuznechikCFB(key []byte) (*CFB, error) {
 	}
 	c := &CFB{nid: openssl.NID_Kuznechik_CFB}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -38,6 +39,7 @@ func NewMagmaCFB(key []byte) (*CFB, error) {
 	}
 	c := &CFB{nid: openssl.NID_Magma_CFB}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -100,4 +102,5 @@ func (c *CFB) Decrypt(iv, ciphertext []byte) ([]byte, error) {
 // Zeroize securely wipes the key material from memory.
 func (c *CFB) Zeroize() {
 	openssl.CleanseBytes(c.key[:])
+	openssl.MunlockBytes(c.key[:])
 }
