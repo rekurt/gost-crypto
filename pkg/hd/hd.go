@@ -165,6 +165,8 @@ func Master(seed []byte, c Curve) (*DerivedKey, error) {
 	// with incremented info to get different material (standard rejection
 	// sampling approach for deterministic key derivation).
 	key, err := loadKeyWithRetry(c, material[:keySize], salt, seed, "master-retry", keySize)
+	// Wipe the intermediate HKDF material — it contains raw key bytes.
+	openssl.CleanseBytes(material)
 	if err != nil {
 		return nil, fmt.Errorf("hd: master key loading: %w", err)
 	}
@@ -195,6 +197,7 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 			return nil, fmt.Errorf("hd: derive copy: %w", err)
 		}
 		keyCopy, err := gost3410.LoadPrivKey(c, parentBytes)
+		openssl.CleanseBytes(parentBytes)
 		if err != nil {
 			return nil, fmt.Errorf("hd: derive copy: %w", err)
 		}
@@ -231,6 +234,10 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 
 	// Load the deterministic key from derived material.
 	key, err := loadKeyWithRetry(c, lastKeyMaterial, currentCC, lastKeyMaterial, "child-retry", keySize)
+	// Wipe intermediate key material.
+	if len(lastKeyMaterial) > 0 {
+		openssl.CleanseBytes(lastKeyMaterial)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("hd: child key loading: %w", err)
 	}

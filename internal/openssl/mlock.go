@@ -33,6 +33,12 @@ func initMlock() {
 // being swapped to disk. This protects key material from appearing in
 // swap partitions or core dumps.
 //
+// NOTE: This relies on Go's non-moving garbage collector for heap objects.
+// As of Go 1.22, the GC does not relocate heap-allocated objects, so the
+// memory address passed to mlock remains stable. If a future Go version
+// introduces a moving GC, this approach would need to be revised (e.g.,
+// allocating key buffers via C.malloc instead of Go arrays).
+//
 // If mlock is not available (insufficient privileges or resource limits),
 // the call silently succeeds — the security degradation is acceptable
 // as a fallback. Use MlockAvailable() to check.
