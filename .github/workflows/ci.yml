@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libssl-dev cmake curl gcc g++ pkg-config make
+            libssl-dev cmake curl gcc g++ pkg-config make git
 
       - name: Install gost-engine
         run: |
@@ -33,27 +33,12 @@ jobs:
       - name: Configure OpenSSL for gost-engine
         run: |
           OSSL_MODULES=$(find /usr/lib -name "ossl-modules" -type d 2>/dev/null | head -1)
-          if [ -z "$OSSL_MODULES" ]; then
-            OSSL_MODULES="/usr/lib/ossl-modules"
-          fi
-          # Append gost-engine config to openssl.cnf
-          OPENSSL_CNF=$(openssl version -d | sed 's/.*"\(.*\)"/\1/')/openssl.cnf
-          sudo tee -a "$OPENSSL_CNF" > /dev/null <<CONF
-
-          # GOST engine configuration
-          openssl_conf = openssl_def
-
-          [openssl_def]
-          engines = engine_section
-
-          [engine_section]
-          gost = gost_section
-
-          [gost_section]
-          engine_id = gost
-          dynamic_path = ${OSSL_MODULES}/gost.so
-          default_algorithms = ALL
-          CONF
+          [ -z "$OSSL_MODULES" ] && OSSL_MODULES="/usr/lib/ossl-modules"
+          OPENSSL_DIR=$(openssl version -d | sed 's/.*"\(.*\)"/\1/')
+          OPENSSL_CNF="${OPENSSL_DIR}/openssl.cnf"
+          sudo cp "$OPENSSL_CNF" "${OPENSSL_CNF}.bak"
+          printf 'openssl_conf = openssl_def\n[openssl_def]\nengines = engine_section\n[engine_section]\ngost = gost_section\n[gost_section]\nengine_id = gost\ndynamic_path = %s/gost.so\ndefault_algorithms = ALL\n\n' "$OSSL_MODULES" | sudo tee "$OPENSSL_CNF" > /dev/null
+          cat "${OPENSSL_CNF}.bak" | sudo tee -a "$OPENSSL_CNF" > /dev/null
 
       - name: Verify gost-engine loads
         run: openssl engine gost -t
@@ -88,8 +73,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libssl-dev pkg-config
+            libssl-dev pkg-config gcc
 
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          args: --timeout=5m

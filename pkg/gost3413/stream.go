@@ -1,119 +1,132 @@
 package gost3413
 
 import (
-	"errors"
 	"io"
+
+	"github.com/rekurt/gost-crypto/internal/openssl"
 )
 
-// NewEncryptReader wraps an io.Reader with CTR-mode encryption.
-// All data read from the returned reader is encrypted using the given
-// CTR cipher and IV. This enables streaming encryption without buffering
-// the entire input.
-func NewCTREncryptReader(ctr *CTR, iv []byte, r io.Reader) io.Reader {
-	return &streamReader{cipher: ctr, iv: iv, src: r, encrypt: true}
+// EncryptReader returns an io.ReadCloser that encrypts all data read from src
+// using the given cipher NID, key, and IV. The entire stream shares a single
+// cipher context, preserving correct counter/feedback state across reads.
+//
+// Call Close() when done to release the cipher context deterministically.
+// The context is also released automatically when the source returns io.EOF.
+func EncryptReader(nid int, key, iv []byte, src io.Reader) (io.ReadCloser, error) {
+	if err := openssl.Init(); err != nil {
+		return nil, err
+	}
+	ctx, err := openssl.NewCipherCtx()
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.InitEncrypt(nid, key, iv); err != nil {
+		ctx.Close()
+		return nil, err
+	}
+	return &cipherStreamReader{ctx: ctx, src: src}, nil
 }
 
-// NewCTRDecryptReader wraps an io.Reader with CTR-mode decryption.
-// In CTR mode, decryption is identical to encryption.
-func NewCTRDecryptReader(ctr *CTR, iv []byte, r io.Reader) io.Reader {
-	return &streamReader{cipher: ctr, iv: iv, src: r, encrypt: false}
+// DecryptReader returns an io.ReadCloser that decrypts all data read from src
+// using the given cipher NID, key, and IV.
+//
+// Call Close() when done to release the cipher context deterministically.
+func DecryptReader(nid int, key, iv []byte, src io.Reader) (io.ReadCloser, error) {
+	if err := openssl.Init(); err != nil {
+		return nil, err
+	}
+	ctx, err := openssl.NewCipherCtx()
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.InitDecrypt(nid, key, iv); err != nil {
+		ctx.Close()
+		return nil, err
+	}
+	return &cipherStreamReader{ctx: ctx, src: src}, nil
 }
 
-// NewCFBEncryptReader wraps an io.Reader with CFB-mode encryption.
-func NewCFBEncryptReader(cfb *CFB, iv []byte, r io.Reader) io.Reader {
-	return &streamCFBReader{cipher: cfb, iv: iv, src: r, encrypt: true}
+// cipherStreamReader maintains a single EVP_CIPHER_CTX across all reads,
+// preserving the cipher state (counter, feedback register, etc.).
+type cipherStreamReader struct {
+	ctx *openssl.CipherCtx
+	src io.Reader
+	buf []byte // buffered output from previous Update
+	eof bool
 }
 
-// NewCFBDecryptReader wraps an io.Reader with CFB-mode decryption.
-func NewCFBDecryptReader(cfb *CFB, iv []byte, r io.Reader) io.Reader {
-	return &streamCFBReader{cipher: cfb, iv: iv, src: r, encrypt: false}
-}
-
-// streamReader implements io.Reader for CTR-mode streaming.
-type streamReader struct {
-	cipher  *CTR
-	iv      []byte
-	src     io.Reader
-	encrypt bool
-	buf     []byte // buffered output from the last chunk
-}
-
-func (sr *streamReader) Read(p []byte) (int, error) {
-	if len(sr.buf) > 0 {
-		n := copy(p, sr.buf)
-		sr.buf = sr.buf[n:]
+func (r *cipherStreamReader) Read(p []byte) (int, error) {
+	// Drain buffered output first.
+	if len(r.buf) > 0 {
+		n := copy(p, r.buf)
+		r.buf = r.buf[n:]
 		return n, nil
 	}
+	if r.eof {
+		// Auto-close on subsequent reads after EOF.
+		r.Close()
+		return 0, io.EOF
+	}
 
-	// Read a chunk from the source.
+	// Read from source.
 	chunk := make([]byte, len(p))
-	n, err := sr.src.Read(chunk)
-	if n == 0 {
-		return 0, err
+	n, err := r.src.Read(chunk)
+
+	if n > 0 {
+		out, cryptErr := r.ctx.Update(chunk[:n])
+		if cryptErr != nil {
+			return 0, cryptErr
+		}
+		copied := copy(p, out)
+		if copied < len(out) {
+			r.buf = append(r.buf[:0], out[copied:]...)
+		}
+		if err == io.EOF {
+			// Source is done. Finalize cipher.
+			tail, finalErr := r.ctx.Final()
+			if finalErr != nil {
+				return copied, finalErr
+			}
+			if len(tail) > 0 {
+				r.buf = append(r.buf, tail...)
+			}
+			r.eof = true
+			if len(r.buf) > 0 {
+				return copied, nil // more data in buf, don't return EOF yet
+			}
+			return copied, io.EOF
+		}
+		if err != nil {
+			return copied, err
+		}
+		return copied, nil
 	}
 
-	var out []byte
-	var cryptErr error
-	if sr.encrypt {
-		out, cryptErr = sr.cipher.Encrypt(sr.iv, chunk[:n])
-	} else {
-		out, cryptErr = sr.cipher.Decrypt(sr.iv, chunk[:n])
-	}
-	if cryptErr != nil {
-		return 0, errors.Join(err, cryptErr)
+	if err == io.EOF {
+		// Finalize.
+		tail, finalErr := r.ctx.Final()
+		if finalErr != nil {
+			return 0, finalErr
+		}
+		r.eof = true
+		if len(tail) > 0 {
+			n := copy(p, tail)
+			if n < len(tail) {
+				r.buf = append(r.buf[:0], tail[n:]...)
+			}
+			return n, nil
+		}
+		return 0, io.EOF
 	}
 
-	copied := copy(p, out)
-	if copied < len(out) {
-		sr.buf = out[copied:]
-	}
-
-	if err != nil {
-		return copied, err
-	}
-	return copied, nil
+	return 0, err
 }
 
-// streamCFBReader implements io.Reader for CFB-mode streaming.
-type streamCFBReader struct {
-	cipher  *CFB
-	iv      []byte
-	src     io.Reader
-	encrypt bool
-	buf     []byte
-}
-
-func (sr *streamCFBReader) Read(p []byte) (int, error) {
-	if len(sr.buf) > 0 {
-		n := copy(p, sr.buf)
-		sr.buf = sr.buf[n:]
-		return n, nil
+// Close releases the cipher context. Should be called when done reading.
+func (r *cipherStreamReader) Close() error {
+	if r.ctx != nil {
+		r.ctx.Close()
+		r.ctx = nil
 	}
-
-	chunk := make([]byte, len(p))
-	n, err := sr.src.Read(chunk)
-	if n == 0 {
-		return 0, err
-	}
-
-	var out []byte
-	var cryptErr error
-	if sr.encrypt {
-		out, cryptErr = sr.cipher.Encrypt(sr.iv, chunk[:n])
-	} else {
-		out, cryptErr = sr.cipher.Decrypt(sr.iv, chunk[:n])
-	}
-	if cryptErr != nil {
-		return 0, errors.Join(err, cryptErr)
-	}
-
-	copied := copy(p, out)
-	if copied < len(out) {
-		sr.buf = out[copied:]
-	}
-
-	if err != nil {
-		return copied, err
-	}
-	return copied, nil
+	return nil
 }

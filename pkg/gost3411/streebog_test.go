@@ -78,7 +78,7 @@ func TestSum256_Empty(t *testing.T) {
 func TestSum512_Empty(t *testing.T) {
 	skipIfNoEngine(t)
 	got := Sum512(nil)
-	want := mustDecodeHex(t, "8e945da209aa869f0455928b630484801e4896ce8d5ee4c5b98ccd5f0ca2b2dc722043707d0862e7b1d31aeb5c77a608cf2f3c69e1e56eca0929e8f7e1e5d11b")
+	want := mustDecodeHex(t, "8e945da209aa869f0455928529bcae4679e9873ab707b55315f56ceb98bef0a7362f715528356ee83cda5f2aac4c6ad2ba3a715c1bcd81cb8e9f90bf4c1c1a8a")
 	if got != [64]byte(want) {
 		t.Errorf("Sum512(empty) mismatch:\ngot  %x\nwant %x", got, want)
 	}
@@ -142,7 +142,9 @@ func TestWrite_AcceptsLargeInput(t *testing.T) {
 
 func TestReset_ClearsBuffer(t *testing.T) {
 	h := &streebogHash{}
-	h.Write([]byte("some data"))
+	if _, err := h.Write([]byte("some data")); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
 	h.Reset()
 
 	if len(h.buf) != 0 {

@@ -8,9 +8,13 @@ import (
 
 // CMAC computes CMAC (OMAC1) message authentication codes using
 // GOST block ciphers (Kuznechik or Magma) per GOST R 34.13-2015.
+//
+// The NID stored here refers to the CBC-mode cipher (e.g., kuznyechik-cbc),
+// which is correct: OpenSSL's CMAC_Init accepts a CBC cipher as its
+// underlying block cipher, and constructs the CMAC internally.
 type CMAC struct {
 	key [32]byte
-	nid int
+	nid int // NID of the CBC-mode cipher (CMAC is built on top of CBC)
 }
 
 // NewKuznechikCMAC creates a CMAC instance using the Kuznechik block cipher.
@@ -24,6 +28,7 @@ func NewKuznechikCMAC(key []byte) (*CMAC, error) {
 	}
 	c := &CMAC{nid: openssl.NID_Kuznechik_CBC}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -38,6 +43,7 @@ func NewMagmaCMAC(key []byte) (*CMAC, error) {
 	}
 	c := &CMAC{nid: openssl.NID_Magma_CBC}
 	copy(c.key[:], key)
+	openssl.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -50,4 +56,5 @@ func (c *CMAC) MAC(message []byte) ([]byte, error) {
 // Zeroize securely wipes the key material from memory.
 func (c *CMAC) Zeroize() {
 	openssl.CleanseBytes(c.key[:])
+	openssl.MunlockBytes(c.key[:])
 }

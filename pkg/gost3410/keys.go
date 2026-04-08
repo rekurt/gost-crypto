@@ -97,6 +97,11 @@ func (k *PrivKey) PublicKey() *PubKey {
 // Curve returns the curve parameter set associated with this private key.
 func (k *PrivKey) Curve() Curve { return k.curve }
 
+// Handle returns the underlying OpenSSL KeyHandle for use by internal
+// packages that need direct access (e.g., X.509 certificate operations).
+// The returned handle is shared — do not free it separately.
+func (k *PrivKey) Handle() *openssl.KeyHandle { return k.handle }
+
 // Public returns the public key corresponding to this private key,
 // implementing the crypto.Signer interface.
 func (k *PrivKey) Public() crypto.PublicKey {
@@ -140,6 +145,11 @@ func (k *PrivKey) Zeroize() {
 
 // Curve returns the curve parameter set associated with this public key.
 func (p *PubKey) Curve() Curve { return p.curve }
+
+// Handle returns the underlying OpenSSL KeyHandle for use by internal
+// packages that need direct access (e.g., X.509 certificate operations).
+// The returned handle is shared — do not free it separately.
+func (p *PubKey) Handle() *openssl.KeyHandle { return p.handle }
 
 // Bytes returns the raw public key bytes (SubjectPublicKeyInfo DER or
 // raw X||Y point, depending on what gost-engine supports).

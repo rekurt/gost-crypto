@@ -39,36 +39,48 @@ func NewKuznechik(key []byte) (cipher.Block, error) {
 
 	k := new(kuznechikCipher)
 	copy(k.key[:], key)
+	openssl.MlockBytes(k.key[:])
+
+	// cleanup wipes key material on error paths.
+	cleanup := func() {
+		openssl.CleanseBytes(k.key[:])
+		openssl.MunlockBytes(k.key[:])
+		if k.encCtx != nil {
+			k.encCtx.Close()
+		}
+		if k.decCtx != nil {
+			k.decCtx.Close()
+		}
+	}
 
 	// Pre-initialise encrypt context.
 	var err error
 	k.encCtx, err = openssl.NewCipherCtx()
 	if err != nil {
+		cleanup()
 		return nil, err
 	}
 	if err := k.encCtx.InitEncrypt(openssl.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
-		k.encCtx.Close()
+		cleanup()
 		return nil, err
 	}
 	if err := k.encCtx.SetPadding(0); err != nil {
-		k.encCtx.Close()
+		cleanup()
 		return nil, err
 	}
 
 	// Pre-initialise decrypt context.
 	k.decCtx, err = openssl.NewCipherCtx()
 	if err != nil {
-		k.encCtx.Close()
+		cleanup()
 		return nil, err
 	}
 	if err := k.decCtx.InitDecrypt(openssl.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
-		k.encCtx.Close()
-		k.decCtx.Close()
+		cleanup()
 		return nil, err
 	}
 	if err := k.decCtx.SetPadding(0); err != nil {
-		k.encCtx.Close()
-		k.decCtx.Close()
+		cleanup()
 		return nil, err
 	}
 
@@ -143,6 +155,7 @@ func (k *kuznechikCipher) Decrypt(dst, src []byte) {
 // The cipher must not be used after calling Zeroize.
 func (k *kuznechikCipher) Zeroize() {
 	openssl.CleanseBytes(k.key[:])
+	openssl.MunlockBytes(k.key[:])
 	if k.encCtx != nil {
 		k.encCtx.Close()
 		k.encCtx = nil

@@ -4,9 +4,13 @@
 // # Supported Modes
 //
 //   - [NewMGMFromKey] — MGM (Multilinear Galois Mode) authenticated encryption (AEAD)
+//   - [NewMagmaMGMFromKey] — Magma-MGM authenticated encryption (AEAD)
 //   - [NewKuznechikCTR], [NewMagmaCTR] — CTR (counter) mode
 //   - [NewKuznechikCBC], [NewMagmaCBC] — CBC (cipher block chaining) mode
 //   - [NewKuznechikCFB], [NewMagmaCFB] — CFB (cipher feedback) mode
+//   - [NewKuznechikOFB], [NewMagmaOFB] — OFB (output feedback) mode
+//   - [NewKuznechikCMAC], [NewMagmaCMAC] — CMAC (OMAC1) authentication
+//   - [EncryptReader], [DecryptReader] — stateful io.Reader streaming wrappers
 //
 // All modes support both Kuznechik (128-bit block) and Magma (64-bit block)
 // as the underlying block cipher.
