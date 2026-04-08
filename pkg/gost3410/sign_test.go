@@ -1,11 +1,60 @@
 package gost3410
 
 import (
+	"crypto"
 	"crypto/rand"
 	"testing"
 
 	"github.com/rekurt/gost-crypto/internal/openssl"
 )
+
+// TestCryptoSignerInterface verifies that PrivKey satisfies crypto.Signer
+// and produces valid signatures through the interface.
+func TestCryptoSignerInterface(t *testing.T) {
+	skipIfNoEngine(t)
+
+	for _, c := range AllCurves() {
+		c := c
+		t.Run(c.String(), func(t *testing.T) {
+			priv, err := GenerateKey(c)
+			if err != nil {
+				t.Fatalf("GenerateKey(%s): %v", c, err)
+			}
+			defer priv.Zeroize()
+
+			// Use via crypto.Signer interface.
+			var signer crypto.Signer = priv
+
+			pub := signer.Public()
+			if pub == nil {
+				t.Fatal("Public() returned nil")
+			}
+			gostPub, ok := pub.(*PubKey)
+			if !ok {
+				t.Fatalf("Public() returned %T, want *PubKey", pub)
+			}
+
+			keySize, _ := c.Size()
+			digest := make([]byte, keySize)
+			if _, err := rand.Read(digest); err != nil {
+				t.Fatalf("rand.Read: %v", err)
+			}
+
+			sig, err := signer.Sign(rand.Reader, digest, nil)
+			if err != nil {
+				t.Fatalf("Sign(%s): %v", c, err)
+			}
+
+			ok2, err := VerifyDigest(gostPub, digest, sig)
+			if err != nil {
+				t.Fatalf("VerifyDigest(%s): %v", c, err)
+			}
+			if !ok2 {
+				t.Errorf("crypto.Signer signature rejected for %s", c)
+			}
+		})
+	}
+}
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()

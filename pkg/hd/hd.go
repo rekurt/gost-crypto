@@ -1,10 +1,10 @@
 // Package hd implements hierarchical deterministic (HD) key derivation
 // for GOST R 34.10-2012, inspired by BIP-32.
 //
-// It uses HKDF-Streebog to derive chain codes and key material from a
-// master seed, with a BIP-32-style path notation (e.g. "m/44'/0'/0").
-// Both chain codes and private keys are deterministically derived from
-// the seed using HKDF-Streebog and LoadPrivKey.
+// It uses HKDF-Streebog to deterministically derive chain codes and
+// private key material from a master seed, with a BIP-32-style path
+// notation (e.g. "m/44'/0'/0"). Both chain codes and private keys are
+// fully deterministic: the same seed and path always produce the same key.
 package hd
 
 import (
@@ -135,9 +135,10 @@ func ParsePath(path string) ([]PathComponent, error) {
 // The seed should be high-entropy random bytes (at least 16 bytes;
 // 32 or 64 bytes recommended).
 //
-// The chain code is deterministically derived via HKDF-Streebog-512
-// from the seed. However, the private key is currently generated
-// randomly (see package-level documentation for the limitation).
+// Both the chain code and private key are deterministically derived
+// via HKDF-Streebog-512 from the seed. If the initial HKDF material
+// falls outside the valid range [1, q-1], rejection sampling with
+// deterministic re-derivation is applied (see loadKeyWithRetry).
 func Master(seed []byte, c Curve) (*DerivedKey, error) {
 	if len(seed) == 0 {
 		return nil, ErrEmptySeed
@@ -180,9 +181,8 @@ func Master(seed []byte, c Curve) (*DerivedKey, error) {
 // Each path component produces a new child chain code via HKDF using
 // the parent chain code and the serialized index as inputs.
 //
-// NOTE: the returned private key is currently random at each level
-// (see package-level documentation). The chain code derivation is
-// fully deterministic.
+// Both chain codes and private keys are deterministically derived
+// from the parent key material using HKDF-Streebog.
 func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 	components, err := ParsePath(path)
 	if err != nil {

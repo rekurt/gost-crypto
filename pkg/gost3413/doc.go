@@ -1,13 +1,19 @@
-// Package gost3413 implements GOST R 34.13-2015 MGM (Multilinear Galois Mode)
-// authenticated encryption backed by OpenSSL gost-engine.
+// Package gost3413 implements GOST R 34.13-2015 block cipher modes of operation
+// backed by OpenSSL gost-engine.
 //
-// MGM is the Russian national standard for authenticated encryption with
-// associated data (AEAD), operating on top of the Kuznechik block cipher.
-// This package implements the standard [crypto/cipher.AEAD] interface.
+// # Supported Modes
+//
+//   - [NewMGMFromKey] — MGM (Multilinear Galois Mode) authenticated encryption (AEAD)
+//   - [NewKuznechikCTR], [NewMagmaCTR] — CTR (counter) mode
+//   - [NewKuznechikCBC], [NewMagmaCBC] — CBC (cipher block chaining) mode
+//   - [NewKuznechikCFB], [NewMagmaCFB] — CFB (cipher feedback) mode
+//
+// All modes support both Kuznechik (128-bit block) and Magma (64-bit block)
+// as the underlying block cipher.
 //
 // # Usage
 //
-// Create an MGM cipher with [NewMGMFromKey] using a 32-byte Kuznechik key:
+// Create an MGM cipher with [NewMGMFromKey] using a 32-byte key:
 //
 //	aead, err := gost3413.NewMGMFromKey(key)
 //	if err != nil {
@@ -21,5 +27,5 @@
 //
 // # Standards
 //
-// GOST R 34.13-2015 (MGM mode), GOST R 34.12-2015 (Kuznechik cipher).
+// GOST R 34.13-2015 (modes of operation), GOST R 34.12-2015 (Kuznechik and Magma ciphers).
 package gost3413
