@@ -15,7 +15,9 @@ func TestHMAC256_KnownVector(t *testing.T) {
 	data := []byte("test message for HMAC")
 
 	mac := NewHMAC256(key)
-	mac.Write(data)
+	if _, err := mac.Write(data); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
 	result := mac.Sum(nil)
 
 	if len(result) != 32 {
@@ -24,7 +26,9 @@ func TestHMAC256_KnownVector(t *testing.T) {
 
 	// Verify the output is deterministic.
 	mac2 := NewHMAC256(key)
-	mac2.Write(data)
+	if _, err := mac2.Write(data); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
 	result2 := mac2.Sum(nil)
 	if hex.EncodeToString(result) != hex.EncodeToString(result2) {
 		t.Error("HMAC-256 is not deterministic")
@@ -41,11 +45,15 @@ func TestHMAC512_Deterministic(t *testing.T) {
 	data := []byte("test message for HMAC-512")
 
 	mac1 := NewHMAC512(key)
-	mac1.Write(data)
+	if _, err := mac1.Write(data); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
 	r1 := mac1.Sum(nil)
 
 	mac2 := NewHMAC512(key)
-	mac2.Write(data)
+	if _, err := mac2.Write(data); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
 	r2 := mac2.Sum(nil)
 
 	if len(r1) != 64 {

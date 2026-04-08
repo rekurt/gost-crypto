@@ -142,7 +142,9 @@ func TestWrite_AcceptsLargeInput(t *testing.T) {
 
 func TestReset_ClearsBuffer(t *testing.T) {
 	h := &streebogHash{}
-	h.Write([]byte("some data"))
+	if _, err := h.Write([]byte("some data")); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
 	h.Reset()
 
 	if len(h.buf) != 0 {
