@@ -45,6 +45,17 @@ func NewMagmaCTR(key []byte) (*CTR, error) {
 	return c, nil
 }
 
+// NID returns the OpenSSL cipher NID, for use with [EncryptReader]/[DecryptReader].
+func (c *CTR) NID() int { return c.nid }
+
+// Key returns a copy of the key for use with [EncryptReader]/[DecryptReader].
+// The caller must securely erase the returned slice when done.
+func (c *CTR) Key() []byte {
+	k := make([]byte, len(c.key))
+	copy(k, c.key[:])
+	return k
+}
+
 // Encrypt encrypts plaintext using CTR mode with the given IV.
 // The IV size depends on the underlying cipher and gost-engine implementation.
 func (c *CTR) Encrypt(iv, plaintext []byte) ([]byte, error) {

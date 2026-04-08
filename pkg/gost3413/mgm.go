@@ -17,9 +17,9 @@ type mgmAEAD struct {
 	key [32]byte
 }
 
-// NewMGMFromKey creates a cipher.AEAD using Kuznechik-MGM.
+// NewKuznechikMGMFromKey creates a cipher.AEAD using Kuznechik-MGM.
 // key must be exactly 32 bytes.
-func NewMGMFromKey(key []byte) (cipher.AEAD, error) {
+func NewKuznechikMGMFromKey(key []byte) (cipher.AEAD, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
@@ -40,7 +40,7 @@ func (m *mgmAEAD) Overhead() int  { return mgmTagSize }
 // nonce must be NonceSize() bytes long and unique for each call.
 func (m *mgmAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	if len(nonce) != mgmNonceSize {
-		panic("gost3413: incorrect nonce length")
+		panic("gost3413: incorrect nonce length for Kuznechik-MGM")
 	}
 
 	ctx, err := openssl.NewCipherCtx()
@@ -94,7 +94,7 @@ func (m *mgmAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 // ciphertext must include the authentication tag (last Overhead() bytes).
 func (m *mgmAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
 	if len(nonce) != mgmNonceSize {
-		return nil, errors.New("gost3413: incorrect nonce length")
+		return nil, errors.New("gost3413: incorrect nonce length for Kuznechik-MGM")
 	}
 	if len(ciphertext) < mgmTagSize {
 		return nil, errors.New("gost3413: ciphertext too short")
@@ -151,6 +151,13 @@ func (m *mgmAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, e
 func (m *mgmAEAD) Zeroize() {
 	openssl.CleanseBytes(m.key[:])
 	openssl.MunlockBytes(m.key[:])
+}
+
+// NewMGMFromKey is a backward-compatible alias for [NewKuznechikMGMFromKey].
+//
+// Deprecated: Use NewKuznechikMGMFromKey for consistency with other mode constructors.
+func NewMGMFromKey(key []byte) (cipher.AEAD, error) {
+	return NewKuznechikMGMFromKey(key)
 }
 
 // sliceForAppend takes a destination slice and a requested number of bytes.

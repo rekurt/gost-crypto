@@ -43,6 +43,17 @@ func NewMagmaCFB(key []byte) (*CFB, error) {
 	return c, nil
 }
 
+// NID returns the OpenSSL cipher NID, for use with [EncryptReader]/[DecryptReader].
+func (c *CFB) NID() int { return c.nid }
+
+// Key returns a copy of the key for use with [EncryptReader]/[DecryptReader].
+// The caller must securely erase the returned slice when done.
+func (c *CFB) Key() []byte {
+	k := make([]byte, len(c.key))
+	copy(k, c.key[:])
+	return k
+}
+
 // Encrypt encrypts plaintext using CFB mode with the given IV.
 func (c *CFB) Encrypt(iv, plaintext []byte) ([]byte, error) {
 	ctx, err := openssl.NewCipherCtx()

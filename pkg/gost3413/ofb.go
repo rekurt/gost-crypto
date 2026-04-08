@@ -44,6 +44,17 @@ func NewMagmaOFB(key []byte) (*OFB, error) {
 	return o, nil
 }
 
+// NID returns the OpenSSL cipher NID, for use with [EncryptReader]/[DecryptReader].
+func (o *OFB) NID() int { return o.nid }
+
+// Key returns a copy of the key for use with [EncryptReader]/[DecryptReader].
+// The caller must securely erase the returned slice when done.
+func (o *OFB) Key() []byte {
+	k := make([]byte, len(o.key))
+	copy(k, o.key[:])
+	return k
+}
+
 // Encrypt encrypts plaintext using OFB mode with the given IV.
 func (o *OFB) Encrypt(iv, plaintext []byte) ([]byte, error) {
 	return o.xor(iv, plaintext, true)
