@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "gost-crypto"
+abstract: "Go library for Russian GOST cryptographic standards backed by OpenSSL gost-engine"
+license: MIT
+url: "https://github.com/rekurt/gost-crypto"
+repository-code: "https://github.com/rekurt/gost-crypto"
+keywords:
+  - gost
+  - cryptography
+  - digital-signatures
+  - streebog
+  - kuznechik
+  - openssl
+  - golang
+  - gost-r-34-10-2012
+  - gost-r-34-11-2012
+  - gost-r-34-12-2015
+  - gost-r-34-13-2015

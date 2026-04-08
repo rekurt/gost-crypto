@@ -1,5 +1,3 @@
-// Package gost3413 implements GOST R 34.13-2015 cipher modes (MGM AEAD)
-// backed by OpenSSL gost-engine.
 package gost3413
 
 import (

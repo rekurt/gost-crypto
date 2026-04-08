@@ -1,5 +1,3 @@
-// Package gost3412 implements GOST R 34.12-2015 block ciphers (Kuznechik)
-// backed by OpenSSL gost-engine.
 package gost3412
 
 import (

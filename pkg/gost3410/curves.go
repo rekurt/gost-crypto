@@ -1,5 +1,3 @@
-// Package gost3410 implements GOST R 34.10-2012 digital signatures
-// using OpenSSL gost-engine.
 package gost3410
 
 import (

@@ -3,20 +3,33 @@
 [![CI](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml/badge.svg)](https://github.com/rekurt/gost-crypto/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rekurt/gost-crypto)](https://goreportcard.com/report/github.com/rekurt/gost-crypto)
 [![GoDoc](https://pkg.go.dev/badge/github.com/rekurt/gost-crypto)](https://pkg.go.dev/github.com/rekurt/gost-crypto)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/rekurt/gost-crypto)](go.mod)
 
-Production-ready Go library for Russian GOST cryptographic standards, backed by OpenSSL gost-engine. Zero external Go dependencies — all cryptography is delegated to OpenSSL for constant-time operations and battle-tested implementations.
+Go library for Russian GOST cryptographic standards (GOST R 34.10-2012, GOST R 34.11-2012 Streebog, GOST R 34.12-2015 Kuznechik, GOST R 34.13-2015 MGM), powered by OpenSSL gost-engine. Digital signatures, hashing, encryption, key agreement, and key derivation with zero external Go dependencies.
 
 [API Reference](docs/API.md) | [Examples](docs/EXAMPLES.md) | [На русском](docs/README.ru.md) | [Contributing](docs/CONTRIBUTING.md)
 
+## Why gost-crypto?
+
+- **OpenSSL backend** — all cryptographic operations run through OpenSSL gost-engine, ensuring constant-time execution and FIPS-level implementation quality
+- **Complete GOST toolkit** — digital signatures, hashing, symmetric encryption, AEAD, key agreement, and key derivation in a single library
+- **Standard Go interfaces** — `hash.Hash`, `cipher.Block`, `cipher.AEAD` — drop-in compatible with Go's crypto ecosystem
+- **Zero Go dependencies** — `go.mod` has no `require` directives; only OpenSSL + CGO at build time
+- **All 8 TC26 curves** — both 256-bit and 512-bit elliptic curve parameter sets
+- **HD key derivation** — BIP32-style hierarchical deterministic keys for GOST curves
+
 ## Features
 
-- **GOST R 34.11-2012 Streebog** — 256-bit and 512-bit cryptographic hash functions
-- **GOST R 34.10-2012** — elliptic curve digital signatures with all 8 TC26 parameter sets
-- **GOST R 34.12-2015 Kuznechik** — 128-bit block cipher (`cipher.Block` interface)
-- **GOST R 34.13-2015 MGM** — authenticated encryption (`cipher.AEAD` interface)
-- **VKO key agreement** — GOST R 34.10-2012 ECDH-based shared secret derivation
-- **HD key derivation** — deterministic hierarchical keys with BIP32-style paths
-- **High-level API** — facade combining hashing and signing in a single call
+| Standard | Package | Description | Go Interface |
+|----------|---------|-------------|--------------|
+| GOST R 34.10-2012 | `pkg/gost3410` | Elliptic curve digital signatures | — |
+| GOST R 34.11-2012 | `pkg/gost3411` | Streebog hash (256/512-bit) | `hash.Hash` |
+| GOST R 34.12-2015 | `pkg/gost3412` | Kuznechik block cipher | `cipher.Block` |
+| GOST R 34.13-2015 | `pkg/gost3413` | MGM authenticated encryption | `cipher.AEAD` |
+| RFC 7836 | `pkg/gost3410` | VKO key agreement (ECDH) | — |
+| R 50.1.113-2016 | `pkg/kdf` | KDF_GOSTR3411, HKDF-Streebog | — |
+| BIP-32 style | `pkg/hd` | HD key derivation | — |
 
 ## Requirements
 
@@ -78,7 +91,35 @@ secretBA, _ := gostcrypto.Agree(privB, privA.PublicKey(), ukm)
 // bytes.Equal(secretAB, secretBA) == true
 ```
 
+### Kuznechik Encryption (AEAD)
+
+```go
+import "github.com/rekurt/gost-crypto/pkg/gost3413"
+
+aead, _ := gost3413.NewMGMFromKey(key) // 32-byte key
+
+nonce := make([]byte, aead.NonceSize())
+rand.Read(nonce)
+
+ciphertext := aead.Seal(nil, nonce, plaintext, additionalData)
+```
+
 More examples: [docs/EXAMPLES.md](docs/EXAMPLES.md) | [_examples/](_examples/)
+
+## Supported Curves
+
+All 8 TC26 elliptic curve parameter sets are supported:
+
+| Curve | Size | OID | Notes |
+|-------|------|-----|-------|
+| `CurveTC26_256_A` | 256-bit | 1.2.643.7.1.2.1.1.1 | Recommended |
+| `CurveTC26_256_B` | 256-bit | 1.2.643.2.2.35.1 | CryptoPro-A |
+| `CurveTC26_256_C` | 256-bit | 1.2.643.2.2.35.2 | CryptoPro-B |
+| `CurveTC26_256_D` | 256-bit | 1.2.643.2.2.35.3 | CryptoPro-C |
+| `CurveTC26_512_A` | 512-bit | 1.2.643.7.1.2.1.2.1 | |
+| `CurveTC26_512_B` | 512-bit | 1.2.643.7.1.2.1.2.2 | |
+| `CurveTC26_512_C` | 512-bit | 1.2.643.7.1.2.1.2.3 | |
+| `CurveTC26_512_D` | 512-bit | 1.2.643.7.1.2.1.2.0 | Test curve |
 
 ## Package Structure
 
@@ -106,8 +147,21 @@ gost-crypto/
 | [API Reference](docs/API.md) | Complete API for all packages |
 | [Examples](docs/EXAMPLES.md) | Validated usage patterns |
 | [Deployment](docs/DEPLOYMENT.md) | OpenSSL + gost-engine setup |
-| [Migration v0→v1](docs/MIGRATION.md) | Breaking changes and migration path |
+| [Migration v0 to v1](docs/MIGRATION.md) | Breaking changes and migration path |
 | [Threat Model](docs/THREAT_MODEL.md) | Security assumptions and limitations |
+| [Security Policy](SECURITY.md) | Vulnerability disclosure |
+
+## Standards Compliance
+
+This library implements the following Russian and international standards:
+
+- **GOST R 34.10-2012** / [RFC 7091](https://datatracker.ietf.org/doc/html/rfc7091) — Digital signature algorithm
+- **GOST R 34.11-2012** / [RFC 6986](https://datatracker.ietf.org/doc/html/rfc6986) — Streebog hash function
+- **GOST R 34.12-2015** — Kuznechik block cipher
+- **GOST R 34.13-2015** — MGM authenticated encryption mode
+- **RFC 7836** — VKO key agreement
+- **R 50.1.113-2016** — KDF_GOSTR3411 key derivation
+- **[TC26](http://www.tc26.ru/)** — All 8 standardized elliptic curve parameter sets
 
 ## Contributing
 

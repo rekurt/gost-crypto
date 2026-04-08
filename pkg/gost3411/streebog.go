@@ -1,5 +1,3 @@
-// Package gost3411 implements GOST R 34.11-2012 (Streebog) hash function
-// backed by OpenSSL gost-engine.
 package gost3411
 
 import (
