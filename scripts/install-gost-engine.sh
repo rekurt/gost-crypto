@@ -2,26 +2,21 @@
 set -euo pipefail
 
 GOST_ENGINE_VERSION="${GOST_ENGINE_VERSION:-v3.0.3}"
-GOST_ENGINE_SHA256="${GOST_ENGINE_SHA256:-}"
 BUILD_DIR=$(mktemp -d)
 trap 'rm -rf "${BUILD_DIR}"' EXIT
 
 echo "==> Building gost-engine ${GOST_ENGINE_VERSION}"
 cd "${BUILD_DIR}"
-curl -fsSL -o engine.tar.gz \
-    "https://codeload.github.com/gost-engine/engine/tar.gz/refs/tags/${GOST_ENGINE_VERSION}"
-if [ -n "${GOST_ENGINE_SHA256}" ]; then
-    echo "${GOST_ENGINE_SHA256}  engine.tar.gz" | sha256sum -c -
-else
-    echo "WARNING: GOST_ENGINE_SHA256 is not set; skipping archive checksum verification" >&2
-fi
-tar -xzf engine.tar.gz
-cd "engine-${GOST_ENGINE_VERSION#v}"
+
+# Clone with submodules instead of tarball — GitHub tarballs do not
+# include git submodule contents (libprov is empty in the tarball).
+git clone --depth 1 --branch "${GOST_ENGINE_VERSION}" \
+    --recurse-submodules --shallow-submodules \
+    https://github.com/gost-engine/engine.git gost-engine
+cd gost-engine
 
 mkdir -p build && cd build
-# BUILD_PROVIDER=OFF skips the libprov submodule which is not included
-# in GitHub-generated tarballs (git submodules are not packed).
-cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_PROVIDER=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Release
 
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 make -j"${NPROC}"
