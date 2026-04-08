@@ -19,7 +19,9 @@ tar -xzf engine.tar.gz
 cd "engine-${GOST_ENGINE_VERSION#v}"
 
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+# BUILD_PROVIDER=OFF skips the libprov submodule which is not included
+# in GitHub-generated tarballs (git submodules are not packed).
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_PROVIDER=OFF
 
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 make -j"${NPROC}"
