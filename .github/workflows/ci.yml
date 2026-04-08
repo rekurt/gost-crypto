@@ -61,7 +61,7 @@ jobs:
           cat "${OPENSSL_CNF}.bak" | sudo tee -a "$OPENSSL_CNF" > /dev/null
 
       - name: Verify gost-engine loads
-        run: openssl engine gost -t || echo "WARNING: gost-engine not loadable, tests will be skipped"
+        run: openssl engine gost -t
 
       - name: Build
         run: CGO_ENABLED=1 go build ./...
