@@ -56,9 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by `ParsePublicKeyPEM`. Calling Zeroize on a shared handle is now
   a documented no-op rather than an invisible use-after-free that
   invalidated the owning `PrivKey`.
-- Migrated `.golangci.yml` to the v2 config format (`version: "2"`)
-  so it works with golangci-lint v2.x, which the CI action pulls via
-  `version: latest`. Same linter set and settings as before.
 - `pkg/gost3413/stream.go`: explicitly ignore the error from the
   idempotent auto-close in `cipherStreamReader.Read` after EOF. The
   error has no surface to be returned on once the caller has already
