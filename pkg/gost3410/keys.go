@@ -31,12 +31,16 @@ type PrivKey struct {
 
 // PubKey holds a GOST R 34.10-2012 public key backed by OpenSSL.
 //
-// PubKey shares the EVP_PKEY handle owned by the originating PrivKey.
-// Do NOT free or zeroize the PubKey separately — the PrivKey owns the
-// handle lifetime.
+// A PubKey obtained from (*PrivKey).PublicKey() shares its EVP_PKEY
+// handle with the owning PrivKey and must NOT be freed independently —
+// the PrivKey controls the handle lifetime. A PubKey returned by
+// ParsePublicKeyPEM owns its handle and must be released with
+// ZeroizePublicKey when no longer needed. The ownsHandle field
+// distinguishes the two cases.
 type PubKey struct {
-	handle *openssl.KeyHandle // shared, read-only; owned by PrivKey
-	curve  Curve
+	handle     *openssl.KeyHandle // shared or owned; see ownsHandle
+	curve      Curve
+	ownsHandle bool // true only for standalone PubKey values
 }
 
 // LoadPrivKey creates a GOST R 34.10-2012 private key from raw bytes.
@@ -89,9 +93,12 @@ func GenerateKey(c Curve) (*PrivKey, error) {
 }
 
 // PublicKey returns the public key derived from this private key.
-// The returned PubKey shares the same underlying handle — do not free it.
+// The returned PubKey shares the same underlying EVP_PKEY handle with
+// the PrivKey — its ownsHandle flag is false, so ZeroizePublicKey is
+// a safe no-op on it. Handle lifetime is controlled entirely by the
+// PrivKey; do not attempt to free the shared handle directly.
 func (k *PrivKey) PublicKey() *PubKey {
-	return &PubKey{handle: k.handle, curve: k.curve}
+	return &PubKey{handle: k.handle, curve: k.curve, ownsHandle: false}
 }
 
 // Curve returns the curve parameter set associated with this private key.

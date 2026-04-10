@@ -87,6 +87,42 @@ static EVP_PKEY *go_pubkey_from_pem(const char *pem_data, int pem_len) {
 static int go_pkey_id(EVP_PKEY *pkey) {
     return EVP_PKEY_id(pkey);
 }
+
+// go_pem_i2d_private_key serializes pkey to DER via i2d_PrivateKey.
+// Renamed to avoid clashing with go_i2d_private_key declared in
+// evp_pkey.go's preamble — CGO preambles are per-file.
+// On success *out is a caller-owned malloc'd buffer; return value is
+// the DER length (<=0 on error).
+static int go_pem_i2d_private_key(EVP_PKEY *pkey, unsigned char **out) {
+    int len = i2d_PrivateKey(pkey, NULL);
+    if (len <= 0) return len;
+    *out = (unsigned char *)malloc(len);
+    if (!*out) return -1;
+    unsigned char *p = *out;
+    int len2 = i2d_PrivateKey(pkey, &p);
+    if (len2 <= 0) {
+        OPENSSL_cleanse(*out, len);
+        free(*out);
+        *out = NULL;
+    }
+    return len2;
+}
+
+// go_pem_i2d_pubkey serializes pkey's public part to SubjectPublicKeyInfo
+// DER via i2d_PUBKEY. Renamed for the same reason as above.
+static int go_pem_i2d_pubkey(EVP_PKEY *pkey, unsigned char **out) {
+    int len = i2d_PUBKEY(pkey, NULL);
+    if (len <= 0) return len;
+    *out = (unsigned char *)malloc(len);
+    if (!*out) return -1;
+    unsigned char *p = *out;
+    int len2 = i2d_PUBKEY(pkey, &p);
+    if (len2 <= 0) {
+        free(*out);
+        *out = NULL;
+    }
+    return len2;
+}
 */
 import "C"
 import (
@@ -195,4 +231,47 @@ func ParsePublicKeyPEM(pem []byte) (*KeyHandle, int, error) {
 	}
 
 	return NewKeyHandle(pkey), nid, nil
+}
+
+// PrivKeyDER returns the DER encoding of the private key behind h,
+// using OpenSSL's i2d_PrivateKey. For GOST keys the result is a
+// PKCS#8-style PrivateKeyInfo whose AlgorithmIdentifier.parameters
+// field carries the TC26 paramSet OID — callers can parse that to
+// recover the exact curve that the key was built with.
+//
+// The returned bytes are a fresh Go copy; the underlying C buffer is
+// cleansed and freed before return.
+func PrivKeyDER(h *KeyHandle) ([]byte, error) {
+	if h == nil || h.IsNil() {
+		return nil, errors.New("openssl: nil key handle")
+	}
+	var cDer *C.uchar
+	n := C.go_pem_i2d_private_key(h.pkey, &cDer)
+	if n <= 0 || cDer == nil {
+		return nil, fmtSSLError("i2d_PrivateKey")
+	}
+	out := C.GoBytes(unsafe.Pointer(cDer), n)
+	// i2d_PrivateKey malloc's the buffer; cleanse before free to
+	// avoid leaving key material on the C heap.
+	C.memset(unsafe.Pointer(cDer), 0, C.size_t(n))
+	C.free(unsafe.Pointer(cDer))
+	return out, nil
+}
+
+// PubKeyDER returns the SubjectPublicKeyInfo DER encoding of the
+// public key behind h, using OpenSSL's i2d_PUBKEY. For GOST keys
+// this contains the same TC26 paramSet OID in its
+// AlgorithmIdentifier as PrivKeyDER would.
+func PubKeyDER(h *KeyHandle) ([]byte, error) {
+	if h == nil || h.IsNil() {
+		return nil, errors.New("openssl: nil key handle")
+	}
+	var cDer *C.uchar
+	n := C.go_pem_i2d_pubkey(h.pkey, &cDer)
+	if n <= 0 || cDer == nil {
+		return nil, fmtSSLError("i2d_PUBKEY")
+	}
+	out := C.GoBytes(unsafe.Pointer(cDer), n)
+	C.free(unsafe.Pointer(cDer))
+	return out, nil
 }

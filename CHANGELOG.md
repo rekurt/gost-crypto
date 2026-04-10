@@ -39,6 +39,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ParsePrivateKeyPEM` / `ParsePublicKeyPEM` now recover the **exact**
+  TC26 parameter set from the encoded key's AlgorithmIdentifier
+  instead of collapsing 256-bit keys to `CurveTC26_256_A` and
+  512-bit keys to `CurveTC26_512_A`. Curve identity round-trips for
+  every paramSet (A/B/C/D × 256/512); unknown paramSet OIDs are
+  rejected. Implemented via pure-Go `encoding/asn1` parsing of the
+  PKCS#8 PrivateKeyInfo / SubjectPublicKeyInfo returned by
+  OpenSSL's `i2d_PrivateKey` / `i2d_PUBKEY`, so the detection logic
+  has deterministic unit test coverage even without gost-engine
+  present (`TestCurveFromDER_AllParamSets`).
+- `(*PubKey).ZeroizePublicKey` is now safe to call on **any**
+  `PubKey` value. A new `ownsHandle` flag distinguishes a shared
+  `PubKey` returned by `(*PrivKey).PublicKey()` (where the owning
+  `PrivKey` controls lifetime) from a standalone `PubKey` returned
+  by `ParsePublicKeyPEM`. Calling Zeroize on a shared handle is now
+  a documented no-op rather than an invisible use-after-free that
+  invalidated the owning `PrivKey`.
 - Migrated `.golangci.yml` to the v2 config format (`version: "2"`)
   so it works with golangci-lint v2.x, which the CI action pulls via
   `version: latest`. Same linter set and settings as before.
@@ -54,7 +71,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   environments where OpenSSL gost-engine is not installed.
 - `MarshalPrivateKeyPEM` currently returns unencrypted PKCS#8.
   Password-protected PKCS#8 is not yet exposed.
-- `ParsePrivateKeyPEM` / `ParsePublicKeyPEM` map the parsed key to
-  the canonical paramSet (A) for its bit width. Callers needing to
-  distinguish between TC26 paramSet B/C/D of the same width should
-  inspect the ASN.1 paramSet OID manually.
