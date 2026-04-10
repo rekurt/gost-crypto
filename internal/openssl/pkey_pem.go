@@ -251,9 +251,12 @@ func PrivKeyDER(h *KeyHandle) ([]byte, error) {
 		return nil, fmtSSLError("i2d_PrivateKey")
 	}
 	out := C.GoBytes(unsafe.Pointer(cDer), n)
-	// i2d_PrivateKey malloc's the buffer; cleanse before free to
-	// avoid leaving key material on the C heap.
-	C.memset(unsafe.Pointer(cDer), 0, C.size_t(n))
+	// i2d_PrivateKey malloc's the buffer; cleanse via OPENSSL_cleanse
+	// before free so the wipe is not optimised away as a dead store.
+	// A plain memset right before free is a classic compiler footgun;
+	// OPENSSL_cleanse uses a memory barrier to guarantee the write is
+	// retained.
+	Cleanse(unsafe.Pointer(cDer), int(n))
 	C.free(unsafe.Pointer(cDer))
 	return out, nil
 }
