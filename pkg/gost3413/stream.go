@@ -63,8 +63,11 @@ func (r *cipherStreamReader) Read(p []byte) (int, error) {
 		return n, nil
 	}
 	if r.eof {
-		// Auto-close on subsequent reads after EOF.
-		r.Close()
+		// Auto-close on subsequent reads after EOF. Ignoring the error
+		// is intentional: the caller has already seen io.EOF on the
+		// previous read, so there's no surface to return it on, and
+		// Close is idempotent here.
+		_ = r.Close()
 		return 0, io.EOF
 	}
 
