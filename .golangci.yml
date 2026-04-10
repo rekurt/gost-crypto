@@ -1,15 +1,18 @@
+version: "2"
+
 run:
   timeout: 5m
 
-linters-settings:
-  errcheck:
-    # hash.Hash.Write() never returns errors per Go contract.
-    # Exclude Write calls in test files to reduce noise.
-    exclude-functions:
-      - (hash.Hash).Write
-      - (*testing.T).Fatalf
-      - (*testing.T).Errorf
+linters:
+  settings:
+    errcheck:
+      # hash.Hash.Write() never returns errors per Go contract.
+      # Exclude Write calls in test files to reduce noise.
+      exclude-functions:
+        - (hash.Hash).Write
+        - (*testing.T).Fatalf
+        - (*testing.T).Errorf
 
-issues:
-  exclude-dirs:
-    - _examples
+  exclusions:
+    paths:
+      - _examples

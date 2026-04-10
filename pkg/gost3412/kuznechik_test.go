@@ -18,7 +18,9 @@ func mustHex(s string) []byte {
 }
 
 // TestKuznechik_GOSTR3412_AppendixA verifies the normative test vector
-// from GOST R 34.12-2015, Appendix A.1.
+// from GOST R 34.12-2015, Appendix A.1, also republished in
+// RFC 7801 Section 5.5 (Test Encryption).
+//
 // Key:        8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef
 // Plaintext:  1122334455667700ffeeddccbbaa9988
 // Ciphertext: 7f679d90bebc24305a468d42b9d4edcd
@@ -46,6 +48,51 @@ func TestKuznechik_GOSTR3412_AppendixA(t *testing.T) {
 
 	if !bytes.Equal(pt, plaintext) {
 		t.Errorf("Kuznechik decrypt mismatch:\n  got  %x\n  want %x", pt, plaintext)
+	}
+}
+
+// TestKuznechik_RFC7801 re-runs the RFC 7801 Section 5.5 encryption KAT
+// and additionally verifies that sequential Encrypt calls on the same
+// cipher produce independent results (i.e. ECB statelessness across calls),
+// which protects against regressions in the cached EVP_CIPHER_CTX handling.
+func TestKuznechik_RFC7801(t *testing.T) {
+	skipIfNoEngine(t)
+
+	// Normative vector: RFC 7801 Section 5.5.
+	key := mustHex("8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef")
+	plaintext := mustHex("1122334455667700ffeeddccbbaa9988")
+	expectedCT := mustHex("7f679d90bebc24305a468d42b9d4edcd")
+
+	b, err := NewKuznechik(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Encrypt the same block twice in a row — both outputs must equal
+	// the expected ciphertext (ECB is stateless).
+	ct1 := make([]byte, KuznechikBlockSize)
+	ct2 := make([]byte, KuznechikBlockSize)
+	b.Encrypt(ct1, plaintext)
+	b.Encrypt(ct2, plaintext)
+
+	if !bytes.Equal(ct1, expectedCT) {
+		t.Errorf("Kuznechik RFC 7801 first encrypt mismatch:\n  got  %x\n  want %x", ct1, expectedCT)
+	}
+	if !bytes.Equal(ct2, expectedCT) {
+		t.Errorf("Kuznechik RFC 7801 second encrypt mismatch:\n  got  %x\n  want %x", ct2, expectedCT)
+	}
+
+	// Decrypt twice in a row — both outputs must equal the expected plaintext.
+	pt1 := make([]byte, KuznechikBlockSize)
+	pt2 := make([]byte, KuznechikBlockSize)
+	b.Decrypt(pt1, expectedCT)
+	b.Decrypt(pt2, expectedCT)
+
+	if !bytes.Equal(pt1, plaintext) {
+		t.Errorf("Kuznechik RFC 7801 first decrypt mismatch:\n  got  %x\n  want %x", pt1, plaintext)
+	}
+	if !bytes.Equal(pt2, plaintext) {
+		t.Errorf("Kuznechik RFC 7801 second decrypt mismatch:\n  got  %x\n  want %x", pt2, plaintext)
 	}
 }
 

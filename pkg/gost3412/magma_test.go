@@ -7,7 +7,9 @@ import (
 )
 
 // TestMagma_GOSTR3412_AppendixA verifies the normative test vector
-// from GOST R 34.12-2015, Appendix A.2.
+// from GOST R 34.12-2015, Appendix A.2, also republished in
+// RFC 8891 Appendix A (Test Vectors).
+//
 // Key:        ffeeddccbbaa99887766554433221100f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
 // Plaintext:  fedcba9876543210
 // Ciphertext: 4ee901e5c2d8ca3d
@@ -35,6 +37,47 @@ func TestMagma_GOSTR3412_AppendixA(t *testing.T) {
 
 	if !bytes.Equal(pt, plaintext) {
 		t.Errorf("Magma decrypt mismatch:\n  got  %x\n  want %x", pt, plaintext)
+	}
+}
+
+// TestMagma_RFC8891 re-runs the RFC 8891 Appendix A encryption KAT
+// and exercises sequential encrypt/decrypt on the same cipher handle
+// to verify ECB statelessness between calls.
+func TestMagma_RFC8891(t *testing.T) {
+	skipIfNoEngine(t)
+
+	// Normative vector: RFC 8891 Appendix A.
+	key := mustMagmaHex("ffeeddccbbaa99887766554433221100f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff")
+	plaintext := mustMagmaHex("fedcba9876543210")
+	expectedCT := mustMagmaHex("4ee901e5c2d8ca3d")
+
+	b, err := NewMagma(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ct1 := make([]byte, MagmaBlockSize)
+	ct2 := make([]byte, MagmaBlockSize)
+	b.Encrypt(ct1, plaintext)
+	b.Encrypt(ct2, plaintext)
+
+	if !bytes.Equal(ct1, expectedCT) {
+		t.Errorf("Magma RFC 8891 first encrypt mismatch:\n  got  %x\n  want %x", ct1, expectedCT)
+	}
+	if !bytes.Equal(ct2, expectedCT) {
+		t.Errorf("Magma RFC 8891 second encrypt mismatch:\n  got  %x\n  want %x", ct2, expectedCT)
+	}
+
+	pt1 := make([]byte, MagmaBlockSize)
+	pt2 := make([]byte, MagmaBlockSize)
+	b.Decrypt(pt1, expectedCT)
+	b.Decrypt(pt2, expectedCT)
+
+	if !bytes.Equal(pt1, plaintext) {
+		t.Errorf("Magma RFC 8891 first decrypt mismatch:\n  got  %x\n  want %x", pt1, plaintext)
+	}
+	if !bytes.Equal(pt2, plaintext) {
+		t.Errorf("Magma RFC 8891 second decrypt mismatch:\n  got  %x\n  want %x", pt2, plaintext)
 	}
 }
 
