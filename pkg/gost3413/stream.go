@@ -1,132 +1,53 @@
 package gost3413
 
 import (
+	"crypto/cipher"
 	"io"
-
-	"github.com/rekurt/gost-crypto/internal/openssl"
 )
 
-// EncryptReader returns an io.ReadCloser that encrypts all data read from src
-// using the given cipher NID, key, and IV. The entire stream shares a single
-// cipher context, preserving correct counter/feedback state across reads.
+// EncryptReader returns an io.ReadCloser that encrypts all data read from
+// src through the supplied cipher.Stream.
 //
-// Call Close() when done to release the cipher context deterministically.
-// The context is also released automatically when the source returns io.EOF.
-func EncryptReader(nid int, key, iv []byte, src io.Reader) (io.ReadCloser, error) {
-	if err := openssl.Init(); err != nil {
-		return nil, err
+// Typical usage with the CTR / CFB / OFB mode wrappers in this package:
+//
+//	mode, _ := NewKuznechikCTR(key)
+//	r, _ := EncryptReader(mode.Stream(iv), src)
+//	io.Copy(dst, r)
+//	r.Close()
+//
+// This preserves a single mode instance across streamed reads, so
+// counter / feedback state advances correctly regardless of read-chunk
+// sizes. Close() is a no-op but kept for API symmetry with the legacy
+// io.ReadCloser contract.
+func EncryptReader(stream cipher.Stream, src io.Reader) (io.ReadCloser, error) {
+	if stream == nil {
+		return nil, io.ErrUnexpectedEOF
 	}
-	ctx, err := openssl.NewCipherCtx()
-	if err != nil {
-		return nil, err
-	}
-	if err := ctx.InitEncrypt(nid, key, iv); err != nil {
-		ctx.Close()
-		return nil, err
-	}
-	return &cipherStreamReader{ctx: ctx, src: src}, nil
+	return &cipherStreamReader{stream: stream, src: src}, nil
 }
 
-// DecryptReader returns an io.ReadCloser that decrypts all data read from src
-// using the given cipher NID, key, and IV.
-//
-// Call Close() when done to release the cipher context deterministically.
-func DecryptReader(nid int, key, iv []byte, src io.Reader) (io.ReadCloser, error) {
-	if err := openssl.Init(); err != nil {
-		return nil, err
-	}
-	ctx, err := openssl.NewCipherCtx()
-	if err != nil {
-		return nil, err
-	}
-	if err := ctx.InitDecrypt(nid, key, iv); err != nil {
-		ctx.Close()
-		return nil, err
-	}
-	return &cipherStreamReader{ctx: ctx, src: src}, nil
+// DecryptReader is identical to EncryptReader for self-inverting modes
+// (CTR / OFB) or when given an appropriately constructed stream
+// decrypter (CFB decrypter, etc.). The wrapper just feeds source bytes
+// through cipher.Stream.XORKeyStream in both cases.
+func DecryptReader(stream cipher.Stream, src io.Reader) (io.ReadCloser, error) {
+	return EncryptReader(stream, src)
 }
 
-// cipherStreamReader maintains a single EVP_CIPHER_CTX across all reads,
-// preserving the cipher state (counter, feedback register, etc.).
+// cipherStreamReader turns a cipher.Stream into a ReadCloser over an
+// underlying io.Reader. It never allocates beyond the caller-supplied
+// read buffer.
 type cipherStreamReader struct {
-	ctx *openssl.CipherCtx
-	src io.Reader
-	buf []byte // buffered output from previous Update
-	eof bool
+	stream cipher.Stream
+	src    io.Reader
 }
 
 func (r *cipherStreamReader) Read(p []byte) (int, error) {
-	// Drain buffered output first.
-	if len(r.buf) > 0 {
-		n := copy(p, r.buf)
-		r.buf = r.buf[n:]
-		return n, nil
-	}
-	if r.eof {
-		// Auto-close on subsequent reads after EOF.
-		r.Close()
-		return 0, io.EOF
-	}
-
-	// Read from source.
-	chunk := make([]byte, len(p))
-	n, err := r.src.Read(chunk)
-
+	n, err := r.src.Read(p)
 	if n > 0 {
-		out, cryptErr := r.ctx.Update(chunk[:n])
-		if cryptErr != nil {
-			return 0, cryptErr
-		}
-		copied := copy(p, out)
-		if copied < len(out) {
-			r.buf = append(r.buf[:0], out[copied:]...)
-		}
-		if err == io.EOF {
-			// Source is done. Finalize cipher.
-			tail, finalErr := r.ctx.Final()
-			if finalErr != nil {
-				return copied, finalErr
-			}
-			if len(tail) > 0 {
-				r.buf = append(r.buf, tail...)
-			}
-			r.eof = true
-			if len(r.buf) > 0 {
-				return copied, nil // more data in buf, don't return EOF yet
-			}
-			return copied, io.EOF
-		}
-		if err != nil {
-			return copied, err
-		}
-		return copied, nil
+		r.stream.XORKeyStream(p[:n], p[:n])
 	}
-
-	if err == io.EOF {
-		// Finalize.
-		tail, finalErr := r.ctx.Final()
-		if finalErr != nil {
-			return 0, finalErr
-		}
-		r.eof = true
-		if len(tail) > 0 {
-			n := copy(p, tail)
-			if n < len(tail) {
-				r.buf = append(r.buf[:0], tail[n:]...)
-			}
-			return n, nil
-		}
-		return 0, io.EOF
-	}
-
-	return 0, err
+	return n, err
 }
 
-// Close releases the cipher context. Should be called when done reading.
-func (r *cipherStreamReader) Close() error {
-	if r.ctx != nil {
-		r.ctx.Close()
-		r.ctx = nil
-	}
-	return nil
-}
+func (r *cipherStreamReader) Close() error { return nil }

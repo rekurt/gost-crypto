@@ -4,7 +4,7 @@ import (
 	"encoding"
 	"fmt"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // Compile-time assertions: keys implement encoding interfaces.
@@ -32,7 +32,7 @@ func (k *PrivKey) MarshalBinary() ([]byte, error) {
 	out[0] = byte(k.curve)
 	copy(out[1:], raw)
 	// Wipe the intermediate raw key copy.
-	openssl.CleanseBytes(raw)
+	cryptopro.CleanseBytes(raw)
 	return out, nil
 }
 

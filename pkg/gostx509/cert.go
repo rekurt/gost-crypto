@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3410"
 )
 
@@ -26,14 +26,14 @@ type CertOptions struct {
 	NotAfter     time.Time
 }
 
-// Certificate wraps an X.509 certificate backed by OpenSSL.
+// Certificate wraps an X.509 certificate backed by CryptoPro.
 type Certificate struct {
-	cert *openssl.X509Cert
+	cert *cryptopro.X509Cert
 }
 
-// CertificateRequest wraps an X.509 CSR backed by OpenSSL.
+// CertificateRequest wraps an X.509 CSR backed by CryptoPro.
 type CertificateRequest struct {
-	req *openssl.X509Request
+	req *cryptopro.X509Request
 }
 
 // digestNID selects the appropriate Streebog NID based on the curve.
@@ -44,17 +44,17 @@ func digestNID(c gost3410.Curve) (int, error) {
 	}
 	switch sz {
 	case 32:
-		return openssl.NID_Streebog256, nil
+		return cryptopro.NID_Streebog256, nil
 	case 64:
-		return openssl.NID_Streebog512, nil
+		return cryptopro.NID_Streebog512, nil
 	default:
 		return 0, errors.New("gostx509: unsupported curve size")
 	}
 }
 
-// toOpensslName converts Subject to openssl.X509Name.
-func toOpensslName(s Subject) openssl.X509Name {
-	return openssl.X509Name{
+// toOpensslName converts Subject to cryptopro.X509Name.
+func toOpensslName(s Subject) cryptopro.X509Name {
+	return cryptopro.X509Name{
 		CommonName:         s.CommonName,
 		Organization:       s.Organization,
 		OrganizationalUnit: s.OrganizationalUnit,
@@ -86,10 +86,10 @@ func CreateSelfSigned(priv *gost3410.PrivKey, subject Subject, opts CertOptions)
 
 	handle := priv.Handle()
 	if handle == nil {
-		return nil, errors.New("gostx509: key has no OpenSSL handle")
+		return nil, errors.New("gostx509: key has no CryptoPro handle")
 	}
 
-	cert, err := openssl.CreateSelfSignedCert(
+	cert, err := cryptopro.CreateSelfSignedCert(
 		handle,
 		toOpensslName(subject),
 		serial,
@@ -117,10 +117,10 @@ func CreateCSR(priv *gost3410.PrivKey, subject Subject) (*CertificateRequest, er
 
 	handle := priv.Handle()
 	if handle == nil {
-		return nil, errors.New("gostx509: key has no OpenSSL handle")
+		return nil, errors.New("gostx509: key has no CryptoPro handle")
 	}
 
-	req, err := openssl.CreateCSR(handle, toOpensslName(subject), mdNID)
+	req, err := cryptopro.CreateCSR(handle, toOpensslName(subject), mdNID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func CreateCSR(priv *gost3410.PrivKey, subject Subject) (*CertificateRequest, er
 
 // ParseDER parses a certificate from DER-encoded bytes.
 func ParseDER(der []byte) (*Certificate, error) {
-	cert, err := openssl.ParseCertDER(der)
+	cert, err := cryptopro.ParseCertDER(der)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func ParseDER(der []byte) (*Certificate, error) {
 
 // ParsePEM parses a certificate from PEM-encoded bytes.
 func ParsePEM(pem []byte) (*Certificate, error) {
-	cert, err := openssl.ParseCertPEM(pem)
+	cert, err := cryptopro.ParseCertPEM(pem)
 	if err != nil {
 		return nil, err
 	}
@@ -176,29 +176,28 @@ func (c *Certificate) Verify(pub *gost3410.PubKey) error {
 	}
 	handle := pub.Handle()
 	if handle == nil {
-		return errors.New("gostx509: public key has no OpenSSL handle")
+		return errors.New("gostx509: public key has no CryptoPro handle")
 	}
-	return openssl.VerifyCert(c.cert, handle)
+	return cryptopro.VerifyCert(c.cert, handle)
 }
 
 // VerifySelfSigned verifies that the certificate is validly self-signed.
+// Under the CryptoPro CSP backend this dispatches to
+// CryptVerifyCertificateSignatureEx in self-signed mode — no public-key
+// handle extraction is required because the CSP resolves the public key
+// directly from the certificate context.
 func (c *Certificate) VerifySelfSigned() error {
-	pubHandle, err := c.cert.PublicKey()
-	if err != nil {
-		return err
-	}
-	defer pubHandle.Free()
-	return openssl.VerifyCert(c.cert, pubHandle)
+	return cryptopro.VerifyCert(c.cert, nil)
 }
 
-// OpenSSLCert returns the underlying OpenSSL X509Cert handle for use by
+// CryptoProCert returns the underlying CryptoPro X509Cert handle for use by
 // other packages (e.g., CMS signing). The returned handle is shared —
 // do not free it separately.
-func (c *Certificate) OpenSSLCert() *openssl.X509Cert {
+func (c *Certificate) CryptoProCert() *cryptopro.X509Cert {
 	return c.cert
 }
 
-// Free releases the underlying OpenSSL X509 structure.
+// Free releases the underlying CryptoPro X509 structure.
 func (c *Certificate) Free() {
 	if c.cert != nil {
 		c.cert.Free()
@@ -218,7 +217,7 @@ func (r *CertificateRequest) PEM() ([]byte, error) {
 	return r.req.MarshalPEM()
 }
 
-// Free releases the underlying OpenSSL X509_REQ structure.
+// Free releases the underlying CryptoPro X509_REQ structure.
 func (r *CertificateRequest) Free() {
 	if r.req != nil {
 		r.req.Free()

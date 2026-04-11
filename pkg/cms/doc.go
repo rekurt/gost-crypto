@@ -1,5 +1,5 @@
 // Package cms implements CMS (Cryptographic Message Syntax) / PKCS#7 operations
-// with GOST R 34.10-2012 digital signatures, backed by OpenSSL gost-engine.
+// with GOST R 34.10-2012 digital signatures, backed by CryptoPro CAdES (CAdES-BES).
 //
 // CMS SignedData is the standard format for digitally signed documents in
 // Russian electronic document management systems (ЭДО). This package supports

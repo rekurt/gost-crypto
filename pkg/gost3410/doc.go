@@ -1,5 +1,5 @@
 // Package gost3410 implements GOST R 34.10-2012 elliptic curve digital
-// signatures using OpenSSL gost-engine.
+// signatures using CryptoPro CSP (CAPILite).
 //
 // This package provides low-level signing and verification with all 8
 // standardized TC26 elliptic curve parameter sets (256-bit and 512-bit).

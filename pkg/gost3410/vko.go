@@ -3,7 +3,7 @@ package gost3410
 import (
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // ErrCurveMismatch is returned when VKO is called with keys on different curves.
@@ -15,7 +15,7 @@ var ErrEmptyUKM = errors.New("gost3410: ukm must not be empty (required by GOST 
 // VKO performs GOST VKO key agreement (GOST R 34.10-2012, Appendix B)
 // between a local private key and a remote peer's public key.
 //
-// The ukm (User Keying Material) parameter is required by gost-engine
+// The ukm (User Keying Material) parameter is required by CryptoPro CSP
 // and must be non-nil and non-empty. UKM is incorporated into the key
 // derivation to produce session-unique shared secrets. Different UKM
 // values yield different shared secrets from the same key pair.
@@ -38,5 +38,5 @@ func VKO(priv *PrivKey, peerPub *PubKey, ukm []byte) ([]byte, error) {
 		return nil, ErrEmptyUKM
 	}
 
-	return openssl.DeriveVKO(priv.handle, peerPub.handle, ukm)
+	return cryptopro.DeriveVKO(priv.handle, peerPub.handle, ukm)
 }

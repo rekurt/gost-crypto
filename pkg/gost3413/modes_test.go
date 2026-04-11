@@ -5,13 +5,13 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()
-	if err := openssl.Init(); err != nil {
-		t.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		t.Skip("CryptoPro CSP not available:", err)
 	}
 }
 
@@ -31,7 +31,7 @@ func TestKuznechikCTR_Roundtrip(t *testing.T) {
 	}
 	defer ctr.Zeroize()
 
-	// Kuznechik-CTR typically uses an 8-byte IV in gost-engine.
+	// Kuznechik-CTR typically uses an 8-byte IV in CryptoPro CSP.
 	iv := make([]byte, 8)
 	if _, err := rand.Read(iv); err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestMagmaCTR_Roundtrip(t *testing.T) {
 	}
 	defer ctr.Zeroize()
 
-	// Magma-CTR typically uses a 4-byte IV in gost-engine.
+	// Magma-CTR typically uses a 4-byte IV in CryptoPro CSP.
 	iv := make([]byte, 4)
 	if _, err := rand.Read(iv); err != nil {
 		t.Fatal(err)
@@ -316,7 +316,7 @@ func TestMagmaOFB_Roundtrip(t *testing.T) {
 
 	ct, err := ofb.Encrypt(iv, plaintext)
 	if err != nil {
-		t.Skip("magma-ofb not supported by gost-engine:", err)
+		t.Skip("magma-ofb not supported by CryptoPro CSP:", err)
 	}
 
 	recovered, err := ofb.Decrypt(iv, ct)
@@ -353,7 +353,7 @@ func TestMagmaCFB_Roundtrip(t *testing.T) {
 
 	ct, err := cfb.Encrypt(iv, plaintext)
 	if err != nil {
-		t.Skip("magma-cfb not supported by gost-engine:", err)
+		t.Skip("magma-cfb not supported by CryptoPro CSP:", err)
 	}
 
 	recovered, err := cfb.Decrypt(iv, ct)

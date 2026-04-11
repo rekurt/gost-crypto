@@ -1,5 +1,5 @@
 // Package gost3411 implements the GOST R 34.11-2012 Streebog cryptographic
-// hash function backed by OpenSSL gost-engine.
+// hash function backed by CryptoPro CSP (CAPILite).
 //
 // Streebog is the Russian national standard hash function, providing
 // 256-bit and 512-bit digest outputs. This package implements the

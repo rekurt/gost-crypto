@@ -3,14 +3,14 @@ package gost3413
 import (
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // FuzzMGMOpen exercises the MGM Open function with arbitrary ciphertexts
 // to verify it never panics on invalid or corrupted input.
 func FuzzMGMOpen(f *testing.F) {
-	if err := openssl.Init(); err != nil {
-		f.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		f.Skip("CryptoPro CSP not available:", err)
 	}
 
 	key := make([]byte, 32)

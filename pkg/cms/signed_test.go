@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3410"
 	"github.com/rekurt/gost-crypto/pkg/gostx509"
 )
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()
-	if err := openssl.Init(); err != nil {
-		t.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		t.Skip("CryptoPro CSP not available:", err)
 	}
 }
 

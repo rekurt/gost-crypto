@@ -1,6 +1,6 @@
 # Migration Guide: v0 to v1
 
-This document covers the breaking changes and migration path from the original gost-crypto (v0, which used a GPL-licensed pure-Go backend) to v1 (backed by OpenSSL + gost-engine, MIT license, zero external Go dependencies).
+This document covers the breaking changes and migration path from the original gost-crypto (v0, which used a GPL-licensed pure-Go backend) to v1 (backed by CryptoPro CSP (CAPILite) + CryptoPro CAdES, MIT license, zero external Go dependencies).
 
 ## Overview of Changes
 
@@ -8,7 +8,7 @@ v1 is a complete rewrite. The module path, API surface, and cryptographic backen
 
 | Aspect | v0 | v1 |
 |--------|----|----|
-| Backend | gogost (pure Go, GPL v3) | OpenSSL 3.0+ gost-engine (cgo) |
+| Backend | gogost (pure Go, GPL v3) | CryptoPro CSP 5.0+ for Linux (cgo) |
 | Module | v0 packages (removed) | `github.com/rekurt/gost-crypto` |
 | Curves | 5 (256A, 512A/B/C + limited) | 8 (all TC26 parameter sets) |
 | VKO | Not supported | Supported (GOST VKO key agreement) |
@@ -16,7 +16,7 @@ v1 is a complete rewrite. The module path, API surface, and cryptographic backen
 | MGM (AEAD) | Not supported | Supported (GOST R 34.13-2015) |
 | KDF | HKDF only | GOST R KDF + HKDF |
 | Key zeroization | Manual byte clearing | Explicit `Zeroize()` with GC finalizer safety net |
-| Constant-time | Best-effort in Go | Delegated to OpenSSL |
+| Constant-time | Best-effort in Go | Delegated to CryptoPro CSP |
 
 ## Breaking Changes
 
@@ -24,9 +24,9 @@ v1 is a complete rewrite. The module path, API surface, and cryptographic backen
 
 2. **API completely rewritten**: Function signatures, types, and error values have changed. There is no backward compatibility.
 
-3. **cgo required**: `CGO_ENABLED=1` must be set. A C compiler and OpenSSL development headers are required at build time.
+3. **cgo required**: `CGO_ENABLED=1` must be set. A C compiler and CryptoPro CSP development headers are required at build time.
 
-4. **Runtime dependency on gost-engine**: gost-engine must be installed and registered in `openssl.cnf` on any machine that runs the compiled binary.
+4. **Runtime dependency on CryptoPro CSP**: CryptoPro CSP must be installed and registered in `CryptoPro CSP config (cpconfig)` on any machine that runs the compiled binary.
 
 ## API Mapping
 
@@ -115,7 +115,7 @@ derived := kdf.KDF_GOSTR3411_256(key, label, seed)
 
 ## Migration Steps
 
-1. **Install OpenSSL + gost-engine** on all build and runtime environments. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+1. **Install CryptoPro CSP (CAPILite) + CryptoPro CAdES** on all build and runtime environments. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 
 2. **Update `go.mod`**:
    ```bash
@@ -130,4 +130,4 @@ derived := kdf.KDF_GOSTR3411_256(key, label, seed)
 
 6. **Update error handling**: Error sentinel values have changed. Replace references to old error variables with the new ones exported from `gostcrypto` (e.g., `gostcrypto.ErrNilKey`, `gostcrypto.ErrUnknownCurve`).
 
-7. **Update CI/CD**: Ensure your build environment has `CGO_ENABLED=1`, OpenSSL headers, and gost-engine. See the GitHub Actions workflow in `.github/workflows/ci.yml` for a reference setup.
+7. **Update CI/CD**: Ensure your build environment has `CGO_ENABLED=1`, CryptoPro CSP.headers, and CryptoPro CSP. See the GitHub Actions workflow in `.github/workflows/ci.yml` for a reference setup.

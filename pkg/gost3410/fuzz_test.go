@@ -3,14 +3,14 @@ package gost3410
 import (
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // FuzzLoadPrivKey exercises LoadPrivKey with arbitrary byte inputs
 // to verify it never panics on invalid key material.
 func FuzzLoadPrivKey(f *testing.F) {
-	if err := openssl.Init(); err != nil {
-		f.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		f.Skip("CryptoPro CSP not available:", err)
 	}
 
 	// Seed corpus.
@@ -36,8 +36,8 @@ func FuzzLoadPrivKey(f *testing.F) {
 // FuzzVerifyDigest exercises VerifyDigest with arbitrary signatures
 // to verify it never panics.
 func FuzzVerifyDigest(f *testing.F) {
-	if err := openssl.Init(); err != nil {
-		f.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		f.Skip("CryptoPro CSP not available:", err)
 	}
 
 	priv, err := GenerateKey(CurveTC26_256_A)

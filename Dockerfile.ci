@@ -1,13 +1,18 @@
+# TODO(ci): migrate to a base image that has CryptoPro CSP 5.0+ for Linux
+# and the CryptoPro CAdES SDK pre-installed under /opt/cprocsp/.  See
+# docs/DEPLOYMENT.md for the required layout.
+#
+# This file is intentionally a stub in the openssl→cades migration PR —
+# CI will fail until a private base image is published.  The follow-up
+# CI PR is expected to replace this with something like:
+#
+#   FROM registry.internal.example.com/cryptopro/csp-linux-go:5.0
+#   ENV CGO_ENABLED=1
+#   WORKDIR /app
+
 FROM golang:1.22-bookworm
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl-dev cmake curl git gcc g++ pkg-config make && \
+    gcc g++ make git ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-
-ARG GOST_ENGINE_SHA256
-ENV GOST_ENGINE_SHA256=${GOST_ENGINE_SHA256}
-COPY scripts/install-gost-engine.sh /tmp/
-RUN chmod +x /tmp/install-gost-engine.sh && /tmp/install-gost-engine.sh
-
 ENV CGO_ENABLED=1
 WORKDIR /app

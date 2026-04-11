@@ -7,16 +7,16 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/rekurt/gost-crypto)](go.mod)
 [![codecov](https://codecov.io/gh/rekurt/gost-crypto/branch/master/graph/badge.svg)](https://codecov.io/gh/rekurt/gost-crypto)
 
-Go library for Russian GOST cryptographic standards (GOST R 34.10-2012, GOST R 34.11-2012 Streebog, GOST R 34.12-2015 Kuznechik, GOST R 34.13-2015 MGM), powered by OpenSSL gost-engine. Digital signatures, hashing, encryption, key agreement, and key derivation with zero external Go dependencies.
+Go library for Russian GOST cryptographic standards (GOST R 34.10-2012, GOST R 34.11-2012 Streebog, GOST R 34.12-2015 Kuznechik, GOST R 34.13-2015 MGM), powered by CryptoPro CSP (CAPILite) and CryptoPro CAdES. Digital signatures, hashing, encryption, key agreement, CMS/CAdES signing, and key derivation with zero external Go dependencies.
 
 [API Reference](docs/API.md) | [Examples](docs/EXAMPLES.md) | [На русском](docs/README.ru.md) | [Contributing](docs/CONTRIBUTING.md)
 
 ## Why gost-crypto?
 
-- **OpenSSL backend** — all cryptographic operations run through OpenSSL gost-engine, ensuring constant-time execution and FIPS-level implementation quality
-- **Complete GOST toolkit** — digital signatures, hashing, symmetric encryption, AEAD, key agreement, and key derivation in a single library
+- **CryptoPro CSP backend** — GOST primitives (Streebog, GOST 34.10-2012 sign/verify/VKO, Kuznechik / Magma block ciphers, IMIT) are delegated to CryptoPro CSP 5.0+ via CAPILite; CMS / CAdES-BES signatures are produced by CryptoPro's CAdES library.
+- **Complete GOST toolkit** — digital signatures, hashing, symmetric encryption, AEAD, key agreement, CAdES-BES CMS, and key derivation in a single library
 - **Standard Go interfaces** — `hash.Hash`, `cipher.Block`, `cipher.AEAD` — drop-in compatible with Go's crypto ecosystem
-- **Zero Go dependencies** — `go.mod` has no `require` directives; only OpenSSL + CGO at build time
+- **Zero Go dependencies** — `go.mod` has no `require` directives; only CryptoPro CSP + CGO at build time
 - **All 8 TC26 curves** — both 256-bit and 512-bit elliptic curve parameter sets
 - **HD key derivation** — BIP32-style hierarchical deterministic keys for GOST curves
 
@@ -35,7 +35,11 @@ Go library for Russian GOST cryptographic standards (GOST R 34.10-2012, GOST R 3
 ## Requirements
 
 - Go 1.22+
-- OpenSSL 3.x with gost-engine ([installation guide](docs/DEPLOYMENT.md))
+- CryptoPro CSP 5.0+ for Linux installed under `/opt/cprocsp/` (with a
+  valid CryptoPro licence). CAPILite libraries `libcapi10.so`,
+  `libcapi20.so`, `libssp.so`, `librdrsup.so` and CryptoPro CAdES library
+  `libcades.so` must be on the dynamic-linker path. See the
+  [deployment guide](docs/DEPLOYMENT.md).
 - CGO enabled
 
 ## Installation
@@ -126,19 +130,21 @@ All 8 TC26 elliptic curve parameter sets are supported:
 
 ```
 gost-crypto/
-├── gostcrypto.go       # High-level facade: Sign, Verify, HashSum, Agree
-├── keys.go             # GenerateKey, LoadPrivKey, PrivKey/PubKey aliases
-├── curves.go           # Curve type, TC26 constants, AllCurves
-├── errors.go           # Re-exported sentinel errors
+├── gostcrypto.go         # High-level facade: Sign, Verify, HashSum, Agree
+├── keys.go               # GenerateKey, LoadPrivKey, PrivKey/PubKey aliases
+├── curves.go             # Curve type, TC26 constants, AllCurves
+├── errors.go             # Re-exported sentinel errors
 ├── pkg/
-│   ├── gost3410/       # GOST R 34.10-2012 signatures (OpenSSL backend)
-│   ├── gost3411/       # GOST R 34.11-2012 Streebog hash (OpenSSL backend)
-│   ├── gost3412/       # GOST R 34.12-2015 Kuznechik cipher
-│   ├── gost3413/       # GOST R 34.13-2015 MGM AEAD
-│   ├── hd/             # HD key derivation (HKDF, BIP32-style paths)
-│   └── kdf/            # Key derivation functions (HKDF-Streebog, KDF_GOSTR3411)
-├── internal/openssl/   # CGO bindings for OpenSSL gost-engine
-└── _examples/          # Runnable examples
+│   ├── gost3410/         # GOST R 34.10-2012 signatures (CryptoPro CSP)
+│   ├── gost3411/         # GOST R 34.11-2012 Streebog hash  (CryptoPro CSP)
+│   ├── gost3412/         # GOST R 34.12-2015 Kuznechik / Magma cipher
+│   ├── gost3413/         # GOST R 34.13-2015 modes (CBC native, CTR/CFB/OFB/MGM in Go)
+│   ├── cms/              # CMS / CAdES-BES signing via CryptoPro CAdES
+│   ├── gostx509/         # X.509 certificate creation & verification
+│   ├── hd/               # HD key derivation (HKDF, BIP32-style paths)
+│   └── kdf/              # Key derivation functions (HKDF-Streebog, KDF_GOSTR3411)
+├── internal/cryptopro/   # CGO bindings for CryptoPro CSP (CAPILite) + CAdES
+└── _examples/            # Runnable examples
 ```
 
 ## Documentation
@@ -147,7 +153,7 @@ gost-crypto/
 |----------|-------------|
 | [API Reference](docs/API.md) | Complete API for all packages |
 | [Examples](docs/EXAMPLES.md) | Validated usage patterns |
-| [Deployment](docs/DEPLOYMENT.md) | OpenSSL + gost-engine setup |
+| [Deployment](docs/DEPLOYMENT.md) | CryptoPro CSP + CAdES setup |
 | [Migration v0 to v1](docs/MIGRATION.md) | Breaking changes and migration path |
 | [Threat Model](docs/THREAT_MODEL.md) | Security assumptions and limitations |
 | [Security Policy](SECURITY.md) | Vulnerability disclosure |

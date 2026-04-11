@@ -1,5 +1,5 @@
 // Package gostx509 provides X.509 certificate operations with GOST R 34.10-2012
-// digital signatures, backed by OpenSSL gost-engine.
+// digital signatures, backed by CryptoPro CSP (CAPILite CertXxx functions).
 //
 // This package supports creating self-signed certificates, certificate signing
 // requests (CSR), parsing certificates from DER/PEM, and verifying certificate

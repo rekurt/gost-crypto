@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 func TestPrivKey_MarshalUnmarshal_Roundtrip(t *testing.T) {
@@ -45,8 +45,8 @@ func TestPrivKey_MarshalUnmarshal_Roundtrip(t *testing.T) {
 				t.Error("restored key bytes differ from original")
 			}
 
-			openssl.CleanseBytes(origBytes)
-			openssl.CleanseBytes(restoredBytes)
+			cryptopro.CleanseBytes(origBytes)
+			cryptopro.CleanseBytes(restoredBytes)
 
 			// Sign with restored key and verify with original pubkey.
 			keySize, _ := c.Size()

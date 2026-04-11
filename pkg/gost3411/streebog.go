@@ -4,23 +4,19 @@ import (
 	"hash"
 	"runtime"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // streebogHash implements hash.Hash using a buffer-and-rehash strategy.
 //
-// gost-engine's EVP_MD_CTX_copy_ex does not perform a proper deep copy
-// of Streebog digest state, so we cannot use the clone-based approach
-// for Sum() (which must not alter internal state per the hash.Hash contract).
-// Instead, we keep all written data in an in-memory buffer and recompute
-// the digest from scratch in Sum().
+// CryptoPro CSP does not expose a direct "deep clone" for HCRYPTHASH, so
+// we cannot use a clone-on-Sum() approach (Sum() must not alter internal
+// state per the hash.Hash contract). Instead we keep all written data in
+// an in-memory buffer and recompute the digest from scratch in Sum().
 //
-// Previous versions spilled large inputs to a temporary file in /tmp,
-// which created a side-channel vulnerability (filesystem timing, data
-// remanence on disk, predictable file name pattern). This has been
-// removed in favor of unbounded in-memory buffering — the caller
-// already holds the data in memory (since they passed it to Write),
-// so this does not increase peak memory usage.
+// This matches the legacy openssl backend's strategy and does not
+// increase peak memory usage — the caller already holds the data in
+// memory (they passed it to Write).
 type streebogHash struct {
 	nid       int
 	buf       []byte
@@ -30,11 +26,11 @@ type streebogHash struct {
 
 // New256 returns a new hash.Hash computing Streebog-256.
 func New256() hash.Hash {
-	if err := openssl.Init(); err != nil {
-		panic("gost3411: failed to init OpenSSL: " + err.Error())
+	if err := cryptopro.Init(); err != nil {
+		panic("gost3411: failed to init CryptoPro CSP: " + err.Error())
 	}
 	h := &streebogHash{
-		nid:       openssl.NID_Streebog256,
+		nid:       cryptopro.NID_Streebog256,
 		size:      32,
 		blockSize: 64,
 	}
@@ -44,11 +40,11 @@ func New256() hash.Hash {
 
 // New512 returns a new hash.Hash computing Streebog-512.
 func New512() hash.Hash {
-	if err := openssl.Init(); err != nil {
-		panic("gost3411: failed to init OpenSSL: " + err.Error())
+	if err := cryptopro.Init(); err != nil {
+		panic("gost3411: failed to init CryptoPro CSP: " + err.Error())
 	}
 	h := &streebogHash{
-		nid:       openssl.NID_Streebog512,
+		nid:       cryptopro.NID_Streebog512,
 		size:      64,
 		blockSize: 64,
 	}
@@ -66,14 +62,14 @@ func (h *streebogHash) Write(p []byte) (int, error) {
 
 func (h *streebogHash) cleanup() {
 	if len(h.buf) > 0 {
-		openssl.CleanseBytes(h.buf)
+		cryptopro.CleanseBytes(h.buf)
 		h.buf = nil
 	}
 	runtime.SetFinalizer(h, nil)
 }
 
 func (h *streebogHash) Sum(b []byte) []byte {
-	digest, err := openssl.HashBytes(h.nid, h.buf)
+	digest, err := cryptopro.HashBytes(h.nid, h.buf)
 	if err != nil {
 		panic("gost3411: Sum failed: " + err.Error())
 	}
@@ -82,7 +78,7 @@ func (h *streebogHash) Sum(b []byte) []byte {
 
 func (h *streebogHash) Reset() {
 	if len(h.buf) > 0 {
-		openssl.CleanseBytes(h.buf)
+		cryptopro.CleanseBytes(h.buf)
 	}
 	h.buf = nil
 }
@@ -92,7 +88,7 @@ func (h *streebogHash) BlockSize() int { return h.blockSize }
 
 // Sum256 returns the Streebog-256 digest of data.
 func Sum256(data []byte) [32]byte {
-	digest, err := openssl.HashBytes(openssl.NID_Streebog256, data)
+	digest, err := cryptopro.HashBytes(cryptopro.NID_Streebog256, data)
 	if err != nil {
 		panic("gost3411: Streebog-256 failed: " + err.Error())
 	}
@@ -103,7 +99,7 @@ func Sum256(data []byte) [32]byte {
 
 // Sum512 returns the Streebog-512 digest of data.
 func Sum512(data []byte) [64]byte {
-	digest, err := openssl.HashBytes(openssl.NID_Streebog512, data)
+	digest, err := cryptopro.HashBytes(cryptopro.NID_Streebog512, data)
 	if err != nil {
 		panic("gost3411: Streebog-512 failed: " + err.Error())
 	}

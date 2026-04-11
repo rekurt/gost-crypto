@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"hash"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3411"
 )
 
@@ -39,7 +39,7 @@ func kdfGOSTR3411(key, label, seed []byte, bits int, newHMAC func([]byte) hash.H
 	result := mac.Sum(nil)
 
 	// Wipe the intermediate message buffer.
-	openssl.CleanseBytes(msg)
+	cryptopro.CleanseBytes(msg)
 
 	return result
 }

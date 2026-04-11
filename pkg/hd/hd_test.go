@@ -5,14 +5,14 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3410"
 )
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()
-	if err := openssl.Init(); err != nil {
-		t.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		t.Skip("CryptoPro CSP not available:", err)
 	}
 }
 
@@ -136,7 +136,7 @@ func TestParsePath_LargeIndex(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Master and Derive tests (require OpenSSL gost-engine).
+// Master and Derive tests (require OpenSSL CryptoPro CSP).
 // ---------------------------------------------------------------------------
 
 func TestMaster_ProducesValidKey(t *testing.T) {
@@ -161,7 +161,7 @@ func TestMaster_ProducesValidKey(t *testing.T) {
 	}
 
 	// Verify the key can sign and verify (Validate() may fail for
-	// HD-derived keys due to gost-engine limitations, so we test
+	// HD-derived keys due to CryptoPro CSP limitations, so we test
 	// actual crypto operations instead).
 	keySize, _ := gost3410.CurveTC26_256_A.Size()
 	digest := make([]byte, keySize)

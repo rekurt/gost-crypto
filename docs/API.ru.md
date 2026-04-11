@@ -89,7 +89,7 @@ const (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3410"`
 
-Низкоуровневые операции ГОСТ Р 34.10-2012 через OpenSSL gost-engine.
+Низкоуровневые операции ГОСТ Р 34.10-2012 через CryptoPro CSP.
 
 ### `GenerateKey(c Curve) (*PrivKey, error)`
 
@@ -97,7 +97,7 @@ const (
 
 ### `LoadPrivKey(c Curve, raw []byte) (*PrivKey, error)`
 
-Создаёт приватный ключ из сырых байт через OpenSSL.
+Создаёт приватный ключ из сырых байт через CryptoPro CSP.
 
 ### `SignDigest(priv *PrivKey, digest []byte) ([]byte, error)`
 
@@ -125,7 +125,7 @@ const (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3411"`
 
-Хеш-функции ГОСТ Р 34.11-2012 Стрибог через OpenSSL gost-engine.
+Хеш-функции ГОСТ Р 34.11-2012 Стрибог через CryptoPro CSP.
 
 ### `New256() hash.Hash`
 
@@ -149,7 +149,7 @@ const (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3412"`
 
-Блочный шифр ГОСТ Р 34.12-2015 Кузнечик через OpenSSL gost-engine.
+Блочный шифр ГОСТ Р 34.12-2015 Кузнечик через CryptoPro CSP.
 
 ### `NewCipher(key []byte) (cipher.Block, error)`
 
@@ -161,7 +161,7 @@ const (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3413"`
 
-Аутентифицированное шифрование ГОСТ Р 34.13-2015 MGM через OpenSSL gost-engine.
+Аутентифицированное шифрование ГОСТ Р 34.13-2015 MGM через CryptoPro CSP.
 
 ### `NewMGM(block cipher.Block) (cipher.AEAD, error)`
 
@@ -225,6 +225,6 @@ type DerivedKey struct {
 
 ## Потокобезопасность
 
-- Генерация ключей и подписание потокобезопасны (OpenSSL управляет блокировками)
+- Генерация ключей и подписание потокобезопасны (CryptoPro CSP управляет блокировками)
 - Один `*PrivKey` или `*PubKey` не должен разделяться между горутинами без синхронизации
 - `Zeroize()` инвалидирует как приватный, так и производные публичные ключи

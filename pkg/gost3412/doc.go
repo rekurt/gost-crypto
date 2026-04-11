@@ -1,5 +1,5 @@
-// Package gost3412 implements the GOST R 34.12-2015 Kuznechik block cipher
-// backed by OpenSSL gost-engine.
+// Package gost3412 implements GOST R 34.12-2015 block ciphers (Kuznechik
+// and Magma) backed by CryptoPro CSP (CAPILite).
 //
 // Kuznechik is the Russian national standard block cipher with a 128-bit
 // block size and 256-bit key. This package implements the standard

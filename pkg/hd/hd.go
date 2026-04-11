@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3410"
 	"github.com/rekurt/gost-crypto/pkg/kdf"
 )
@@ -166,7 +166,7 @@ func Master(seed []byte, c Curve) (*DerivedKey, error) {
 	// sampling approach for deterministic key derivation).
 	key, err := loadKeyWithRetry(c, material[:keySize], salt, seed, "master-retry", keySize)
 	// Wipe the intermediate HKDF material — it contains raw key bytes.
-	openssl.CleanseBytes(material)
+	cryptopro.CleanseBytes(material)
 	if err != nil {
 		return nil, fmt.Errorf("hd: master key loading: %w", err)
 	}
@@ -197,7 +197,7 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 			return nil, fmt.Errorf("hd: derive copy: %w", err)
 		}
 		keyCopy, err := gost3410.LoadPrivKey(c, parentBytes)
-		openssl.CleanseBytes(parentBytes)
+		cryptopro.CleanseBytes(parentBytes)
 		if err != nil {
 			return nil, fmt.Errorf("hd: derive copy: %w", err)
 		}
@@ -236,7 +236,7 @@ func Derive(parent *DerivedKey, path string, c Curve) (*DerivedKey, error) {
 	key, err := loadKeyWithRetry(c, lastKeyMaterial, currentCC, lastKeyMaterial, "child-retry", keySize)
 	// Wipe intermediate key material.
 	if len(lastKeyMaterial) > 0 {
-		openssl.CleanseBytes(lastKeyMaterial)
+		cryptopro.CleanseBytes(lastKeyMaterial)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("hd: child key loading: %w", err)
@@ -281,6 +281,6 @@ func (dk *DerivedKey) Zeroize() {
 		dk.Key.Zeroize()
 	}
 	if len(dk.ChainCode) > 0 {
-		openssl.CleanseBytes(dk.ChainCode)
+		cryptopro.CleanseBytes(dk.ChainCode)
 	}
 }

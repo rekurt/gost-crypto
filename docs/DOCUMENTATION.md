@@ -11,7 +11,7 @@ This index lists all актуальные documents for `github.com/rekurt/gost-
 
 - [API.md](API.md) — exported packages, types, and functions.
 - [EXAMPLES.md](EXAMPLES.md) — validated usage patterns based on current API.
-- [DEPLOYMENT.md](DEPLOYMENT.md) — OpenSSL + gost-engine installation.
+- [DEPLOYMENT.md](DEPLOYMENT.md) — CryptoPro CSP (CAPILite) + CryptoPro CAdES installation.
 - [MIGRATION.md](MIGRATION.md) — v0 → v1 migration notes.
 - [THREAT_MODEL.md](THREAT_MODEL.md) — threat model and security design.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution guidelines and development setup.

@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // TestCryptoSignerInterface verifies that PrivKey satisfies crypto.Signer
@@ -58,8 +58,8 @@ func TestCryptoSignerInterface(t *testing.T) {
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()
-	if err := openssl.Init(); err != nil {
-		t.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		t.Skip("CryptoPro CSP not available:", err)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestPrivKeyBytes(t *testing.T) {
 			}
 
 			// Cleanse the raw key bytes.
-			openssl.CleanseBytes(raw)
+			cryptopro.CleanseBytes(raw)
 		})
 	}
 }
@@ -408,8 +408,8 @@ func TestLoadPrivKey_Roundtrip(t *testing.T) {
 				t.Error("valid signature rejected for loaded key")
 			}
 
-			openssl.CleanseBytes(raw)
-			openssl.CleanseBytes(loadedRaw)
+			cryptopro.CleanseBytes(raw)
+			cryptopro.CleanseBytes(loadedRaw)
 		})
 	}
 }

@@ -1,5 +1,5 @@
 // Package gostcrypto implements Russian GOST cryptographic standards
-// backed by OpenSSL gost-engine via CGO.
+// backed by CryptoPro CSP (CAPILite) and CryptoPro CAdES via CGO.
 //
 // This library provides a production-ready Go implementation of the
 // complete Russian cryptographic toolkit:
@@ -12,9 +12,12 @@
 //   - Hierarchical deterministic (HD) key derivation with BIP32-style paths
 //   - HKDF and KDF_GOSTR3411 key derivation functions
 //
-// All cryptographic operations are delegated to OpenSSL gost-engine,
-// ensuring constant-time execution and battle-tested implementations.
-// The library has zero external Go dependencies.
+// Primitive operations (Streebog, GOST 34.10-2012 sign/verify/VKO, raw
+// Kuznechik/Magma block cipher, IMIT MAC) are delegated to CryptoPro
+// CSP via CAPILite. CMS / CAdES-BES signatures are produced by
+// CryptoPro's CAdES library (libcades). Higher-level cipher modes
+// (CBC/CTR/CFB/OFB and MGM) are implemented in pure Go on top of the
+// raw block cipher. The library has zero external Go dependencies.
 //
 // # Quick Start
 //
@@ -48,7 +51,7 @@
 //
 // # Requirements
 //
-// OpenSSL 3.x with gost-engine installed and CGO enabled.
+// CryptoPro CSP 5.0+ for Linux installed under /opt/cprocsp/ and CGO enabled.
 // See https://github.com/rekurt/gost-crypto/blob/master/docs/DEPLOYMENT.md
 // for setup instructions.
 package gostcrypto

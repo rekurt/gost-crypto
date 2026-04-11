@@ -5,13 +5,13 @@ import (
 	"hash"
 	"testing"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 func skipIfNoEngine(t *testing.T) {
 	t.Helper()
-	if err := openssl.Init(); err != nil {
-		t.Skip("gost-engine not available:", err)
+	if err := cryptopro.Init(); err != nil {
+		t.Skip("CryptoPro CSP not available:", err)
 	}
 }
 

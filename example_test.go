@@ -8,7 +8,7 @@ import (
 	gostcrypto "github.com/rekurt/gost-crypto"
 )
 
-// engineAvailable is set by TestMain to indicate whether gost-engine is usable.
+// engineAvailable is set by TestMain to indicate whether CryptoPro CSP is usable.
 var engineAvailable bool
 
 func TestMain(m *testing.M) {

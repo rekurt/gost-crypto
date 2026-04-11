@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // Compile-time assertion: PrivKey implements crypto.Signer.
@@ -19,23 +19,23 @@ var (
 	ErrNilKey           = errors.New("gost3410: nil key")
 )
 
-// PrivKey holds a GOST R 34.10-2012 private key backed by OpenSSL.
+// PrivKey holds a GOST R 34.10-2012 private key backed by CryptoPro CSP.
 //
 // Callers MUST call Zeroize when done to securely wipe key material
-// and release the underlying OpenSSL EVP_PKEY. A GC finalizer is set
-// as a safety net, but explicit cleanup is strongly recommended.
+// and release the underlying HCRYPTKEY / HCRYPTPROV pair. A GC finalizer
+// is set as a safety net, but explicit cleanup is strongly recommended.
 type PrivKey struct {
-	handle *openssl.KeyHandle
+	handle *cryptopro.KeyHandle
 	curve  Curve
 }
 
-// PubKey holds a GOST R 34.10-2012 public key backed by OpenSSL.
+// PubKey holds a GOST R 34.10-2012 public key backed by CryptoPro CSP.
 //
-// PubKey shares the EVP_PKEY handle owned by the originating PrivKey.
+// PubKey shares the HCRYPTKEY owned by the originating PrivKey.
 // Do NOT free or zeroize the PubKey separately — the PrivKey owns the
 // handle lifetime.
 type PubKey struct {
-	handle *openssl.KeyHandle // shared, read-only; owned by PrivKey
+	handle *cryptopro.KeyHandle // shared, read-only; owned by PrivKey
 	curve  Curve
 }
 
@@ -61,7 +61,7 @@ func LoadPrivKey(c Curve, raw []byte) (*PrivKey, error) {
 		return nil, err
 	}
 
-	h, err := openssl.LoadGOSTPrivKeyHandle(nid, oid, raw)
+	h, err := cryptopro.LoadGOSTPrivKeyHandle(nid, oid, raw)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func GenerateKey(c Curve) (*PrivKey, error) {
 		return nil, err
 	}
 
-	h, err := openssl.GenerateGOSTKeyHandle(nid, oid)
+	h, err := cryptopro.GenerateGOSTKeyHandle(nid, oid)
 	if err != nil {
 		return nil, err
 	}
@@ -97,10 +97,10 @@ func (k *PrivKey) PublicKey() *PubKey {
 // Curve returns the curve parameter set associated with this private key.
 func (k *PrivKey) Curve() Curve { return k.curve }
 
-// Handle returns the underlying OpenSSL KeyHandle for use by internal
+// Handle returns the underlying CryptoPro CSP KeyHandle for use by internal
 // packages that need direct access (e.g., X.509 certificate operations).
 // The returned handle is shared — do not free it separately.
-func (k *PrivKey) Handle() *openssl.KeyHandle { return k.handle }
+func (k *PrivKey) Handle() *cryptopro.KeyHandle { return k.handle }
 
 // Public returns the public key corresponding to this private key,
 // implementing the crypto.Signer interface.
@@ -121,7 +121,7 @@ func (k *PrivKey) Sign(_ io.Reader, digest []byte, _ crypto.SignerOpts) ([]byte,
 
 // Bytes returns the raw private key bytes.
 // The returned slice should be treated as sensitive material and cleansed
-// by the caller when no longer needed (openssl.CleanseBytes).
+// by the caller when no longer needed (cryptopro.CleanseBytes).
 func (k *PrivKey) Bytes() ([]byte, error) {
 	if k.handle.IsNil() {
 		return nil, ErrNilKey
@@ -130,12 +130,12 @@ func (k *PrivKey) Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return openssl.ExtractRawPrivKeyH(k.handle, sz)
+	return cryptopro.ExtractRawPrivKeyH(k.handle, sz)
 }
 
 // Zeroize securely wipes any extractable key material and frees the
-// underlying EVP_PKEY. After Zeroize, the key (and any derived PubKey)
-// must not be used.
+// underlying HCRYPTKEY / HCRYPTPROV. After Zeroize, the key (and any
+// derived PubKey) must not be used.
 func (k *PrivKey) Zeroize() {
 	if k.handle != nil {
 		k.handle.Free()
@@ -146,27 +146,28 @@ func (k *PrivKey) Zeroize() {
 // Curve returns the curve parameter set associated with this public key.
 func (p *PubKey) Curve() Curve { return p.curve }
 
-// Handle returns the underlying OpenSSL KeyHandle for use by internal
+// Handle returns the underlying CryptoPro CSP KeyHandle for use by internal
 // packages that need direct access (e.g., X.509 certificate operations).
 // The returned handle is shared — do not free it separately.
-func (p *PubKey) Handle() *openssl.KeyHandle { return p.handle }
+func (p *PubKey) Handle() *cryptopro.KeyHandle { return p.handle }
 
-// Bytes returns the raw public key bytes (SubjectPublicKeyInfo DER or
-// raw X||Y point, depending on what gost-engine supports).
+// Bytes returns the raw public key bytes as produced by CryptoPro CSP
+// (a PUBLICKEYBLOB — BLOBHEADER + CRYPT_PUBKEY_INFO + raw X||Y point).
 func (p *PubKey) Bytes() ([]byte, error) {
 	if p.handle.IsNil() {
 		return nil, ErrNilKey
 	}
-	return openssl.ExtractRawPubKeyH(p.handle)
+	return cryptopro.ExtractRawPubKeyH(p.handle)
 }
 
-// Validate checks that the public key point lies on the curve by calling
-// OpenSSL's EVP_PKEY_param_check and EVP_PKEY_public_check.
+// Validate checks that the public key point lies on the curve. CryptoPro
+// CSP validates key material at import time, so this is a no-op for keys
+// already held as live handles.
 func (p *PubKey) Validate() error {
 	if p.handle.IsNil() {
 		return ErrNilKey
 	}
-	if err := openssl.ValidatePublicKeyH(p.handle); err != nil {
+	if err := cryptopro.ValidatePublicKeyH(p.handle); err != nil {
 		return ErrPointNotOnCurve
 	}
 	return nil

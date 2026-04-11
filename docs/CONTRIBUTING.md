@@ -14,7 +14,7 @@ Thank you for your interest in contributing to gost-crypto!
 ## Development Requirements
 
 - Go 1.22 or later
-- OpenSSL 3.x with gost-engine installed (see [DEPLOYMENT.md](DEPLOYMENT.md))
+- CryptoPro CSP 5.0+ for Linux installed (see [DEPLOYMENT.md](DEPLOYMENT.md))
 - CGO enabled (`CGO_ENABLED=1`)
 - Optional: `golangci-lint`
 

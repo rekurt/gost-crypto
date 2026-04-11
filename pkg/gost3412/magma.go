@@ -4,7 +4,7 @@ import (
 	"crypto/cipher"
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 const (
@@ -14,11 +14,11 @@ const (
 	MagmaBlockSize = 8
 )
 
-// magmaCipher implements cipher.Block using magma-ecb via gost-engine.
+// magmaCipher implements cipher.Block using raw ECB via CryptoPro CSP.
 type magmaCipher struct {
 	key    [MagmaKeySize]byte
-	encCtx *openssl.CipherCtx
-	decCtx *openssl.CipherCtx
+	encCtx *cryptopro.CipherCtx
+	decCtx *cryptopro.CipherCtx
 }
 
 // NewMagma returns a new cipher.Block implementing the Magma block cipher
@@ -27,17 +27,17 @@ func NewMagma(key []byte) (cipher.Block, error) {
 	if len(key) != MagmaKeySize {
 		return nil, errors.New("gost3412: invalid Magma key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
 
 	m := new(magmaCipher)
 	copy(m.key[:], key)
-	openssl.MlockBytes(m.key[:])
+	cryptopro.MlockBytes(m.key[:])
 
 	cleanup := func() {
-		openssl.CleanseBytes(m.key[:])
-		openssl.MunlockBytes(m.key[:])
+		cryptopro.CleanseBytes(m.key[:])
+		cryptopro.MunlockBytes(m.key[:])
 		if m.encCtx != nil {
 			m.encCtx.Close()
 		}
@@ -47,12 +47,12 @@ func NewMagma(key []byte) (cipher.Block, error) {
 	}
 
 	var err error
-	m.encCtx, err = openssl.NewCipherCtx()
+	m.encCtx, err = cryptopro.NewCipherCtx()
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	if err := m.encCtx.InitEncrypt(openssl.NID_Magma_ECB, m.key[:], nil); err != nil {
+	if err := m.encCtx.InitEncrypt(cryptopro.NID_Magma_ECB, m.key[:], nil); err != nil {
 		cleanup()
 		return nil, err
 	}
@@ -61,12 +61,12 @@ func NewMagma(key []byte) (cipher.Block, error) {
 		return nil, err
 	}
 
-	m.decCtx, err = openssl.NewCipherCtx()
+	m.decCtx, err = cryptopro.NewCipherCtx()
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	if err := m.decCtx.InitDecrypt(openssl.NID_Magma_ECB, m.key[:], nil); err != nil {
+	if err := m.decCtx.InitDecrypt(cryptopro.NID_Magma_ECB, m.key[:], nil); err != nil {
 		cleanup()
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (m *magmaCipher) Encrypt(dst, src []byte) {
 		panic("gost3412: output not full block")
 	}
 
-	if err := m.encCtx.InitEncrypt(openssl.NID_Magma_ECB, m.key[:], nil); err != nil {
+	if err := m.encCtx.InitEncrypt(cryptopro.NID_Magma_ECB, m.key[:], nil); err != nil {
 		panic("gost3412: " + err.Error())
 	}
 	if err := m.encCtx.SetPadding(0); err != nil {
@@ -118,7 +118,7 @@ func (m *magmaCipher) Decrypt(dst, src []byte) {
 		panic("gost3412: output not full block")
 	}
 
-	if err := m.decCtx.InitDecrypt(openssl.NID_Magma_ECB, m.key[:], nil); err != nil {
+	if err := m.decCtx.InitDecrypt(cryptopro.NID_Magma_ECB, m.key[:], nil); err != nil {
 		panic("gost3412: " + err.Error())
 	}
 	if err := m.decCtx.SetPadding(0); err != nil {
@@ -142,8 +142,8 @@ func (m *magmaCipher) Decrypt(dst, src []byte) {
 
 // Zeroize securely wipes the key material and frees cached cipher contexts.
 func (m *magmaCipher) Zeroize() {
-	openssl.CleanseBytes(m.key[:])
-	openssl.MunlockBytes(m.key[:])
+	cryptopro.CleanseBytes(m.key[:])
+	cryptopro.MunlockBytes(m.key[:])
 	if m.encCtx != nil {
 		m.encCtx.Close()
 		m.encCtx = nil

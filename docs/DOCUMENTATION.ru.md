@@ -11,7 +11,7 @@
 
 - [API.md](API.md) — экспортируемые пакеты, типы и функции.
 - [EXAMPLES.md](EXAMPLES.md) — рабочие паттерны использования на текущем API.
-- [DEPLOYMENT.md](DEPLOYMENT.md) — установка OpenSSL + gost-engine.
+- [DEPLOYMENT.md](DEPLOYMENT.md) — установка CryptoPro CSP (CAPILite) + CryptoPro CAdES.
 - [MIGRATION.md](MIGRATION.md) — переход с v0 на v1.
 - [THREAT_MODEL.md](THREAT_MODEL.md) — модель угроз и безопасность.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — руководство для контрибьюторов.

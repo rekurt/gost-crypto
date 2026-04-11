@@ -1,78 +1,93 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to Codex / Claude Code agents when working
+with code in this repository.
 
 ## Overview
 
-This is a Go cryptography library implementing Russian GOST standards. The project provides wrappers and utilities for digital signature operations using GOST R 34.10-2012 (elliptic curve signatures) combined with Streebog hashing (GOST R 34.11-2012), backed by OpenSSL gost-engine via CGO.
+This is a Go cryptography library implementing Russian GOST standards.
+The project provides wrappers and utilities for digital signatures
+(GOST R 34.10-2012) combined with Streebog hashing (GOST R 34.11-2012),
+Kuznechik / Magma block ciphers (GOST R 34.12-2015), higher-level modes
+(GOST R 34.13-2015 CBC / CTR / CFB / OFB / MGM / IMIT), VKO key
+agreement, CMS / CAdES-BES signing, X.509 certificates, HD key
+derivation and PBKDF2 / HKDF / KDF_GOSTR3411.
+
+Primitive operations are delegated to **CryptoPro CSP 5.0+ for Linux**
+(CAPILite API, libcapi10 / libcapi20) via CGO. CMS / CAdES operations
+call into CryptoPro's **CAdES SDK** (libcades). Higher-level modes that
+CAPILite does not expose natively (CTR / CFB / OFB / MGM) are
+implemented in pure Go on top of the raw Kuznechik / Magma block cipher
+provided by `pkg/gost3412`.
 
 ## Architecture
 
-The codebase is organized into a root facade package and internal implementation packages:
+- **Root package (`gostcrypto`)** — high-level facade
+  - `gostcrypto.go`: `Sign()`, `Verify()`, `HashSum256/512()`, `Agree()`
+  - `keys.go`, `curves.go`, `errors.go` — type aliases + sentinels
+  - Auto-selects correct Streebog variant (256/512) based on curve size
 
-### Package Structure
+- **`pkg/gost3410/`** — GOST R 34.10-2012 signatures (CryptoPro CSP)
+  - `curves.go`, `keys.go`, `func.go`, `vko.go`, `encoding.go`
 
-- **Root package (`gostcrypto`)** - High-level facade re-exporting types from `pkg/gost3410`
-  - `gostcrypto.go`: `Sign()`, `Verify()`, `HashSum256()`, `HashSum512()`, `Agree()`
-  - `keys.go`: `GenerateKey()`, `LoadPrivKey()`, type aliases for `PrivKey`, `PubKey`
-  - `curves.go`: `Curve` type alias, all 8 TC26 curve constants, `AllCurves()`
-  - `errors.go`: Re-exported sentinel errors
-  - Auto-selects correct Streebog variant (256/512) based on curve key size
+- **`pkg/gost3411/`** — Streebog hash (CryptoPro CSP)
+  - `streebog.go`: `hash.Hash` wrapper, `Sum256/512`
+  - `hmac.go`: HMAC-Streebog via stdlib `crypto/hmac`
 
-- **`pkg/gost3410/`** - GOST R 34.10-2012 elliptic curve operations (OpenSSL backend)
-  - `curves.go`: `Curve` type with all 8 TC26 parameter sets (256-A/B/C/D, 512-A/B/C/D)
-  - `keys.go`: `GenerateKey()`, `LoadPrivKey()`, `PrivKey`, `PubKey` types
-  - `func.go`: `SignDigest()`, `VerifyDigest()` functions
-  - `vko.go`: VKO key agreement with `Agree()`, `ErrCurveMismatch`, `ErrEmptyUKM`
+- **`pkg/gost3412/`** — Kuznechik / Magma raw block cipher (CryptoPro CSP ECB)
+  - `kuznechik.go`, `magma.go`: `cipher.Block` interface
 
-- **`pkg/gost3411/`** - Streebog hashing (GOST R 34.11-2012) via OpenSSL
-  - `streebog.go`: `New256()`, `New512()`, `Sum256()`, `Sum512()` (hash.Hash interface)
-  - `hmac.go`: HMAC-Streebog
+- **`pkg/gost3413/`** — GOST 34.13-2015 modes of operation
+  - `cbc.go`, `ctr.go`, `cfb.go`, `ofb.go` — pure Go on top of
+    `pkg/gost3412` (crypto/cipher standard mode wrappers)
+  - `mgm.go`, `magma_mgm.go`, `mgm_core.go` — pure-Go MGM AEAD
+  - `cmac.go` — dispatches to `cryptopro.CMAC` (CSP IMIT primitive)
+  - `stream.go` — `cipher.Stream` → `io.ReadCloser` adapter
 
-- **`pkg/gost3412/`** - Kuznechik cipher (GOST R 34.12-2015) via OpenSSL
-  - `kuznechik.go`: `cipher.Block` interface
+- **`pkg/cms/`** — CMS / CAdES-BES signing via CryptoPro CAdES (libcades)
+- **`pkg/gostx509/`** — X.509 create / parse / verify via CAPILite CertXxx
+- **`pkg/hd/`** — HD key derivation (pure Go on top of `pkg/gost3411`)
+- **`pkg/kdf/`** — HKDF / KDF_GOSTR3411 / PBKDF2 (pure Go)
 
-- **`pkg/gost3413/`** - MGM authenticated encryption (GOST R 34.13-2015) via OpenSSL
-  - `mgm.go`: `cipher.AEAD` interface
-
-- **`pkg/hd/`** - Hierarchical deterministic key derivation (BIP-32 style)
-  - `hd.go`: `Master()`, `Derive()`, `ParsePath()`, `DerivedKey`
-  - Deterministic: both chain codes and private keys are derived from seed via HKDF-Streebog
-
-- **`pkg/kdf/`** - Key derivation functions
-  - `kdf.go`: `HKDF256()`, `HKDF512()`
-
-- **`internal/openssl/`** - CGO bindings for OpenSSL gost-engine
-  - `engine.go`: Engine initialization
-  - `evp_pkey.go`: Key generation, loading, signing, verification
-  - `evp_md.go`: Hash operations
-  - `key_handle.go`: Opaque key handle wrapper
+- **`internal/cryptopro/`** — CGO bindings for CryptoPro CSP + CAdES
+  - `provider.go`: `CryptAcquireContextA` lifecycle
+  - `key.go`, `gost3410.go`: HCRYPTKEY wrapper, keygen / sign / verify
+  - `hash.go`: Streebog via `CryptCreateHash` / `CryptHashData`
+  - `cipher.go`: raw ECB HCRYPTKEY wrapper
+  - `cmac.go`: IMIT hash dispatch for CMAC
   - `vko.go`: VKO key agreement
+  - `cades.go`: CAdES-BES sign / verify via `CadesSignMessage` / `CadesVerifyMessage`
+  - `x509.go`: certificate create / parse / verify via `CryptSignAndEncodeCertificate` + `CertCreateCertificateContext`
+  - `oids.go`: TC26 parameter-set OID table + CAPILite ALG_ID constants
+  - `errors.go`: HRESULT / GetLastError mapping
+  - `cleanse.go`, `mlock.go`: secure memory helpers
 
-- **`_examples/`** - Runnable examples (sign_verify, vko_agreement, encrypt_decrypt, batch_signing, hd_derivation, key_serialization)
+- **`_examples/`** — runnable examples (sign_verify, vko_agreement,
+  encrypt_decrypt, batch_signing, hd_derivation, key_serialization)
 
 ### Key Data Flow
 
 1. User calls `gostcrypto.Sign(privKey, message)` or `Verify(pubKey, message, sig)`
-2. Root package auto-selects correct Streebog variant (256/512) based on key's curve size
-3. Message is hashed using Streebog via OpenSSL gost-engine
-4. Digest is passed to GOST R 34.10-2012 signing/verification via OpenSSL
+2. Root facade auto-selects Streebog-256 or -512 based on the key's curve
+3. Message is hashed via `cryptopro.HashBytes` → CryptoPro CSP `CryptCreateHash`
+4. Digest is signed via `cryptopro.SignDigestH` → CryptoPro CSP `CryptSignHashA`
 
 ## Development Tasks
 
-### Build and Test Commands
+### Build and Test
 
-- **Build**: `go build ./...` - Compiles all packages (requires OpenSSL + gost-engine + CGO)
-- **Run tests**: `go test ./...` - Runs all tests
-- **Run with race detector**: `go test -race ./...`
+- **Build**: `CGO_ENABLED=1 go build ./...`
+- **Test**: `CGO_ENABLED=1 go test -race -count=1 ./...`
 - **Benchmarks**: `go test -bench=. -benchmem ./pkg/gost3410/ ./pkg/gost3411/`
-- **Lint**: Use `golangci-lint run ./...` if available, or `go vet ./...` for basic checking
+- **Lint**: `golangci-lint run ./...` or `go vet ./...`
 
 ### Dependencies
 
 - **Zero external Go dependencies** (go.mod has no `require` directives)
-- **System requirements**: OpenSSL 3.x with gost-engine installed, CGO enabled
-- **License**: MIT
+- **System requirements**: CryptoPro CSP 5.0+ for Linux under `/opt/cprocsp/`,
+  including `libcapi10.so`, `libcapi20.so`, `libssp.so`, `librdrsup.so`,
+  and CryptoPro CAdES `libcades.so`; CGO enabled
+- **Licence**: library MIT; CryptoPro CSP requires a separate licence from cryptopro.ru
 
 ## Documentation Structure
 
@@ -82,7 +97,7 @@ SECURITY.md            # Vulnerability disclosure policy
 docs/
 ├── API.md             # Complete API reference
 ├── CONTRIBUTING.md    # Contributing guidelines
-├── DEPLOYMENT.md      # OpenSSL + gost-engine setup
+├── DEPLOYMENT.md      # CryptoPro CSP + CAdES setup
 ├── EXAMPLES.md        # Usage examples
 ├── MIGRATION.md       # v0 → v1 migration guide
 ├── THREAT_MODEL.md    # Threat model and security design
@@ -91,27 +106,33 @@ docs/
 
 ## Signature Format
 
-The library uses GOST OCTET STRING format for signatures: `r || s`, where each component is `n` bytes (n=32 for 256-bit keys, n=64 for 512-bit keys).
+Signatures are r||s (little-endian), 64 bytes (256-bit curve) or 128
+bytes (512-bit curve). This matches the native CryptoPro CSP wire
+format and the historical gost-engine output — no transcoding is
+necessary at any layer.
 
 ## Key Interfaces
 
-- `Curve`: Identifies TC26 parameter sets (all 8 curves: 256-A/B/C/D, 512-A/B/C/D)
-- `PrivKey`: Opaque private key with `Bytes()`, `Curve()`, `PublicKey()`, `Zeroize()` methods
-- `PubKey`: Opaque public key with `Curve()`, `Validate()` methods
-- `DerivedKey`: HD-derived key bundle with `Key` and `ChainCode`, `Zeroize()` method
+- `Curve`: TC26 parameter set enumeration (all 8 curves)
+- `PrivKey`: opaque private key with `Bytes()`, `Curve()`, `PublicKey()`,
+  `Zeroize()`
+- `PubKey`: opaque public key with `Curve()`, `Validate()`
+- `DerivedKey`: HD-derived bundle with `Key` and `ChainCode`, `Zeroize()`
 
 ## Implementation Status
 
-All core packages are fully implemented and tested:
-- `pkg/gost3410`: All 8 TC26 curves, GenerateKey, LoadPrivKey, SignDigest, VerifyDigest, VKO
+All core packages are implemented on the CryptoPro CSP backend:
+- `pkg/gost3410`: all 8 TC26 curves, GenerateKey, LoadPrivKey, Sign/Verify, VKO
 - `pkg/gost3411`: Streebog-256/512 hashing, HMAC-Streebog
-- `pkg/gost3412`: Kuznechik block cipher
-- `pkg/gost3413`: MGM authenticated encryption
-- `pkg/hd`: Deterministic HD key derivation with HKDF-Streebog
-- `pkg/kdf`: HKDF-256/512 key derivation
-- Root `gostcrypto`: High-level facade with auto hash selection
+- `pkg/gost3412`: Kuznechik / Magma block ciphers (`cipher.Block`)
+- `pkg/gost3413`: CBC / CTR / CFB / OFB / MGM / CMAC (pure Go modes over CSP block cipher)
+- `pkg/cms`: CAdES-BES sign / verify via libcades
+- `pkg/gostx509`: X.509 certificate creation / parsing / verification
+- `pkg/hd`, `pkg/kdf`: pure Go on top of `pkg/gost3411`
 
 ### Next Steps
 
-- Optional: ASN.1/PEM codec sub-package for key serialization
-- Optional: Migrate from deprecated OpenSSL ENGINE API to provider API
+- Migrate the CI workflow and Dockerfiles to a base image with
+  CryptoPro CSP pre-installed (out of scope for the migration PR).
+- Optional: CSR creation via CryptoPro CSP CertCreateSelfSignCertificate.
+- Optional: ASN.1 / PEM key serialization sub-package.

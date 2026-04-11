@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // Curve identifies one of the eight TC26 elliptic-curve parameter sets
@@ -76,21 +76,22 @@ func (c Curve) SignatureSize() (int, error) {
 	return 2 * sz, nil
 }
 
-// oid returns the OID string for this curve from openssl.CurveOIDs.
+// oid returns the OID string for this curve from cryptopro.CurveOIDs.
 func (c Curve) oid() (string, error) {
 	if !c.valid() {
 		return "", ErrUnknownCurve
 	}
-	return openssl.CurveOIDs[c], nil
+	return cryptopro.CurveOIDs[c], nil
 }
 
-// signNID returns the appropriate GOST R 34.10-2012 signing NID.
+// signNID returns the appropriate GOST R 34.10-2012 signing NID
+// (CryptoPro CSP ALG_ID).
 func (c Curve) signNID() (int, error) {
 	switch {
 	case c.is256():
-		return openssl.NID_GostR3410_2012_256, nil
+		return cryptopro.NID_GostR3410_2012_256, nil
 	case c.is512():
-		return openssl.NID_GostR3410_2012_512, nil
+		return cryptopro.NID_GostR3410_2012_512, nil
 	default:
 		return 0, ErrUnknownCurve
 	}

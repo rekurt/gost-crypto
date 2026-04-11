@@ -1,5 +1,11 @@
-// Package gost3413 implements GOST R 34.13-2015 block cipher modes of operation
-// backed by OpenSSL gost-engine.
+// Package gost3413 implements GOST R 34.13-2015 block-cipher modes of
+// operation on top of pkg/gost3412's Kuznechik / Magma block ciphers.
+//
+// The underlying block ciphers are backed by CryptoPro CSP (CAPILite);
+// the mode wrappers (CBC / CTR / CFB / OFB / MGM) are implemented in
+// pure Go because CryptoPro CSP does not expose these modes natively
+// through CAPILite for GOST 34.12-2015 ciphers. CMAC is dispatched to
+// CryptoPro CSP's native IMIT primitive via internal/cryptopro.
 //
 // # Supported Modes
 //

@@ -3,7 +3,7 @@ package gost3413
 import (
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // CMAC computes CMAC (OMAC1) message authentication codes using
@@ -23,12 +23,12 @@ func NewKuznechikCMAC(key []byte) (*CMAC, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	c := &CMAC{nid: openssl.NID_Kuznechik_CBC}
+	c := &CMAC{nid: cryptopro.NID_Kuznechik_CBC}
 	copy(c.key[:], key)
-	openssl.MlockBytes(c.key[:])
+	cryptopro.MlockBytes(c.key[:])
 	return c, nil
 }
 
@@ -38,23 +38,23 @@ func NewMagmaCMAC(key []byte) (*CMAC, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	c := &CMAC{nid: openssl.NID_Magma_CBC}
+	c := &CMAC{nid: cryptopro.NID_Magma_CBC}
 	copy(c.key[:], key)
-	openssl.MlockBytes(c.key[:])
+	cryptopro.MlockBytes(c.key[:])
 	return c, nil
 }
 
 // MAC computes the CMAC authentication tag over the given message.
 // Returns a tag of block size length (16 bytes for Kuznechik, 8 bytes for Magma).
 func (c *CMAC) MAC(message []byte) ([]byte, error) {
-	return openssl.CMAC(c.nid, c.key[:], message)
+	return cryptopro.CMAC(c.nid, c.key[:], message)
 }
 
 // Zeroize securely wipes the key material from memory.
 func (c *CMAC) Zeroize() {
-	openssl.CleanseBytes(c.key[:])
-	openssl.MunlockBytes(c.key[:])
+	cryptopro.CleanseBytes(c.key[:])
+	cryptopro.MunlockBytes(c.key[:])
 }

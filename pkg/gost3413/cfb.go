@@ -1,117 +1,95 @@
 package gost3413
 
 import (
+	"crypto/cipher"
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
+	"github.com/rekurt/gost-crypto/pkg/gost3412"
 )
 
 // CFB implements GOST R 34.13-2015 CFB (cipher feedback) mode.
-// CFB mode turns a block cipher into a self-synchronizing stream cipher.
+// CFB turns a block cipher into a self-synchronising stream cipher.
+//
+// Implementation: pure Go on top of pkg/gost3412's cipher.Block wrapper
+// using crypto/cipher.NewCFBEncrypter / NewCFBDecrypter.
 type CFB struct {
-	key [32]byte
-	nid int
+	key       [32]byte
+	block     cipher.Block
+	blockSize int
 }
 
-// NewKuznechikCFB creates a CFB mode cipher using the Kuznechik block cipher.
-// key must be exactly 32 bytes.
+// NewKuznechikCFB creates a CFB mode cipher using Kuznechik.
 func NewKuznechikCFB(key []byte) (*CFB, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	c := &CFB{nid: openssl.NID_Kuznechik_CFB}
+	block, err := gost3412.NewKuznechik(key)
+	if err != nil {
+		return nil, err
+	}
+	c := &CFB{block: block, blockSize: block.BlockSize()}
 	copy(c.key[:], key)
-	openssl.MlockBytes(c.key[:])
+	cryptopro.MlockBytes(c.key[:])
 	return c, nil
 }
 
-// NewMagmaCFB creates a CFB mode cipher using the Magma block cipher.
-// key must be exactly 32 bytes.
+// NewMagmaCFB creates a CFB mode cipher using Magma.
 func NewMagmaCFB(key []byte) (*CFB, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	c := &CFB{nid: openssl.NID_Magma_CFB}
+	block, err := gost3412.NewMagma(key)
+	if err != nil {
+		return nil, err
+	}
+	c := &CFB{block: block, blockSize: block.BlockSize()}
 	copy(c.key[:], key)
-	openssl.MlockBytes(c.key[:])
+	cryptopro.MlockBytes(c.key[:])
 	return c, nil
-}
-
-// NID returns the OpenSSL cipher NID, for use with [EncryptReader]/[DecryptReader].
-func (c *CFB) NID() int { return c.nid }
-
-// Key returns a copy of the key for use with [EncryptReader]/[DecryptReader].
-// The caller must securely erase the returned slice when done.
-func (c *CFB) Key() []byte {
-	k := make([]byte, len(c.key))
-	copy(k, c.key[:])
-	return k
 }
 
 // Encrypt encrypts plaintext using CFB mode with the given IV.
 func (c *CFB) Encrypt(iv, plaintext []byte) ([]byte, error) {
-	ctx, err := openssl.NewCipherCtx()
-	if err != nil {
-		return nil, err
+	if len(iv) != c.blockSize {
+		return nil, errors.New("gost3413: invalid IV length for CFB")
 	}
-	defer ctx.Close()
-
-	if err := ctx.InitEncrypt(c.nid, c.key[:], iv); err != nil {
-		return nil, err
-	}
-
-	out, err := ctx.Update(plaintext)
-	if err != nil {
-		return nil, err
-	}
-
-	tail, err := ctx.Final()
-	if err != nil {
-		return nil, err
-	}
-	if len(tail) > 0 {
-		out = append(out, tail...)
-	}
-
+	out := make([]byte, len(plaintext))
+	cipher.NewCFBEncrypter(c.block, iv).XORKeyStream(out, plaintext)
 	return out, nil
 }
 
-// Decrypt decrypts ciphertext using CFB mode with the given IV.
+// Decrypt decrypts ciphertext using CFB mode.
 func (c *CFB) Decrypt(iv, ciphertext []byte) ([]byte, error) {
-	ctx, err := openssl.NewCipherCtx()
-	if err != nil {
-		return nil, err
+	if len(iv) != c.blockSize {
+		return nil, errors.New("gost3413: invalid IV length for CFB")
 	}
-	defer ctx.Close()
-
-	if err := ctx.InitDecrypt(c.nid, c.key[:], iv); err != nil {
-		return nil, err
-	}
-
-	out, err := ctx.Update(ciphertext)
-	if err != nil {
-		return nil, err
-	}
-
-	tail, err := ctx.Final()
-	if err != nil {
-		return nil, err
-	}
-	if len(tail) > 0 {
-		out = append(out, tail...)
-	}
-
+	out := make([]byte, len(ciphertext))
+	cipher.NewCFBDecrypter(c.block, iv).XORKeyStream(out, ciphertext)
 	return out, nil
 }
 
-// Zeroize securely wipes the key material from memory.
+// StreamEncrypter returns a cipher.Stream for streaming encryption.
+func (c *CFB) StreamEncrypter(iv []byte) cipher.Stream {
+	return cipher.NewCFBEncrypter(c.block, iv)
+}
+
+// StreamDecrypter returns a cipher.Stream for streaming decryption.
+func (c *CFB) StreamDecrypter(iv []byte) cipher.Stream {
+	return cipher.NewCFBDecrypter(c.block, iv)
+}
+
+// Zeroize securely wipes the key material.
 func (c *CFB) Zeroize() {
-	openssl.CleanseBytes(c.key[:])
-	openssl.MunlockBytes(c.key[:])
+	if z, ok := c.block.(interface{ Zeroize() }); ok {
+		z.Zeroize()
+	}
+	cryptopro.CleanseBytes(c.key[:])
+	cryptopro.MunlockBytes(c.key[:])
 }

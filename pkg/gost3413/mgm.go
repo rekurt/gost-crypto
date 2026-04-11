@@ -4,7 +4,8 @@ import (
 	"crypto/cipher"
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
+	"github.com/rekurt/gost-crypto/pkg/gost3412"
 )
 
 const (
@@ -12,9 +13,12 @@ const (
 	mgmTagSize   = 16 // 128-bit authentication tag
 )
 
-// mgmAEAD implements cipher.AEAD using kuznyechik-mgm via gost-engine.
+// mgmAEAD implements cipher.AEAD using Kuznechik-MGM in pure Go on top
+// of the raw Kuznechik block cipher supplied by pkg/gost3412 (which is
+// itself backed by CryptoPro CSP's raw ECB primitive).
 type mgmAEAD struct {
-	key [32]byte
+	key  [32]byte
+	core *mgmCore
 }
 
 // NewKuznechikMGMFromKey creates a cipher.AEAD using Kuznechik-MGM.
@@ -23,12 +27,20 @@ func NewKuznechikMGMFromKey(key []byte) (cipher.AEAD, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	m := new(mgmAEAD)
+	block, err := gost3412.NewKuznechik(key)
+	if err != nil {
+		return nil, err
+	}
+	core, err := newMGMCore(block)
+	if err != nil {
+		return nil, err
+	}
+	m := &mgmAEAD{core: core}
 	copy(m.key[:], key)
-	openssl.MlockBytes(m.key[:])
+	cryptopro.MlockBytes(m.key[:])
 	return m, nil
 }
 
@@ -36,133 +48,42 @@ func (m *mgmAEAD) NonceSize() int { return mgmNonceSize }
 func (m *mgmAEAD) Overhead() int  { return mgmTagSize }
 
 // Seal encrypts and authenticates plaintext, authenticates additionalData,
-// and appends the result to dst, returning the updated slice.
-// nonce must be NonceSize() bytes long and unique for each call.
+// and appends the result to dst.
 func (m *mgmAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
-	if len(nonce) != mgmNonceSize {
-		panic("gost3413: incorrect nonce length for Kuznechik-MGM")
-	}
-
-	ctx, err := openssl.NewCipherCtx()
+	out, err := m.core.Seal(dst, nonce, plaintext, additionalData)
 	if err != nil {
 		panic("gost3413: " + err.Error())
 	}
-	defer ctx.Close()
-
-	if err := ctx.InitEncrypt(openssl.NID_Kuznechik_MGM, m.key[:], nonce); err != nil {
-		panic("gost3413: " + err.Error())
-	}
-
-	// Set AAD
-	if err := ctx.SetAAD(additionalData); err != nil {
-		panic("gost3413: " + err.Error())
-	}
-
-	// Encrypt plaintext
-	var ciphertext []byte
-	if len(plaintext) > 0 {
-		ciphertext, err = ctx.Update(plaintext)
-		if err != nil {
-			panic("gost3413: " + err.Error())
-		}
-	}
-
-	// Finalize
-	tail, err := ctx.Final()
-	if err != nil {
-		panic("gost3413: " + err.Error())
-	}
-	if len(tail) > 0 {
-		ciphertext = append(ciphertext, tail...)
-	}
-
-	// Get authentication tag
-	tag, err := ctx.GetTag(mgmTagSize)
-	if err != nil {
-		panic("gost3413: " + err.Error())
-	}
-
-	// Append ciphertext + tag to dst
-	ret, out := sliceForAppend(dst, len(ciphertext)+mgmTagSize)
-	copy(out, ciphertext)
-	copy(out[len(ciphertext):], tag)
-	return ret
+	return out
 }
 
 // Open decrypts and authenticates ciphertext, authenticates additionalData,
-// and appends the resulting plaintext to dst, returning the updated slice.
-// ciphertext must include the authentication tag (last Overhead() bytes).
+// and appends the resulting plaintext to dst.
 func (m *mgmAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
-	if len(nonce) != mgmNonceSize {
-		return nil, errors.New("gost3413: incorrect nonce length for Kuznechik-MGM")
-	}
-	if len(ciphertext) < mgmTagSize {
-		return nil, errors.New("gost3413: ciphertext too short")
-	}
-
-	// Split ciphertext and tag
-	tag := ciphertext[len(ciphertext)-mgmTagSize:]
-	ct := ciphertext[:len(ciphertext)-mgmTagSize]
-
-	ctx, err := openssl.NewCipherCtx()
-	if err != nil {
-		return nil, err
-	}
-	defer ctx.Close()
-
-	if err := ctx.InitDecrypt(openssl.NID_Kuznechik_MGM, m.key[:], nonce); err != nil {
-		return nil, err
-	}
-
-	// Set AAD
-	if err := ctx.SetAAD(additionalData); err != nil {
-		return nil, err
-	}
-
-	// Set expected tag before decryption
-	if err := ctx.SetTag(tag); err != nil {
-		return nil, err
-	}
-
-	// Decrypt
-	var plaintext []byte
-	if len(ct) > 0 {
-		plaintext, err = ctx.Update(ct)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Finalize (verifies tag)
-	tail, err := ctx.Final()
-	if err != nil {
-		return nil, errors.New("gost3413: authentication failed")
-	}
-	if len(tail) > 0 {
-		plaintext = append(plaintext, tail...)
-	}
-
-	ret, out := sliceForAppend(dst, len(plaintext))
-	copy(out, plaintext)
-	return ret, nil
+	return m.core.Open(dst, nonce, ciphertext, additionalData)
 }
 
-// Zeroize securely wipes the key material from memory.
+// Zeroize securely wipes the key material.
 func (m *mgmAEAD) Zeroize() {
-	openssl.CleanseBytes(m.key[:])
-	openssl.MunlockBytes(m.key[:])
+	if z, ok := m.core.block.(interface{ Zeroize() }); ok {
+		z.Zeroize()
+	}
+	cryptopro.CleanseBytes(m.key[:])
+	cryptopro.MunlockBytes(m.key[:])
 }
 
-// NewMGMFromKey is a backward-compatible alias for [NewKuznechikMGMFromKey].
+// NewMGMFromKey is a backward-compatible alias for NewKuznechikMGMFromKey.
 //
-// Deprecated: Use NewKuznechikMGMFromKey for consistency with other mode constructors.
+// Deprecated: Use NewKuznechikMGMFromKey for consistency with other mode
+// constructors.
 func NewMGMFromKey(key []byte) (cipher.AEAD, error) {
 	return NewKuznechikMGMFromKey(key)
 }
 
 // sliceForAppend takes a destination slice and a requested number of bytes.
 // It returns a slice with the data appended and a sub-slice pointing to the
-// newly appended portion. This matches the pattern used in crypto/cipher.
+// newly appended portion. Kept for backward compatibility with earlier
+// callers that used this helper through the package surface.
 func sliceForAppend(in []byte, n int) (head, tail []byte) {
 	if total := len(in) + n; cap(in) >= total {
 		head = in[:total]

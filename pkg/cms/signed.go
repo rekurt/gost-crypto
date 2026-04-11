@@ -3,7 +3,7 @@ package cms
 import (
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3410"
 	"github.com/rekurt/gost-crypto/pkg/gostx509"
 )
@@ -26,7 +26,7 @@ type VerifyOptions struct {
 
 // SignedData wraps a CMS SignedData structure.
 type SignedData struct {
-	ci *openssl.CMSContentInfo
+	ci *cryptopro.CMSContentInfo
 }
 
 // Sign creates a CMS SignedData structure, signing the data with the
@@ -49,15 +49,15 @@ func Sign(priv *gost3410.PrivKey, cert *gostx509.Certificate, data []byte, opts 
 
 	privHandle := priv.Handle()
 	if privHandle == nil {
-		return nil, errors.New("cms: key has no OpenSSL handle")
+		return nil, errors.New("cms: key has no CryptoPro handle")
 	}
 
-	certHandle := cert.OpenSSLCert()
+	certHandle := cert.CryptoProCert()
 	if certHandle == nil {
-		return nil, errors.New("cms: certificate has no OpenSSL handle")
+		return nil, errors.New("cms: certificate has no CryptoPro handle")
 	}
 
-	ci, err := openssl.CMSSign(certHandle, privHandle, data, mdNID, opts.Detached)
+	ci, err := cryptopro.CMSSign(certHandle, privHandle, data, mdNID, opts.Detached)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (s *SignedData) Verify(data []byte, opts VerifyOptions) error {
 	if s.ci == nil {
 		return errors.New("cms: nil signed data")
 	}
-	return openssl.CMSVerify(s.ci, data, opts.NoCertVerify)
+	return cryptopro.CMSVerify(s.ci, data, opts.NoCertVerify)
 }
 
 // DER returns the CMS structure encoded in DER format.
@@ -89,7 +89,7 @@ func (s *SignedData) PEM() ([]byte, error) {
 
 // ParseDER parses a CMS SignedData from DER-encoded bytes.
 func ParseDER(der []byte) (*SignedData, error) {
-	ci, err := openssl.ParseCMSDER(der)
+	ci, err := cryptopro.ParseCMSDER(der)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +112,9 @@ func digestNID(c gost3410.Curve) (int, error) {
 	}
 	switch sz {
 	case 32:
-		return openssl.NID_Streebog256, nil
+		return cryptopro.NID_Streebog256, nil
 	case 64:
-		return openssl.NID_Streebog512, nil
+		return cryptopro.NID_Streebog512, nil
 	default:
 		return 0, errors.New("cms: unsupported curve size")
 	}

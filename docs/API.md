@@ -103,7 +103,7 @@ var (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3410"`
 
-Low-level GOST R 34.10-2012 operations backed by OpenSSL gost-engine.
+Low-level GOST R 34.10-2012 operations backed by CryptoPro CSP.
 
 ### `GenerateKey(c Curve) (*PrivKey, error)`
 
@@ -111,7 +111,7 @@ Generates a random key pair for the given curve.
 
 ### `LoadPrivKey(c Curve, raw []byte) (*PrivKey, error)`
 
-Creates a private key from raw bytes via OpenSSL.
+Creates a private key from raw bytes via CryptoPro CSP.
 
 ### `SignDigest(priv *PrivKey, digest []byte) ([]byte, error)`
 
@@ -134,7 +134,7 @@ Performs VKO key agreement.
 - `Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)` — implements `crypto.Signer`
 - `MarshalBinary() ([]byte, error)` — implements `encoding.BinaryMarshaler` (format: `[curve_id][raw_key]`)
 - `UnmarshalBinary(data []byte) error` — implements `encoding.BinaryUnmarshaler`
-- `Zeroize()` — securely wipes key material and frees OpenSSL handle
+- `Zeroize()` — securely wipes key material and frees CryptoPro handle
 
 ### PubKey Methods
 
@@ -149,7 +149,7 @@ Performs VKO key agreement.
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3411"`
 
-GOST R 34.11-2012 Streebog hash functions via OpenSSL gost-engine.
+GOST R 34.11-2012 Streebog hash functions via CryptoPro CSP.
 
 ### `New256() hash.Hash`
 
@@ -192,7 +192,7 @@ These are registered with `crypto.RegisterHash` in `init()`, enabling standard G
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3412"`
 
-GOST R 34.12-2015 block ciphers via OpenSSL gost-engine.
+GOST R 34.12-2015 block ciphers via CryptoPro CSP.
 
 ### `NewKuznechik(key []byte) (cipher.Block, error)`
 
@@ -208,7 +208,7 @@ Creates a Magma cipher block. Key must be 32 bytes. Block size is 8 bytes (64 bi
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3413"`
 
-GOST R 34.13-2015 block cipher modes of operation via OpenSSL gost-engine.
+GOST R 34.13-2015 block cipher modes of operation via CryptoPro CSP.
 
 ### AEAD (Authenticated Encryption)
 
@@ -347,6 +347,6 @@ All operations return errors rather than panicking. Common error types:
 
 ## Thread Safety
 
-- Key generation and signing are thread-safe (OpenSSL handles locking internally)
+- Key generation and signing are thread-safe (CryptoPro handles locking internally)
 - A single `*PrivKey` or `*PubKey` should not be shared across goroutines without synchronization
 - `Zeroize()` invalidates both the private key and any derived public keys

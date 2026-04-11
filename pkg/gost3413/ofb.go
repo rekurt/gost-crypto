@@ -1,105 +1,83 @@
 package gost3413
 
 import (
+	"crypto/cipher"
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
+	"github.com/rekurt/gost-crypto/pkg/gost3412"
 )
 
 // OFB implements GOST R 34.13-2015 OFB (output feedback) mode.
 // OFB turns a block cipher into a synchronous stream cipher.
 // The same function is used for both encryption and decryption.
 type OFB struct {
-	key [32]byte
-	nid int
+	key       [32]byte
+	block     cipher.Block
+	blockSize int
 }
 
-// NewKuznechikOFB creates an OFB mode cipher using the Kuznechik block cipher.
-// key must be exactly 32 bytes.
+// NewKuznechikOFB creates an OFB mode cipher using Kuznechik.
 func NewKuznechikOFB(key []byte) (*OFB, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	o := &OFB{nid: openssl.NID_Kuznechik_OFB}
+	block, err := gost3412.NewKuznechik(key)
+	if err != nil {
+		return nil, err
+	}
+	o := &OFB{block: block, blockSize: block.BlockSize()}
 	copy(o.key[:], key)
-	openssl.MlockBytes(o.key[:])
+	cryptopro.MlockBytes(o.key[:])
 	return o, nil
 }
 
-// NewMagmaOFB creates an OFB mode cipher using the Magma block cipher.
-// key must be exactly 32 bytes.
+// NewMagmaOFB creates an OFB mode cipher using Magma.
 func NewMagmaOFB(key []byte) (*OFB, error) {
 	if len(key) != 32 {
 		return nil, errors.New("gost3413: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
-	o := &OFB{nid: openssl.NID_Magma_OFB}
+	block, err := gost3412.NewMagma(key)
+	if err != nil {
+		return nil, err
+	}
+	o := &OFB{block: block, blockSize: block.BlockSize()}
 	copy(o.key[:], key)
-	openssl.MlockBytes(o.key[:])
+	cryptopro.MlockBytes(o.key[:])
 	return o, nil
-}
-
-// NID returns the OpenSSL cipher NID, for use with [EncryptReader]/[DecryptReader].
-func (o *OFB) NID() int { return o.nid }
-
-// Key returns a copy of the key for use with [EncryptReader]/[DecryptReader].
-// The caller must securely erase the returned slice when done.
-func (o *OFB) Key() []byte {
-	k := make([]byte, len(o.key))
-	copy(k, o.key[:])
-	return k
 }
 
 // Encrypt encrypts plaintext using OFB mode with the given IV.
 func (o *OFB) Encrypt(iv, plaintext []byte) ([]byte, error) {
-	return o.xor(iv, plaintext, true)
-}
-
-// Decrypt decrypts ciphertext using OFB mode with the given IV.
-// In OFB mode, decryption is identical to encryption.
-func (o *OFB) Decrypt(iv, ciphertext []byte) ([]byte, error) {
-	return o.xor(iv, ciphertext, false)
-}
-
-func (o *OFB) xor(iv, data []byte, encrypt bool) ([]byte, error) {
-	ctx, err := openssl.NewCipherCtx()
-	if err != nil {
-		return nil, err
+	if len(iv) != o.blockSize {
+		return nil, errors.New("gost3413: invalid IV length for OFB")
 	}
-	defer ctx.Close()
-
-	if encrypt {
-		err = ctx.InitEncrypt(o.nid, o.key[:], iv)
-	} else {
-		err = ctx.InitDecrypt(o.nid, o.key[:], iv)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := ctx.Update(data)
-	if err != nil {
-		return nil, err
-	}
-
-	tail, err := ctx.Final()
-	if err != nil {
-		return nil, err
-	}
-	if len(tail) > 0 {
-		out = append(out, tail...)
-	}
-
+	out := make([]byte, len(plaintext))
+	cipher.NewOFB(o.block, iv).XORKeyStream(out, plaintext)
 	return out, nil
 }
 
-// Zeroize securely wipes the key material from memory.
+// Decrypt is identical to Encrypt in OFB mode.
+func (o *OFB) Decrypt(iv, ciphertext []byte) ([]byte, error) {
+	return o.Encrypt(iv, ciphertext)
+}
+
+// Stream returns a cipher.Stream for streaming OFB.
+func (o *OFB) Stream(iv []byte) cipher.Stream {
+	return cipher.NewOFB(o.block, iv)
+}
+
+// Zeroize securely wipes the key material.
 func (o *OFB) Zeroize() {
-	openssl.CleanseBytes(o.key[:])
-	openssl.MunlockBytes(o.key[:])
+	if z, ok := o.block.(interface{ Zeroize() }); ok {
+		z.Zeroize()
+	}
+	cryptopro.CleanseBytes(o.key[:])
+	cryptopro.MunlockBytes(o.key[:])
 }

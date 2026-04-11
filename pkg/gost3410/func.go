@@ -1,7 +1,7 @@
 package gost3410
 
 import (
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 // SignDigest signs a pre-computed digest with the given private key.
@@ -20,7 +20,7 @@ func SignDigest(priv *PrivKey, digest []byte) ([]byte, error) {
 		return nil, ErrInvalidKeySize
 	}
 
-	return openssl.SignDigestH(priv.handle, digest)
+	return cryptopro.SignDigestH(priv.handle, digest)
 }
 
 // VerifyDigest verifies a signature over a pre-computed digest using the
@@ -50,5 +50,5 @@ func VerifyDigest(pub *PubKey, digest, sig []byte) (bool, error) {
 		return false, ErrInvalidSignature
 	}
 
-	return openssl.VerifyDigestH(pub.handle, digest, sig)
+	return cryptopro.VerifyDigestH(pub.handle, digest, sig)
 }

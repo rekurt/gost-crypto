@@ -210,7 +210,7 @@ func TestVKO_CrossCurve(t *testing.T) {
 	}
 }
 
-// TestVKO_NilUKM_RequiresUKM verifies that gost-engine requires UKM
+// TestVKO_NilUKM_RequiresUKM verifies that CryptoPro CSP requires UKM
 // and returns an error when UKM is nil or empty.
 func TestVKO_NilUKM_RequiresUKM(t *testing.T) {
 	skipIfNoEngine(t)
@@ -227,7 +227,7 @@ func TestVKO_NilUKM_RequiresUKM(t *testing.T) {
 	}
 	defer privB.Zeroize()
 
-	// gost-engine mandates UKM for VKO; nil/empty must fail.
+	// CryptoPro CSP mandates UKM for VKO; nil/empty must fail.
 	_, err = VKO(privA, privB.PublicKey(), nil)
 	if err == nil {
 		t.Error("VKO(nil ukm): expected error, got nil")

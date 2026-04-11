@@ -4,7 +4,7 @@ import (
 	"crypto/cipher"
 	"errors"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 )
 
 const (
@@ -19,12 +19,12 @@ type Zeroizable interface {
 	Zeroize()
 }
 
-// kuznechikCipher implements cipher.Block using kuznyechik-ecb via gost-engine.
+// kuznechikCipher implements cipher.Block using raw ECB via CryptoPro CSP.
 // Cipher contexts are cached to avoid per-call EVP_CIPHER_CTX allocation overhead.
 type kuznechikCipher struct {
 	key    [KuznechikKeySize]byte
-	encCtx *openssl.CipherCtx // cached encrypt context
-	decCtx *openssl.CipherCtx // cached decrypt context
+	encCtx *cryptopro.CipherCtx // cached encrypt context
+	decCtx *cryptopro.CipherCtx // cached decrypt context
 }
 
 // NewKuznechik returns a new cipher.Block implementing the Kuznechik block cipher.
@@ -33,18 +33,18 @@ func NewKuznechik(key []byte) (cipher.Block, error) {
 	if len(key) != KuznechikKeySize {
 		return nil, errors.New("gost3412: invalid key size (must be 32 bytes)")
 	}
-	if err := openssl.Init(); err != nil {
+	if err := cryptopro.Init(); err != nil {
 		return nil, err
 	}
 
 	k := new(kuznechikCipher)
 	copy(k.key[:], key)
-	openssl.MlockBytes(k.key[:])
+	cryptopro.MlockBytes(k.key[:])
 
 	// cleanup wipes key material on error paths.
 	cleanup := func() {
-		openssl.CleanseBytes(k.key[:])
-		openssl.MunlockBytes(k.key[:])
+		cryptopro.CleanseBytes(k.key[:])
+		cryptopro.MunlockBytes(k.key[:])
 		if k.encCtx != nil {
 			k.encCtx.Close()
 		}
@@ -55,12 +55,12 @@ func NewKuznechik(key []byte) (cipher.Block, error) {
 
 	// Pre-initialise encrypt context.
 	var err error
-	k.encCtx, err = openssl.NewCipherCtx()
+	k.encCtx, err = cryptopro.NewCipherCtx()
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	if err := k.encCtx.InitEncrypt(openssl.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
+	if err := k.encCtx.InitEncrypt(cryptopro.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
 		cleanup()
 		return nil, err
 	}
@@ -70,12 +70,12 @@ func NewKuznechik(key []byte) (cipher.Block, error) {
 	}
 
 	// Pre-initialise decrypt context.
-	k.decCtx, err = openssl.NewCipherCtx()
+	k.decCtx, err = cryptopro.NewCipherCtx()
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	if err := k.decCtx.InitDecrypt(openssl.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
+	if err := k.decCtx.InitDecrypt(cryptopro.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
 		cleanup()
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (k *kuznechikCipher) Encrypt(dst, src []byte) {
 
 	// Re-init the cached context for a fresh ECB operation (resets internal
 	// state while keeping the key schedule).
-	if err := k.encCtx.InitEncrypt(openssl.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
+	if err := k.encCtx.InitEncrypt(cryptopro.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
 		panic("gost3412: " + err.Error())
 	}
 	if err := k.encCtx.SetPadding(0); err != nil {
@@ -129,7 +129,7 @@ func (k *kuznechikCipher) Decrypt(dst, src []byte) {
 		panic("gost3412: output not full block")
 	}
 
-	if err := k.decCtx.InitDecrypt(openssl.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
+	if err := k.decCtx.InitDecrypt(cryptopro.NID_Kuznechik_ECB, k.key[:], nil); err != nil {
 		panic("gost3412: " + err.Error())
 	}
 	if err := k.decCtx.SetPadding(0); err != nil {
@@ -154,8 +154,8 @@ func (k *kuznechikCipher) Decrypt(dst, src []byte) {
 // Zeroize securely wipes the key material and frees cached cipher contexts.
 // The cipher must not be used after calling Zeroize.
 func (k *kuznechikCipher) Zeroize() {
-	openssl.CleanseBytes(k.key[:])
-	openssl.MunlockBytes(k.key[:])
+	cryptopro.CleanseBytes(k.key[:])
+	cryptopro.MunlockBytes(k.key[:])
 	if k.encCtx != nil {
 		k.encCtx.Close()
 		k.encCtx = nil

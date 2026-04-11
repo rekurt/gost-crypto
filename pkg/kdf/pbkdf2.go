@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"hash"
 
-	"github.com/rekurt/gost-crypto/internal/openssl"
+	"github.com/rekurt/gost-crypto/internal/cryptopro"
 	"github.com/rekurt/gost-crypto/pkg/gost3411"
 )
 
@@ -71,7 +71,7 @@ func pbkdf2F(password, salt []byte, iterations, block int, newHash func() hash.H
 	}
 
 	// Wipe intermediate U value — it is derived key material.
-	openssl.CleanseBytes(u)
+	cryptopro.CleanseBytes(u)
 
 	return result
 }
