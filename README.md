@@ -170,6 +170,27 @@ This library implements the following Russian and international standards:
 - **R 50.1.113-2016** — KDF_GOSTR3411 key derivation
 - **[TC26](http://www.tc26.ru/)** — All 8 standardized elliptic curve parameter sets
 
+## Migration Status (OpenSSL → CryptoPro CSP)
+
+This library was recently migrated from OpenSSL gost-engine to CryptoPro
+CSP. The migration is **code-complete** but has the following known
+limitations:
+
+| Area | Status | Notes |
+|------|--------|-------|
+| GOST 34.10-2012 sign/verify | Implemented | Via `CryptSignHashA` / `CryptVerifySignatureA` |
+| Streebog hash (256/512) | Implemented | Via `CryptCreateHash` / `CryptHashData` |
+| Kuznechik / Magma ECB | Implemented | Via `CryptImportKey(PLAINTEXTKEYBLOB)` + `CryptEncrypt` |
+| CBC / CTR / CFB / OFB modes | Implemented | Pure Go on top of raw block cipher |
+| MGM (AEAD) | Implemented | Pure Go; **not yet validated with KAT vectors** |
+| CMAC (IMIT) | Implemented | Via CryptoPro CSP native IMIT hash |
+| VKO key agreement | Implemented | Via `CryptExportKey` + `CryptImportKey` + `KP_SV` |
+| CMS / CAdES-BES signing | Implemented | Via `CadesSignMessage` / `CadesVerifyMessage` |
+| X.509 certificates | Implemented | `CreateSelfSigned`, `ParseDER/PEM`, `Verify` |
+| CSR creation | **Not implemented** | CAPILite lacks a GOST-compatible PKCS#10 builder |
+| CI / Docker | **Stubbed** | Requires private base image with CryptoPro CSP |
+| Build tag | Required | `-tags cryptopro` (CGO + Linux only) |
+
 ## Contributing
 
 Contributions are welcome. See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.

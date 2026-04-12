@@ -131,12 +131,11 @@ import (
     "crypto/rand"
     "fmt"
 
-    "github.com/rekurt/gost-crypto/pkg/gost3412"
     "github.com/rekurt/gost-crypto/pkg/gost3413"
 )
 
 func main() {
-    key := make([]byte, gost3412.KuznechikKeySize)
+    key := make([]byte, 32) // Kuznechik key = 32 bytes
     rand.Read(key)
 
     aead, err := gost3413.NewMGMFromKey(key)
@@ -191,4 +190,8 @@ func main() {
 
 ## Important note for `pkg/hd`
 
-`pkg/hd` currently derives chain codes deterministically but does **not** yet construct deterministic private keys from seed material. If you need strict BIP32-like deterministic private keys today, do not rely on `pkg/hd` for that part yet.
+`pkg/hd` derives **both** chain codes and private keys deterministically
+from the seed via HKDF-Streebog. The same seed and path always produce
+the same GOST R 34.10-2012 key. If the HKDF-derived bytes fall outside
+the valid range [1, q-1], rejection sampling with deterministic
+re-derivation is applied automatically.

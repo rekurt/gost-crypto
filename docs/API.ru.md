@@ -149,11 +149,15 @@ const (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3412"`
 
-Блочный шифр ГОСТ Р 34.12-2015 Кузнечик через CryptoPro CSP.
+Блочные шифры ГОСТ Р 34.12-2015 (Кузнечик / Магма) через CryptoPro CSP.
 
-### `NewCipher(key []byte) (cipher.Block, error)`
+### `NewKuznechik(key []byte) (cipher.Block, error)`
 
 Создаёт блок шифра Кузнечик. Ключ — 32 байта. Размер блока — 16 байт.
+
+### `NewMagma(key []byte) (cipher.Block, error)`
+
+Создаёт блок шифра Магма. Ключ — 32 байта. Размер блока — 8 байт.
 
 ---
 
@@ -161,11 +165,104 @@ const (
 
 `import "github.com/rekurt/gost-crypto/pkg/gost3413"`
 
-Аутентифицированное шифрование ГОСТ Р 34.13-2015 MGM через CryptoPro CSP.
+Режимы работы блочных шифров ГОСТ Р 34.13-2015. Режимы CBC/CTR/CFB/OFB/MGM
+реализованы в чистом Go поверх `pkg/gost3412`. CMAC делегирует в CryptoPro CSP IMIT.
 
-### `NewMGM(block cipher.Block) (cipher.AEAD, error)`
+### AEAD (MGM)
 
-Создаёт MGM AEAD из блока шифра Кузнечик.
+#### `NewKuznechikMGMFromKey(key []byte) (cipher.AEAD, error)`
+Кузнечик-MGM. Nonce: 16 байт, тег: 16 байт.
+
+#### `NewMagmaMGMFromKey(key []byte) (cipher.AEAD, error)`
+Магма-MGM. Nonce: 8 байт, тег: 8 байт.
+
+#### `NewMGMFromKey(key []byte) (cipher.AEAD, error)`
+Устаревший алиас для `NewKuznechikMGMFromKey`.
+
+### CBC
+
+#### `NewKuznechikCBC(key []byte) (*CBC, error)`
+#### `NewMagmaCBC(key []byte) (*CBC, error)`
+Методы: `Encrypt(iv, plaintext)`, `Decrypt(iv, ciphertext)`, `BlockSize()`, `Zeroize()`.
+
+### CTR
+
+#### `NewKuznechikCTR(key []byte) (*CTR, error)`
+#### `NewMagmaCTR(key []byte) (*CTR, error)`
+Методы: `Encrypt(iv, pt)`, `Decrypt(iv, ct)`, `Stream(iv) cipher.Stream`, `Zeroize()`.
+
+### CFB
+
+#### `NewKuznechikCFB(key []byte) (*CFB, error)`
+#### `NewMagmaCFB(key []byte) (*CFB, error)`
+Методы: `Encrypt(iv, pt)`, `Decrypt(iv, ct)`, `StreamEncrypter(iv)`, `StreamDecrypter(iv)`, `Zeroize()`.
+
+### OFB
+
+#### `NewKuznechikOFB(key []byte) (*OFB, error)`
+#### `NewMagmaOFB(key []byte) (*OFB, error)`
+Методы: `Encrypt(iv, pt)`, `Decrypt(iv, ct)`, `Stream(iv)`, `Zeroize()`.
+
+### CMAC (GOST IMIT)
+
+#### `NewKuznechikCMAC(key []byte) (*CMAC, error)`
+#### `NewMagmaCMAC(key []byte) (*CMAC, error)`
+Методы: `MAC(message []byte) ([]byte, error)`, `Zeroize()`.
+
+### Потоковые обёртки
+
+```go
+func EncryptReader(stream cipher.Stream, src io.Reader) (io.ReadCloser, error)
+func DecryptReader(stream cipher.Stream, src io.Reader) (io.ReadCloser, error)
+```
+
+---
+
+## pkg/cms
+
+`import "github.com/rekurt/gost-crypto/pkg/cms"`
+
+CMS / CAdES-BES подписание и верификация через CryptoPro CAdES (libcades).
+
+### `Sign(priv *gost3410.PrivKey, cert *gostx509.Certificate, data []byte, opts SignOptions) (*SignedData, error)`
+
+Создаёт CMS SignedData (CAdES-BES). Дайджест выбирается автоматически по кривой ключа.
+
+### `ParseDER(der []byte) (*SignedData, error)`
+
+Парсит CMS из DER-байт.
+
+### Методы SignedData
+
+- `Verify(data []byte, opts VerifyOptions) error` — верифицирует подпись
+- `DER() ([]byte, error)` — DER-кодирование
+- `PEM() ([]byte, error)` — PEM-кодирование
+- `Free()` — освобождает ресурсы
+
+---
+
+## pkg/gostx509
+
+`import "github.com/rekurt/gost-crypto/pkg/gostx509"`
+
+X.509 сертификаты с ГОСТ-подписями через CryptoPro CSP (CAPILite).
+
+### `CreateSelfSigned(priv *gost3410.PrivKey, subject Subject, opts CertOptions) (*Certificate, error)`
+
+Создаёт самоподписанный X.509 v3 сертификат.
+
+### `ParseDER(der []byte) (*Certificate, error)`
+### `ParsePEM(pem []byte) (*Certificate, error)`
+
+### Методы Certificate
+
+- `DER() ([]byte, error)`, `PEM() ([]byte, error)` — сериализация
+- `SubjectCN() string`, `IssuerCN() string` — имена
+- `Verify(pub *gost3410.PubKey) error` — верификация подписи внешним ключом
+- `VerifySelfSigned() error` — верификация самоподписи
+- `Free()` — освобождает ресурсы
+
+**Ограничение**: `CreateCSR` не реализован на бэкенде CryptoPro CSP.
 
 ---
 

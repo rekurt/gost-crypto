@@ -25,9 +25,12 @@
 
 ## Статус валидации
 
-Документация синхронизирована с текущим API:
+Документация синхронизирована с миграцией на CryptoPro CSP
+(ветка `claude/openssl-to-cades-migration-Juqab`):
 
 - фасадный пакет `gostcrypto`
-- `pkg/gost3410`, `pkg/gost3411`, `pkg/gost3412`, `pkg/gost3413`, `pkg/kdf`, `pkg/hd`
+- `pkg/gost3410`, `pkg/gost3411`, `pkg/gost3412`, `pkg/gost3413`, `pkg/cms`, `pkg/gostx509`, `pkg/kdf`, `pkg/hd`
 
-Все тесты пакетов проходят командой `go test ./...` в этом репозитории.
+**Важно**: сборка и тесты требуют CryptoPro CSP 5.0+ для Linux
+(`/opt/cprocsp/`). Build tag: `-tags cryptopro`.
+CI временно заглушён до публикации приватного образа с CSP.

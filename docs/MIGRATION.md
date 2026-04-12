@@ -26,7 +26,7 @@ v1 is a complete rewrite. The module path, API surface, and cryptographic backen
 
 3. **cgo required**: `CGO_ENABLED=1` must be set. A C compiler and CryptoPro CSP development headers are required at build time.
 
-4. **Runtime dependency on CryptoPro CSP**: CryptoPro CSP must be installed and registered in `CryptoPro CSP config (cpconfig)` on any machine that runs the compiled binary.
+4. **Runtime dependency on CryptoPro CSP**: CryptoPro CSP 5.0+ for Linux must be installed on any machine that runs the compiled binary.
 
 ## API Mapping
 
@@ -102,11 +102,11 @@ shared, err := gostcrypto.Agree(privA, privB.PublicKey(), ukm)
 
 // Kuznechik block cipher
 import "github.com/rekurt/gost-crypto/pkg/gost3412"
-cipher, err := gost3412.NewCipher(key)
+cipher, err := gost3412.NewKuznechik(key)
 
 // MGM authenticated encryption
 import "github.com/rekurt/gost-crypto/pkg/gost3413"
-aead, err := gost3413.NewMGM(cipher)
+aead, err := gost3413.NewMGMFromKey(key)
 
 // GOST R KDF
 import "github.com/rekurt/gost-crypto/pkg/kdf"
@@ -130,4 +130,4 @@ derived := kdf.KDF_GOSTR3411_256(key, label, seed)
 
 6. **Update error handling**: Error sentinel values have changed. Replace references to old error variables with the new ones exported from `gostcrypto` (e.g., `gostcrypto.ErrNilKey`, `gostcrypto.ErrUnknownCurve`).
 
-7. **Update CI/CD**: Ensure your build environment has `CGO_ENABLED=1`, CryptoPro CSP.headers, and CryptoPro CSP. See the GitHub Actions workflow in `.github/workflows/ci.yml` for a reference setup.
+7. **Update CI/CD**: Ensure your build environment has `CGO_ENABLED=1`, CryptoPro CSP.headers, and CryptoPro CSP. See the GitHub Actions workflow in `.github/workflows/ci.yml` for a reference setup (note: CI is currently stubbed pending CryptoPro CSP licensing for CI runners).

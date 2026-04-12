@@ -25,9 +25,12 @@ This index lists all актуальные documents for `github.com/rekurt/gost-
 
 ## Validation status
 
-This documentation set was synchronized with the current codebase API:
+This documentation set was synchronized with the CryptoPro CSP migration
+(branch `claude/openssl-to-cades-migration-Juqab`):
 
 - top-level facade package `gostcrypto`
-- `pkg/gost3410`, `pkg/gost3411`, `pkg/gost3412`, `pkg/gost3413`, `pkg/kdf`, `pkg/hd`
+- `pkg/gost3410`, `pkg/gost3411`, `pkg/gost3412`, `pkg/gost3413`, `pkg/cms`, `pkg/gostx509`, `pkg/kdf`, `pkg/hd`
 
-All package-level tests pass with `go test ./...` in this repository.
+**Note**: compilation and tests require CryptoPro CSP 5.0+ for Linux
+installed under `/opt/cprocsp/`. Build tag: `-tags cryptopro`.
+CI is currently stubbed pending a private base image with the CSP.

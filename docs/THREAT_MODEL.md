@@ -21,27 +21,27 @@ This library is designed to protect against:
 
 1. **CSPRNG**: `crypto/rand.Reader` provides cryptographically secure random bytes from the operating system.
 2. **Constant-time operations**: CryptoPro CSP performs elliptic curve scalar multiplication and modular arithmetic in constant time, preventing timing side-channels in the core crypto.
-3. **CryptoPro CSP.correctness**: The underlying CryptoPro CSP 5.0+ and CryptoPro CSP v3.0.3+ implementations are correct and free of critical vulnerabilities.
+3. **CryptoPro CSP.correctness**: The underlying CryptoPro CSP 5.0+ implementation is correct and free of critical vulnerabilities.
 4. **Memory isolation**: The Go runtime and operating system provide process-level memory isolation.
 
 ## Known Limitations
 
 - **cgo dependency**: All cryptographic operations cross the cgo boundary. This adds overhead and prevents pure-Go compilation. The `CGO_ENABLED=1` flag is required.
 - **No FIPS certification**: This library is NOT FIPS-certified and has NOT been certified by the Russian Federal Security Service (FSB). It should not be used in contexts that require such certification.
-- **CryptoPro CSP version dependency**: The library is tested with CryptoPro CSP v3.0.3. Other versions may behave differently or lack support for certain operations.
+- **CryptoPro CSP version dependency**: The library is tested with CryptoPro CSP 5.0+ for Linux. Other versions may behave differently or lack support for certain operations.
 - **No formal audit**: This code has not undergone a formal security audit by an independent third party.
 
 ## Memory Protection
 
 ### Zeroization
 
-Private key material is held in CryptoPro CSP.s `HCRYPTKEY` structures, allocated on the C heap (outside Go's garbage collector).
+Private key material is held in CryptoPro CSP's `HCRYPTKEY` structures, allocated on the C heap (outside Go's garbage collector).
 
 - **`Zeroize()` must be called explicitly** by the application when a private key is no longer needed. This frees the HCRYPTKEY and nils the handle, ensuring the key cannot be used again.
-- **GC finalizer is a safety net only**: A Go runtime finalizer calls `HCRYPTKEY_free` if the `KeyHandle` is garbage collected without explicit cleanup. However, finalizer timing is non-deterministic and should not be relied upon for timely zeroization.
+- **GC finalizer is a safety net only**: A Go runtime finalizer calls `CryptDestroyKey` if the `KeyHandle` is garbage collected without explicit cleanup. However, finalizer timing is non-deterministic and should not be relied upon for timely zeroization.
 - **After `Zeroize()`**, any operation on the key (including `Bytes()`, `Sign()`, or `Verify()` via the derived public key) will return an error.
 - **`PubKey` shares the handle** with its originating `PrivKey`. Do not use a `PubKey` after the `PrivKey` has been zeroized.
-- **KDF intermediate values** (PRK, iteration outputs) are zeroized with `OPENSSL_cleanse` after use to prevent key material leakage from derived key operations.
+- **KDF intermediate values** (PRK, iteration outputs) are zeroized with `explicit_bzero` after use to prevent key material leakage from derived key operations.
 
 ### Memory Locking (mlock)
 
