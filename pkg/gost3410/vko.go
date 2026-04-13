@@ -37,6 +37,12 @@ func VKO(priv *PrivKey, peerPub *PubKey, ukm []byte) ([]byte, error) {
 	if len(ukm) == 0 {
 		return nil, ErrEmptyUKM
 	}
+	// CryptoPro CSP's KP_SV parameter for VKO expects exactly 8 bytes
+	// of UKM (per RFC 7836 §5.2). Reject other sizes to avoid
+	// non-portable derivation behaviour.
+	if len(ukm) != 8 {
+		return nil, errors.New("gost3410: ukm must be exactly 8 bytes for GOST VKO")
+	}
 
 	return cryptopro.DeriveVKO(priv.handle, peerPub.handle, ukm)
 }

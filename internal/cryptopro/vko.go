@@ -89,16 +89,11 @@ import "unsafe"
 // (our private key) and `peer` (the other party's public key), mixing in
 // the supplied UKM.
 //
-// Returns the full SIMPLEBLOB bytes produced by CryptoPro CSP. The
-// trailing portion of that blob is the raw 32- or 64-byte KEK that the
-// old openssl backend returned directly; we keep the full blob so the
-// caller can treat it as an opaque round-trippable value, which matches
-// the historical behaviour where `EVP_PKEY_derive` returned an
-// implementation-specific encoding.
-//
-// NOTE: This differs slightly from the legacy openssl backend which
-// returned just the raw 32/64 bytes. The helper `ExtractVKOBytes` below
-// can be used by pkg/gost3410 to strip the SIMPLEBLOB wrapper.
+// Returns the raw shared-secret bytes (32 bytes for 256-bit curves, 64
+// bytes for 512-bit curves), stripped from the SIMPLEBLOB wrapper that
+// CryptoPro CSP produces internally. This matches the historical
+// openssl/gost-engine DeriveVKO contract where callers receive a
+// fixed-size KEK suitable for direct use in KDF / key wrapping.
 func DeriveVKO(priv, peerPub *KeyHandle, ukm []byte) ([]byte, error) {
 	if priv.IsNil() || peerPub.IsNil() {
 		return nil, errNilKeyHandle
@@ -118,5 +113,18 @@ func DeriveVKO(priv, peerPub *KeyHandle, ukm []byte) ([]byte, error) {
 		return nil, cspError("CryptExportKey(VKO SIMPLEBLOB)")
 	}
 	defer C.free(unsafe.Pointer(out))
-	return C.GoBytes(unsafe.Pointer(out), C.int(outLen)), nil
+
+	blob := C.GoBytes(unsafe.Pointer(out), C.int(outLen))
+
+	// SIMPLEBLOB layout:
+	//   BLOBHEADER (8 bytes) + ALG_ID (4 bytes) + encrypted-key data
+	// The raw shared secret occupies the trailing keySize bytes of the
+	// blob (after the header). For GOST VKO the key material is 32 bytes
+	// (256-bit) or 64 bytes (512-bit).
+	const simpleBlobHeaderSize = 12 // sizeof(BLOBHEADER) + sizeof(ALG_ID)
+	if int(outLen) <= simpleBlobHeaderSize {
+		return nil, &CSPError{Op: "DeriveVKO", Text: "SIMPLEBLOB too short to contain key material"}
+	}
+	raw := blob[simpleBlobHeaderSize:]
+	return raw, nil
 }

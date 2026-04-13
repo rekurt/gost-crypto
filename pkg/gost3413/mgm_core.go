@@ -140,14 +140,13 @@ func (m *mgmCore) Seal(dst, nonce, plaintext, additionalData []byte) ([]byte, er
 	if len(nonce) != m.nonceSize {
 		return nil, errors.New("gost3413: wrong MGM nonce length")
 	}
-	if nonce[0]&0x80 != 0 {
-		return nil, errors.New("gost3413: MGM nonce MSB must be 0")
-	}
 
-	// Initial counters.
+	// MGM uses the MSB to distinguish encryption vs authentication
+	// counters. We normalize it internally: callers may pass any random
+	// nonce (including ones with MSB set from crypto/rand.Read).
 	encCtr := make([]byte, m.blockSize)
 	copy(encCtr, nonce)
-	encCtr[0] &^= 0x80 // ensure MSB=0
+	encCtr[0] &^= 0x80 // ensure MSB=0 for encryption counter
 
 	authCtr := make([]byte, m.blockSize)
 	copy(authCtr, nonce)
@@ -221,9 +220,7 @@ func (m *mgmCore) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, e
 	if len(nonce) != m.nonceSize {
 		return nil, errors.New("gost3413: wrong MGM nonce length")
 	}
-	if nonce[0]&0x80 != 0 {
-		return nil, errors.New("gost3413: MGM nonce MSB must be 0")
-	}
+	// Normalize MSB internally (same as Seal).
 	if len(ciphertext) < m.tagSize {
 		return nil, errors.New("gost3413: ciphertext too short for MGM tag")
 	}
