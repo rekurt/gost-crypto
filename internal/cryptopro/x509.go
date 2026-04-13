@@ -388,38 +388,49 @@ func ParseCertPEM(data []byte) (*X509Cert, error) {
 // SubjectCN extracts the Common Name from the certificate. Implemented via
 // CertGetNameStringA (which CryptoPro CSP exposes from libcapi20).
 func (c *X509Cert) SubjectCN() string {
-	if c == nil || c.ctx == nil {
-		return ""
-	}
-	buf := make([]byte, 256)
-	n := C.CertGetNameStringA(c.ctx,
-		C.CERT_NAME_ATTR_TYPE,
-		0,
-		unsafe.Pointer(C.CString("2.5.4.3")), // OID commonName
-		(*C.CHAR)(unsafe.Pointer(&buf[0])),
-		C.DWORD(len(buf)))
-	if n == 0 {
-		return ""
-	}
-	return C.GoStringN((*C.char)(unsafe.Pointer(&buf[0])), C.int(n-1))
+	return certGetNameAttr(c, 0)
 }
 
 // IssuerCN extracts the Common Name from the certificate's issuer.
 func (c *X509Cert) IssuerCN() string {
+	return certGetNameAttr(c, C.CERT_NAME_ISSUER_FLAG)
+}
+
+// certGetNameAttr is a shared helper for SubjectCN / IssuerCN. It queries
+// CertGetNameStringA with OID 2.5.4.3 (commonName), handling buffer
+// sizing, OID C-string lifetime, and the returned length correctly.
+func certGetNameAttr(c *X509Cert, flags C.DWORD) string {
 	if c == nil || c.ctx == nil {
 		return ""
 	}
-	buf := make([]byte, 256)
-	n := C.CertGetNameStringA(c.ctx,
+
+	oid := C.CString("2.5.4.3")
+	defer C.free(unsafe.Pointer(oid))
+
+	// First call: query required buffer size (including NUL terminator).
+	needed := C.CertGetNameStringA(c.ctx,
 		C.CERT_NAME_ATTR_TYPE,
-		C.CERT_NAME_ISSUER_FLAG,
-		unsafe.Pointer(C.CString("2.5.4.3")),
-		(*C.CHAR)(unsafe.Pointer(&buf[0])),
-		C.DWORD(len(buf)))
-	if n == 0 {
+		flags,
+		unsafe.Pointer(oid),
+		nil,
+		0)
+	if needed <= 1 {
+		// 0 = error, 1 = empty string (just the NUL terminator).
 		return ""
 	}
-	return C.GoStringN((*C.char)(unsafe.Pointer(&buf[0])), C.int(n-1))
+
+	buf := make([]byte, int(needed))
+	n := C.CertGetNameStringA(c.ctx,
+		C.CERT_NAME_ATTR_TYPE,
+		flags,
+		unsafe.Pointer(oid),
+		(*C.CHAR)(unsafe.Pointer(&buf[0])),
+		needed)
+	if n <= 1 {
+		return ""
+	}
+	// n includes the NUL terminator; strip it.
+	return string(buf[:int(n)-1])
 }
 
 // PublicKey is unsupported on the CryptoPro CSP backend for externally
