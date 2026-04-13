@@ -56,23 +56,29 @@ func NewMagmaCTR(key []byte) (*CTR, error) {
 	return c, nil
 }
 
-// padIV grows an IV to the cipher's full block size by zero-extending on
-// the right, matching the historical gost-engine behaviour where CTR
-// accepted short IVs.
-func (c *CTR) padIV(iv []byte) []byte {
+// normalizeIV pads a short IV to blockSize by zero-extending on the right
+// (matching the historical gost-engine behaviour), but rejects IVs that are
+// longer than blockSize to prevent silent truncation and keystream reuse.
+func (c *CTR) normalizeIV(iv []byte) ([]byte, error) {
+	if len(iv) > c.blockSize {
+		return nil, errors.New("gost3413: CTR IV too long (must be <= block size)")
+	}
 	if len(iv) == c.blockSize {
-		return iv
+		return iv, nil
 	}
 	out := make([]byte, c.blockSize)
 	copy(out, iv)
-	return out
+	return out, nil
 }
 
 // Encrypt encrypts plaintext using CTR mode with the given IV.
 func (c *CTR) Encrypt(iv, plaintext []byte) ([]byte, error) {
-	iv = c.padIV(iv)
+	niv, err := c.normalizeIV(iv)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]byte, len(plaintext))
-	cipher.NewCTR(c.block, iv).XORKeyStream(out, plaintext)
+	cipher.NewCTR(c.block, niv).XORKeyStream(out, plaintext)
 	return out, nil
 }
 
@@ -82,9 +88,13 @@ func (c *CTR) Decrypt(iv, ciphertext []byte) ([]byte, error) {
 }
 
 // Stream returns a cipher.Stream for use with the io.Reader helpers.
-func (c *CTR) Stream(iv []byte) cipher.Stream {
-	iv = c.padIV(iv)
-	return cipher.NewCTR(c.block, iv)
+// Returns an error if the IV is longer than the cipher's block size.
+func (c *CTR) Stream(iv []byte) (cipher.Stream, error) {
+	niv, err := c.normalizeIV(iv)
+	if err != nil {
+		return nil, err
+	}
+	return cipher.NewCTR(c.block, niv), nil
 }
 
 // Zeroize securely wipes the key material.

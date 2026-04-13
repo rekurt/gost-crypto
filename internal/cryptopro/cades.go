@@ -103,6 +103,13 @@ static BOOL go_cades_verify(const BYTE *sig, DWORD sig_len,
     msg_para.pVerifyMessagePara = &verify_para;
     msg_para.pCadesVerifyPara = &cades_para;
 
+    // When noCertVerify is TRUE, skip certificate chain validation by
+    // setting CADES_SKIP_CERT_VALIDITY_CHECK on the CAdES verification
+    // parameters. This matches the contract of VerifyOptions.NoCertVerify.
+    if (no_cert_verify) {
+        cades_para.dwFlags |= CADES_SKIP_CERT_VALIDITY_CHECK;
+    }
+
     PCADES_VERIFICATION_INFO info = NULL;
     BOOL rc;
     if (detached) {
@@ -117,7 +124,6 @@ static BOOL go_cades_verify(const BYTE *sig, DWORD sig_len,
                                 sig, sig_len,
                                 NULL, NULL, &info);
     }
-    (void)no_cert_verify;
     BOOL ok = FALSE;
     if (rc && info != NULL && info->dwStatus == CADES_VERIFY_SUCCESS) {
         ok = TRUE;

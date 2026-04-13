@@ -94,4 +94,9 @@
 #define KP_SV 0x00000025
 #endif
 
+/* CAdES verification flag: skip certificate validity (chain) check. */
+#ifndef CADES_SKIP_CERT_VALIDITY_CHECK
+#define CADES_SKIP_CERT_VALIDITY_CHECK 0x00000001
+#endif
+
 #endif /* GOST_CRYPTO_INTERNAL_CRYPTOPRO_CAPI_H */
