@@ -8,6 +8,19 @@ package cryptopro
 #cgo LDFLAGS: -L/opt/cprocsp/lib/amd64 -lcapi10 -lcapi20 -lssp -lrdrsup -lcades
 #include "capi.h"
 
+// go_cades_bind_key associates a CSP key container with a certificate
+// context so that CadesSignMessage can locate the private key.
+// Duplicated from x509.go because CGO static functions are per-file.
+static BOOL go_cades_bind_key(PCCERT_CONTEXT cert, HCRYPTPROV prov,
+                              DWORD key_spec) {
+    CRYPT_KEY_PROV_INFO info;
+    memset(&info, 0, sizeof(info));
+    info.dwKeySpec = key_spec;
+    (void)prov;
+    return CertSetCertificateContextProperty(
+        cert, CERT_KEY_PROV_INFO_PROP_ID, 0, &info);
+}
+
 // go_cades_sign creates a CAdES-BES signature over `data` using the given
 // certificate and its bound private key handle. Detached / attached is
 // selected via `detached`. On success, returns a malloc'd buffer with the
@@ -153,16 +166,13 @@ type CMSContentInfo struct {
 }
 
 // CMSSign produces a CAdES-BES / PKCS#7 SignedData over `data`, signing
-// with the given certificate context and the key already associated with
-// that certificate context on the CSP side.
+// with the given certificate context and private key.
 //
-// Historically the openssl backend accepted (cert, priv, ...) as two
-// independent handles. Under CryptoPro CSP the signer certificate carries
-// an implicit "this is how you can sign with me" linkage via
-// CertSetCertificateContextProperty(CERT_KEY_PROV_INFO_PROP_ID) — which
-// the X.509 creation path in x509.go sets up when we create a self-signed
-// certificate from a KeyHandle. For externally parsed certificates that
-// have no key binding this call will fail with NTE_NO_KEY.
+// CadesSignMessage locates the signing key through the certificate's
+// CERT_KEY_PROV_INFO_PROP_ID property. If the certificate was created
+// via CreateSelfSignedCert the property is already set. For externally
+// parsed certificates we bind the caller-provided private key's provider
+// to the certificate context here, so that CadesSignMessage can find it.
 func CMSSign(cert *X509Cert, priv *KeyHandle, data []byte, mdNID int, detached bool) (*CMSContentInfo, error) {
 	if err := Init(); err != nil {
 		return nil, err
@@ -172,6 +182,14 @@ func CMSSign(cert *X509Cert, priv *KeyHandle, data []byte, mdNID int, detached b
 	}
 	if priv.IsNil() {
 		return nil, errors.New("cryptopro: nil private key for CMS sign")
+	}
+
+	// Ensure the certificate has a KEY_PROV_INFO linkage so
+	// CadesSignMessage can locate the private key. This is idempotent
+	// for certs that already have the property (CreateSelfSignedCert)
+	// and fixes externally-parsed certs (ParseCertDER / ParseCertPEM).
+	if C.go_cades_bind_key(cert.ctx, priv.hProv, C.AT_KEYEXCHANGE) == 0 {
+		return nil, cspError("CertSetCertificateContextProperty(KEY_PROV_INFO for CMS sign)")
 	}
 
 	var dataPtr *C.BYTE

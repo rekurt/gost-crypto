@@ -215,8 +215,15 @@ func LoadGOSTPrivKeyHandle(signNID int, curveOID string, raw []byte) (*KeyHandle
 	}
 
 	// Step 3: patch raw scalar into the trailing keySize bytes of the blob.
+	// The public API contract says `raw` is big-endian, but PRIVATEKEYBLOB
+	// stores the scalar in little-endian. Reverse before patching.
 	blobBytes := C.GoBytes(unsafe.Pointer(blob), C.int(blobLen))
-	copy(blobBytes[int(blobLen)-keySize:], raw)
+	leRaw := make([]byte, keySize)
+	for i, b := range raw {
+		leRaw[keySize-1-i] = b
+	}
+	copy(blobBytes[int(blobLen)-keySize:], leRaw)
+	CleanseBytes(leRaw)
 
 	// Step 4: reimport patched blob into the template's provider. We
 	// dispose of the template key but keep the CSP context so the
@@ -324,8 +331,13 @@ func ExtractRawPrivKeyH(h *KeyHandle, keySize int) ([]byte, error) {
 	}
 
 	blobBytes := C.GoBytes(unsafe.Pointer(blob), C.int(blobLen))
+	// PRIVATEKEYBLOB stores the scalar little-endian; the public API
+	// returns big-endian. Extract and reverse.
+	leRaw := blobBytes[int(blobLen)-keySize:]
 	raw := make([]byte, keySize)
-	copy(raw, blobBytes[int(blobLen)-keySize:])
+	for i, b := range leRaw {
+		raw[keySize-1-i] = b
+	}
 	CleanseBytes(blobBytes)
 
 	allZero := true
