@@ -9,6 +9,8 @@
 
 Go library for Russian GOST cryptographic standards (GOST R 34.10-2012, GOST R 34.11-2012 Streebog, GOST R 34.12-2015 Kuznechik, GOST R 34.13-2015 MGM), powered by OpenSSL gost-engine. Digital signatures, hashing, encryption, key agreement, and key derivation with zero external Go dependencies.
 
+[Project website](https://rekurt.github.io/gost-crypto/) · [All projects by rekurt](https://rekurt.github.io/projects/)
+
 [API Reference](docs/API.md) | [Examples](docs/EXAMPLES.md) | [На русском](docs/README.ru.md) | [Contributing](docs/CONTRIBUTING.md)
 
 ## Why gost-crypto?
